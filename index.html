@@ -181,13 +181,28 @@
   <aside id="main-sidebar" class="w-64 flex-shrink-0 bg-white border-r-2 border-[#E5E5E5] hidden md:flex flex-col p-5 gap-4 z-30 select-none">
     
     <!-- Brand Logo -->
-    <div class="flex items-center gap-3 cursor-pointer" onclick="showLibraryView()">
-      <div class="w-10 h-10 bg-[#58CC02] border-b-4 border-[#46A302] rounded-xl flex items-center justify-center text-white font-black text-xl shadow-sm">
-        B
+    <div class="flex items-center gap-3 cursor-pointer group select-none" onclick="showLibraryView()">
+      <div class="relative w-11 h-11 rounded-2xl bg-gradient-to-br from-[#58CC02] via-[#48B801] to-[#399300] border-b-4 border-[#2F7B00] shadow-md flex items-center justify-center text-white transform group-hover:scale-105 group-hover:-rotate-2 transition-transform duration-200 flex-shrink-0">
+        <!-- Custom 3D Book & Audio Wave Vector Logo -->
+        <svg class="w-7 h-7 drop-shadow" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <!-- 3D Book Base Underlayer -->
+          <path d="M7 38C12 36 21 36 24 39C27 36 36 36 41 38V12C36 10 27 10 24 13C21 10 12 10 7 12V38Z" fill="#1F6000" opacity="0.4"/>
+          <!-- Book Pages Open Spread -->
+          <path d="M6 36C11 34 20 34 24 37C28 34 37 34 42 36V9C37 7 28 7 24 10C20 7 11 7 6 9V36Z" fill="#FFFFFF"/>
+          <!-- Page Details -->
+          <path d="M10 16H20M10 22H19M10 28H16" stroke="#94A3B8" stroke-width="2.2" stroke-linecap="round"/>
+          <!-- Sound/Teaching Wave in Cyan -->
+          <path d="M28 20L36 16V30L28 26V20Z" fill="#1CB0F6"/>
+          <circle cx="38" cy="23" r="2.5" fill="#FFC800"/>
+          <!-- Spine & Bookmark Ribbon in Gold -->
+          <path d="M24 10V37" stroke="#58CC02" stroke-width="3" stroke-linecap="round"/>
+          <path d="M24 10L24 22L27 19L30 22L30 10" fill="#FFC800"/>
+        </svg>
+        <span class="absolute -top-1 -right-1 w-3.5 h-3.5 bg-[#FFC800] border-2 border-white rounded-full flex items-center justify-center text-[8px] font-black text-amber-950">3D</span>
       </div>
       <div>
-        <h1 class="text-xl font-extrabold text-[#58CC02] tracking-tight leading-tight">BIBLIO 3D</h1>
-        <p class="text-[11px] font-bold text-slate-400">TutorFlow Studio</p>
+        <h1 class="text-xl font-black text-slate-800 tracking-tight leading-tight">BIBLIO<span class="text-[#58CC02]"> 3D</span></h1>
+        <p class="text-[11px] font-extrabold text-slate-400 tracking-wide">TutorFlow Studio</p>
       </div>
     </div>
 
@@ -216,18 +231,6 @@
         <span id="sidebar-gdrive-pill" class="text-[9px] font-black px-1.5 py-0.5 rounded-full bg-slate-100 text-slate-500">Chưa nối</span>
       </button>
     </nav>
-
-    <!-- Streak Badge -->
-    <div class="bg-amber-50 border-2 border-b-4 border-duoAmber rounded-2xl p-3 flex items-center justify-between">
-      <div class="flex items-center gap-2">
-        <i data-lucide="flame" class="w-6 h-6 text-duoAmber fill-duoAmber"></i>
-        <div>
-          <p class="font-black text-xs text-duoAmberDark leading-tight">7 NGÀY GIẢNG DẠY</p>
-          <p class="text-[10px] font-bold text-amber-700">Đầy đủ 100% trang PDF</p>
-        </div>
-      </div>
-      <span class="bg-duoAmber text-amber-950 text-[10px] font-black px-2 py-0.5 rounded-full">+50 XP</span>
-    </div>
 
     <!-- Storage Status -->
     <div class="mt-auto p-3.5 bg-[#FFFAEB] border-2 border-b-4 border-[#FFD900] rounded-2xl">
@@ -260,8 +263,12 @@
       
       <!-- Left: Search & Mobile Logo -->
       <div class="flex items-center gap-3 flex-1 max-w-xl">
-        <button onclick="showLibraryView()" class="md:hidden w-9 h-9 bg-[#58CC02] border-b-4 border-[#46A302] rounded-xl flex items-center justify-center text-white font-black text-lg">
-          B
+        <button onclick="showLibraryView()" class="md:hidden w-10 h-10 rounded-2xl bg-gradient-to-br from-[#58CC02] via-[#48B801] to-[#399300] border-b-4 border-[#2F7B00] shadow-sm flex items-center justify-center text-white flex-shrink-0" title="BIBLIO 3D">
+          <svg class="w-6 h-6" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M6 36C11 34 20 34 24 37C28 34 37 34 42 36V9C37 7 28 7 24 10C20 7 11 7 6 9V36Z" fill="#FFFFFF"/>
+            <path d="M28 20L36 16V30L28 26V20Z" fill="#1CB0F6"/>
+            <path d="M24 10V37" stroke="#58CC02" stroke-width="3"/>
+          </svg>
         </button>
 
         <div class="relative w-full">
@@ -482,101 +489,130 @@
         </div>
 
         <!-- ========================================================================= -->
-        <!-- FLOATING 3D AUDIO / VIDEO PLAYER DOCK (FOR ONLINE TEACHING & LISTENING) -->
+        <!-- DOCKED BOTTOM AUDIO PLAYER BAR (NON-INTRUSIVE, NEVER OBSTRUCTS BOOK PAGES) -->
         <!-- ========================================================================= -->
-        <div id="media-player-dock" class="hidden absolute top-16 right-4 z-40 w-80 sm:w-96 bg-white border-2 border-b-4 border-duoPurpleDark/40 rounded-2xl shadow-2xl p-3.5 space-y-2.5 animate-in fade-in zoom-in-95 select-none">
-          
-          <!-- Dock Header -->
-          <div class="flex items-center justify-between pb-2 border-b border-slate-100">
-            <div class="flex items-center gap-2">
-              <div class="w-7 h-7 rounded-lg bg-duoPurple/20 text-duoPurpleDark flex items-center justify-center">
+        <div id="media-player-dock" class="hidden bg-white border-2 border-b-4 border-duoPurpleDark/30 rounded-2xl p-3 shadow-md space-y-2 select-none animate-in fade-in slide-in-from-bottom-2 duration-200">
+          <div class="flex flex-wrap items-center justify-between gap-3">
+            
+            <!-- Track Info & Selector -->
+            <div class="flex items-center gap-2.5 min-w-[200px] max-w-sm flex-1">
+              <div class="w-8 h-8 rounded-xl bg-purple-100 text-duoPurpleDark flex items-center justify-center flex-shrink-0">
                 <i data-lucide="headphones" class="w-4 h-4"></i>
               </div>
-              <div>
-                <h4 class="font-black text-xs text-slate-800">Media Giảng Dạy & Luyện Nghe</h4>
-                <p id="media-current-track-name" class="text-[10px] font-bold text-duoPurpleDark truncate max-w-[180px]">Chưa chọn bài nghe</p>
+              <div class="flex-1 min-w-0">
+                <div class="flex items-center justify-between gap-1 mb-0.5">
+                  <span class="text-[9px] font-black uppercase tracking-wider text-duoPurpleDark">BÀI NGHE AUDIO</span>
+                  <span id="media-current-track-name" class="text-[10px] font-bold text-slate-500 truncate max-w-[140px]">Chưa chọn bài nghe</span>
+                </div>
+                <select id="media-track-select" onchange="changeAudioTrack(this.value)" class="w-full px-2 py-1 bg-slate-50 border border-slate-200 rounded-lg font-bold text-xs text-slate-800 focus:outline-none focus:border-duoPurple">
+                  <option value="">-- Không có bài nghe --</option>
+                </select>
               </div>
             </div>
-            <div class="flex items-center gap-1">
-              <button onclick="toggleVideoPopup()" id="btn-toggle-video-modal" class="p-1 rounded-lg hover:bg-slate-100 text-slate-500" title="Xem Video bài học">
-                <i data-lucide="video" class="w-4 h-4 text-duoRed"></i>
-              </button>
-              <button onclick="toggleMediaDock()" class="p-1 rounded-lg hover:bg-slate-100 text-slate-400">
-                <i data-lucide="x" class="w-4 h-4"></i>
-              </button>
-            </div>
-          </div>
 
-          <!-- Track Selector Dropdown -->
-          <div>
-            <label class="block font-black text-[10px] text-slate-500 uppercase tracking-wider mb-1">Danh Sách Track Âm Thanh / Bài Nghe:</label>
-            <select id="media-track-select" onchange="changeAudioTrack(this.value)" class="w-full px-2.5 py-1.5 bg-slate-50 border-2 border-slate-200 rounded-xl font-bold text-xs text-slate-800 focus:outline-none focus:border-duoPurple">
-              <option value="">-- Không có bài nghe --</option>
-            </select>
-          </div>
+            <!-- Audio Controls & Progress Slider -->
+            <div class="flex-1 min-w-[260px] max-w-xl flex flex-col gap-1">
+              <div class="flex items-center justify-between text-[11px] font-bold text-slate-500">
+                <span id="audio-time-current">00:00</span>
+                <span class="text-[10px] font-extrabold text-slate-400">Tiến trình bài nghe</span>
+                <span id="audio-time-total">00:00</span>
+              </div>
+              <div class="flex items-center gap-2">
+                <!-- Rewind 5s -->
+                <button onclick="seekAudioRelative(-5)" class="btn-3d btn-white p-1.5 rounded-xl text-slate-700 text-xs font-bold" title="Tua lại 5 giây">
+                  <i data-lucide="rotate-ccw" class="w-3.5 h-3.5"></i>
+                </button>
 
-          <!-- Audio Wave & Time Progress Bar -->
-          <div class="space-y-1">
-            <div class="flex items-center justify-between text-[11px] font-bold text-slate-500">
-              <span id="audio-time-current">00:00</span>
-              <span id="audio-time-total">00:00</span>
-            </div>
-            <input 
-              type="range" 
-              id="audio-progress-bar" 
-              value="0" 
-              min="0" 
-              max="100" 
-              step="0.1" 
-              oninput="seekAudio(this.value)"
-              class="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-duoPurple"
-            />
-          </div>
+                <!-- Play / Pause -->
+                <button onclick="toggleAudioPlay()" id="btn-audio-play" class="btn-3d btn-purple text-white px-3.5 py-1.5 rounded-xl font-black text-xs flex items-center gap-1.5 shadow-sm">
+                  <i data-lucide="play" id="icon-audio-play" class="w-4 h-4"></i>
+                  <span id="label-audio-play">Phát</span>
+                </button>
 
-          <!-- Controls: -5s, Play/Pause, +5s, Speed, Volume -->
-          <div class="flex items-center justify-between pt-1">
-            <div class="flex items-center gap-1.5">
-              <button onclick="seekAudioRelative(-5)" class="btn-3d btn-white p-1.5 rounded-xl text-slate-700 text-xs font-bold" title="Tua lại 5 giây">
-                <i data-lucide="rotate-ccw" class="w-3.5 h-3.5"></i>
-              </button>
+                <!-- Forward 5s -->
+                <button onclick="seekAudioRelative(5)" class="btn-3d btn-white p-1.5 rounded-xl text-slate-700 text-xs font-bold" title="Tua tới 5 giây">
+                  <i data-lucide="rotate-cw" class="w-3.5 h-3.5"></i>
+                </button>
 
-              <button onclick="toggleAudioPlay()" id="btn-audio-play" class="btn-3d btn-purple text-white px-3 py-1.5 rounded-xl font-black text-xs flex items-center gap-1">
-                <i data-lucide="play" id="icon-audio-play" class="w-4 h-4"></i>
-                <span id="label-audio-play">Phát</span>
-              </button>
-
-              <button onclick="seekAudioRelative(5)" class="btn-3d btn-white p-1.5 rounded-xl text-slate-700 text-xs font-bold" title="Tua tới 5 giây">
-                <i data-lucide="rotate-cw" class="w-3.5 h-3.5"></i>
-              </button>
+                <!-- Range Slider -->
+                <input 
+                  type="range" 
+                  id="audio-progress-bar" 
+                  value="0" 
+                  min="0" 
+                  max="100" 
+                  step="0.1" 
+                  oninput="seekAudio(this.value)"
+                  class="flex-1 h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-duoPurple"
+                />
+              </div>
             </div>
 
-            <!-- Playback Speed -->
-            <div class="flex items-center gap-1">
-              <select id="audio-playback-rate" onchange="setAudioSpeed(this.value)" class="px-2 py-1 bg-slate-100 border border-slate-200 rounded-lg font-black text-[10px] text-slate-700 focus:outline-none">
+            <!-- Right Tools: Speed, Add Audio, Minimize, Close -->
+            <div class="flex items-center gap-2">
+              <!-- Speed -->
+              <select id="audio-playback-rate" onchange="setAudioSpeed(this.value)" class="px-2 py-1.5 bg-slate-100 border border-slate-200 rounded-xl font-black text-xs text-slate-700 focus:outline-none" title="Tốc độ phát">
                 <option value="0.75">0.75x</option>
                 <option value="1" selected>1.0x</option>
                 <option value="1.25">1.25x</option>
                 <option value="1.5">1.5x</option>
               </select>
+
+              <!-- Video Modal Toggle -->
+              <button onclick="toggleVideoPopup()" id="btn-toggle-video-modal" class="btn-3d btn-white p-1.5 rounded-xl text-red-500" title="Xem Video bài giảng">
+                <i data-lucide="video" class="w-4 h-4"></i>
+              </button>
+
+              <!-- Quick Add Audio Files -->
+              <label class="btn-3d btn-white text-xs font-bold text-duoPurpleDark p-1.5 sm:px-2.5 rounded-xl cursor-pointer flex items-center gap-1 hover:bg-purple-50" title="Thêm file Audio vào sách này">
+                <i data-lucide="folder-plus" class="w-4 h-4 text-duoPurple"></i>
+                <span class="hidden sm:inline">+ Audio</span>
+                <input type="file" multiple accept="audio/*" class="hidden" onchange="handleBatchAudioAddCurrentBook(this.files)" />
+              </label>
+
+              <!-- Minimize to floating mini remote -->
+              <button onclick="minimizeMediaDock()" class="p-1.5 rounded-xl hover:bg-slate-100 text-slate-400 hover:text-slate-700" title="Thu nhỏ thanh điều khiển">
+                <i data-lucide="minimize-2" class="w-4 h-4"></i>
+              </button>
+
+              <!-- Close Dock -->
+              <button onclick="toggleMediaDock()" class="p-1.5 rounded-xl hover:bg-slate-100 text-slate-400 hover:text-red-500" title="Ẩn thanh audio">
+                <i data-lucide="x" class="w-4 h-4"></i>
+              </button>
             </div>
+
+          </div>
+        </div>
+
+        <!-- MINI FLOATING AUDIO PILL (ULTRA COMPACT, ZERO OVERLAY ON BOOK) -->
+        <div id="media-mini-pill" class="hidden fixed bottom-20 right-6 z-40 bg-slate-900/90 backdrop-blur-md text-white border-2 border-purple-500/50 rounded-full px-3 py-1.5 shadow-2xl flex items-center gap-2.5 animate-in fade-in slide-in-from-bottom-2 select-none">
+          <div class="flex items-center gap-1.5">
+            <span class="w-2 h-2 rounded-full bg-purple-400 animate-pulse"></span>
+            <span id="mini-pill-track-name" class="text-[11px] font-extrabold max-w-[120px] truncate text-slate-200">Track 1</span>
+            <span id="mini-pill-time" class="text-[10px] font-bold text-slate-400">00:00</span>
           </div>
 
-          <!-- Quick Batch Add Audio to Active Book -->
-          <div class="pt-2 border-t border-slate-100 flex items-center justify-between gap-2">
-            <label class="btn-3d btn-white text-[11px] font-black text-duoPurpleDark px-2.5 py-1 rounded-xl cursor-pointer flex-1 flex items-center justify-center gap-1.5 hover:bg-purple-50">
-              <i data-lucide="folder-plus" class="w-3.5 h-3.5 text-duoPurple"></i>
-              <span>+ Thêm Nhiều File Audio</span>
-              <input type="file" multiple accept="audio/*" class="hidden" onchange="handleBatchAudioAddCurrentBook(this.files)" />
-            </label>
-            <button onclick="openBatchUploadModal()" class="btn-3d btn-purple text-white p-1.5 rounded-xl text-xs" title="Mở bộ tải lên Media hàng loạt">
-              <i data-lucide="layers" class="w-3.5 h-3.5"></i>
+          <div class="flex items-center gap-1 border-l border-white/20 pl-2">
+            <button onclick="seekAudioRelative(-5)" class="p-1 hover:text-purple-300 text-slate-300" title="Tua -5s">
+              <i data-lucide="rotate-ccw" class="w-3.5 h-3.5"></i>
+            </button>
+            <button onclick="toggleAudioPlay()" class="w-6 h-6 rounded-full bg-purple-500 hover:bg-purple-400 text-white flex items-center justify-center shadow" title="Phát/Dừng">
+              <i data-lucide="play" id="mini-pill-play-icon" class="w-3.5 h-3.5"></i>
+            </button>
+            <button onclick="seekAudioRelative(5)" class="p-1 hover:text-purple-300 text-slate-300" title="Tua +5s">
+              <i data-lucide="rotate-cw" class="w-3.5 h-3.5"></i>
+            </button>
+            <button onclick="expandMediaDock()" class="p-1 hover:text-purple-300 text-slate-300" title="Mở rộng thanh điều khiển">
+              <i data-lucide="maximize-2" class="w-3.5 h-3.5"></i>
+            </button>
+            <button onclick="closeMiniPill()" class="p-1 hover:text-red-400 text-slate-400" title="Tắt">
+              <i data-lucide="x" class="w-3 h-3"></i>
             </button>
           </div>
-
-          <!-- Hidden Native Audio Element -->
-          <audio id="global-audio-player" ontimeupdate="updateAudioProgress()" onended="onAudioEnded()" preload="auto"></audio>
-
         </div>
+
+        <!-- Hidden Native Audio Element -->
+        <audio id="global-audio-player" ontimeupdate="updateAudioProgress()" onended="onAudioEnded()" preload="auto"></audio>
 
       </div>
 
@@ -1503,25 +1539,47 @@
         const totalP = (book.pages && book.pages.length) || book.totalPages || 1;
         const hasAudio = book.audioTracks && book.audioTracks.length > 0;
         const hasVideo = !!book.videoUrl;
+        const coverSrc = book.coverImage || (book.pages && book.pages.length > 0 ? book.pages[0] : '');
 
         return `
           <div class="card-3d flex flex-col overflow-hidden group cursor-pointer" onclick="openBookReader('${book.id}')">
             
-            <!-- Book Cover Preview -->
-            <div class="h-44 sm:h-48 ${style.light} border-b-2 border-[#E5E5E5] flex items-center justify-center p-3 relative overflow-hidden">
+            <!-- Book Cover Preview with Real First Page -->
+            <div class="h-48 sm:h-52 ${style.light} border-b-2 border-[#E5E5E5] flex items-center justify-center p-3 relative overflow-hidden group-hover:bg-slate-100 transition-colors">
               
-              <!-- 3D Mini Book Representation -->
-              <div class="w-28 h-36 ${style.bg} border-b-4 ${style.border} rounded-xl shadow-lg flex flex-col items-center justify-between p-2.5 text-white transform group-hover:scale-105 transition-transform duration-200">
-                <span class="text-[9px] font-black tracking-widest uppercase bg-black/20 px-1.5 py-0.5 rounded">3D FLIP</span>
-                <p class="font-black text-xs text-center line-clamp-2 leading-tight">${book.title}</p>
-                <div class="w-full flex items-center justify-between text-[9px] font-extrabold opacity-90">
-                  <span>${totalP} TRANG</span>
-                  <span>PDF</span>
+              ${coverSrc ? `
+                <!-- Real 3D Book Cover with Spine & Shadow -->
+                <div class="relative w-32 h-40 sm:w-36 sm:h-44 rounded-lg overflow-hidden shadow-xl border border-black/15 bg-white transform group-hover:scale-105 group-hover:-rotate-1 transition-all duration-300 flex-shrink-0 flex items-center justify-center">
+                  <!-- Real First Page Cover Image -->
+                  <img src="${coverSrc}" alt="${book.title}" class="w-full h-full object-cover object-top" loading="lazy" />
+                  
+                  <!-- 3D Book Spine Left Shadow Gradient -->
+                  <div class="absolute inset-y-0 left-0 w-3.5 bg-gradient-to-r from-black/45 via-black/15 to-transparent pointer-events-none"></div>
+                  <div class="absolute inset-y-0 left-1 w-px bg-white/40 pointer-events-none"></div>
+                  
+                  <!-- 3D Book Edge Highlight Top/Right -->
+                  <div class="absolute inset-0 ring-1 ring-inset ring-black/10 rounded-lg pointer-events-none"></div>
+
+                  <!-- Page Count Pill on Cover -->
+                  <div class="absolute bottom-1.5 left-2 bg-slate-900/80 backdrop-blur-xs text-white text-[9px] font-black px-1.5 py-0.5 rounded-md shadow flex items-center gap-1">
+                    <i data-lucide="file-text" class="w-2.5 h-2.5"></i>
+                    <span>${totalP} TRANG</span>
+                  </div>
                 </div>
-              </div>
+              ` : `
+                <!-- 3D Mini Book Representation (Fallback) -->
+                <div class="w-28 h-36 ${style.bg} border-b-4 ${style.border} rounded-xl shadow-lg flex flex-col items-center justify-between p-2.5 text-white transform group-hover:scale-105 transition-transform duration-200">
+                  <span class="text-[9px] font-black tracking-widest uppercase bg-black/20 px-1.5 py-0.5 rounded">3D FLIP</span>
+                  <p class="font-black text-xs text-center line-clamp-2 leading-tight">${book.title}</p>
+                  <div class="w-full flex items-center justify-between text-[9px] font-extrabold opacity-90">
+                    <span>${totalP} TRANG</span>
+                    <span>PDF</span>
+                  </div>
+                </div>
+              `}
 
               <!-- Media Badges -->
-              <div class="absolute top-2 right-2 flex flex-col gap-1 items-end">
+              <div class="absolute top-2 right-2 flex flex-col gap-1 items-end z-10">
                 ${hasAudio ? `
                   <span class="bg-purple-600 text-white text-[9px] font-black px-1.5 py-0.5 rounded-md flex items-center gap-1 shadow-sm">
                     <i data-lucide="headphones" class="w-3 h-3"></i> ${book.audioTracks.length} Audio
@@ -1677,8 +1735,36 @@
 
     function toggleMediaDock() {
       const dock = document.getElementById('media-player-dock');
+      const pill = document.getElementById('media-mini-pill');
       if (!dock) return;
-      dock.classList.toggle('hidden');
+      
+      if (dock.classList.contains('hidden')) {
+        dock.classList.remove('hidden');
+        if (pill) pill.classList.add('hidden');
+      } else {
+        dock.classList.add('hidden');
+      }
+    }
+
+    function minimizeMediaDock() {
+      const dock = document.getElementById('media-player-dock');
+      const pill = document.getElementById('media-mini-pill');
+      if (dock) dock.classList.add('hidden');
+      if (pill) pill.classList.remove('hidden');
+      if (window.lucide) lucide.createIcons();
+    }
+
+    function expandMediaDock() {
+      const dock = document.getElementById('media-player-dock');
+      const pill = document.getElementById('media-mini-pill');
+      if (pill) pill.classList.add('hidden');
+      if (dock) dock.classList.remove('hidden');
+      if (window.lucide) lucide.createIcons();
+    }
+
+    function closeMiniPill() {
+      const pill = document.getElementById('media-mini-pill');
+      if (pill) pill.classList.add('hidden');
     }
 
     function changeAudioTrack(indexStr) {
@@ -1690,12 +1776,14 @@
       const track = currentBook.audioTracks[idx];
       const audioPlayer = document.getElementById('global-audio-player');
       const trackName = document.getElementById('media-current-track-name');
+      const miniTrackName = document.getElementById('mini-pill-track-name');
 
       if (audioPlayer && track) {
         audioPlayer.src = track.url;
         audioPlayer.play().catch(() => {});
         updatePlayButtonUI(true);
         if (trackName) trackName.innerText = track.name;
+        if (miniTrackName) miniTrackName.innerText = track.name;
         showToast(`Đang phát: ${track.name}`);
       }
     }
@@ -1719,11 +1807,16 @@
     function updatePlayButtonUI(isPlaying) {
       const label = document.getElementById('label-audio-play');
       const icon = document.getElementById('icon-audio-play');
+      const miniIcon = document.getElementById('mini-pill-play-icon');
+
       if (label) label.innerText = isPlaying ? 'Tạm Dừng' : 'Phát';
       if (icon) {
         icon.setAttribute('data-lucide', isPlaying ? 'pause' : 'play');
-        if (window.lucide) lucide.createIcons();
       }
+      if (miniIcon) {
+        miniIcon.setAttribute('data-lucide', isPlaying ? 'pause' : 'play');
+      }
+      if (window.lucide) lucide.createIcons();
     }
 
     function seekAudioRelative(seconds) {
@@ -1758,9 +1851,11 @@
 
       const curLabel = document.getElementById('audio-time-current');
       const totalLabel = document.getElementById('audio-time-total');
+      const miniTime = document.getElementById('mini-pill-time');
 
       if (curLabel) curLabel.innerText = formatTime(cur);
       if (totalLabel) totalLabel.innerText = formatTime(dur);
+      if (miniTime) miniTime.innerText = `${formatTime(cur)}/${formatTime(dur)}`;
     }
 
     function onAudioEnded() {
@@ -2543,6 +2638,7 @@
           category: category,
           color: color,
           totalPages: renderedPages.length,
+          coverImage: renderedPages[0] || '',
           pages: renderedPages,
           audioTracks: cleanAudioTracks,
           videoUrl: videoUrl,
