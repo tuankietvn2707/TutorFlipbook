@@ -1,0 +1,6 @@
+{
+  "name": "3D PDF Flipbook & Teaching Studio",
+  "description": "Ứng dụng thư viện sách PDF phong cách Duolingo 3D, tải đủ 100% số trang file PDF gốc, hỗ trợ đính kèm bài nghe Audio / Video và trình chiếu giảng dạy trực tuyến với con trỏ Laser và bút vẽ chú thích.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

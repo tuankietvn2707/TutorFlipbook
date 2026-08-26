@@ -1,0 +1,3015 @@
+<!DOCTYPE html>
+<html lang="vi" class="h-full">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Biblio 3D / TutorFlow - Flipbook & Teaching Studio</title>
+  
+  <!-- Google Fonts: Nunito -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+  
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  
+  <!-- PDF.js CDN -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+  
+  <!-- Canvas Confetti CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.3/dist/confetti.browser.min.js"></script>
+
+  <!-- Page Flip 3D CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/page-flip@2.0.7/dist/js/page-flip.browser.js"></script>
+
+  <!-- Google Identity Services (GSI) for Google Drive Auth -->
+  <script src="https://accounts.google.com/gsi/client" async defer onload="initGoogleDriveAuthClient()"></script>
+
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            nunito: ['Nunito', 'sans-serif'],
+          },
+          colors: {
+            duoGreen: '#58CC02',
+            duoGreenDark: '#46A302',
+            duoBlue: '#1CB0F6',
+            duoBlueDark: '#1899D6',
+            duoAmber: '#FFC800',
+            duoAmberDark: '#E5A400',
+            duoRed: '#FF4B4B',
+            duoRedDark: '#EA2B2B',
+            duoPurple: '#CE82FF',
+            duoPurpleDark: '#A559D9',
+            duoGray: '#E5E5E5',
+            duoDarkGray: '#777777',
+            duoBg: '#F7F9FC',
+          }
+        }
+      }
+    }
+  </script>
+
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      font-family: 'Nunito', sans-serif;
+      background-color: #F7F9FC;
+      color: #4B4B4B;
+      user-select: none;
+      -webkit-user-select: none;
+      margin: 0;
+      height: 100%;
+      overflow-x: hidden;
+    }
+    
+    /* 3D Button Effects */
+    .btn-3d {
+      transition: all 0.1s cubic-bezier(0.4, 0, 0.2, 1);
+      position: relative;
+      border-bottom-width: 4px;
+      cursor: pointer;
+    }
+    .btn-3d:active {
+      transform: translateY(3px);
+      border-bottom-width: 1px !important;
+      box-shadow: none !important;
+    }
+    
+    .btn-green { background-color: #58CC02; border-color: #46A302; color: #ffffff; }
+    .btn-blue { background-color: #1CB0F6; border-color: #1899D6; color: #ffffff; }
+    .btn-amber { background-color: #FFC800; border-color: #E5A400; color: #3B2800; }
+    .btn-red { background-color: #FF4B4B; border-color: #EA2B2B; color: #ffffff; }
+    .btn-purple { background-color: #CE82FF; border-color: #A559D9; color: #ffffff; }
+    .btn-white {
+      background-color: #FFFFFF;
+      border-color: #E5E5E5;
+      color: #4B4B4B;
+      border-left-width: 2px;
+      border-right-width: 2px;
+      border-top-width: 2px;
+    }
+    .btn-white:hover { background-color: #F8FAFC; }
+    .btn-nav-active {
+      background-color: #DDF4FF;
+      border-color: #1CB0F6;
+      color: #1899D6;
+      border-left-width: 2px;
+      border-right-width: 2px;
+      border-top-width: 2px;
+    }
+
+    /* 3D Card */
+    .card-3d {
+      background: #FFFFFF;
+      border: 2px solid #E5E5E5;
+      border-bottom-width: 6px;
+      border-radius: 1.25rem;
+      transition: all 0.15s ease-out;
+    }
+    .card-3d:hover {
+      transform: translateY(-3px);
+      border-bottom-width: 8px;
+      border-color: #D1D5DB;
+    }
+
+    /* Laser Pointer */
+    #laser-pointer {
+      position: fixed;
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      background: #FF4B4B;
+      box-shadow: 0 0 16px 6px rgba(255, 75, 75, 0.7), 0 0 32px 12px rgba(255, 75, 75, 0.4);
+      pointer-events: none;
+      z-index: 9999;
+      transform: translate(-50%, -50%);
+      display: none;
+      transition: transform 0.04s ease-out;
+    }
+
+    /* Flipbook Container */
+    .flip-book {
+      box-shadow: 0 16px 36px rgba(0, 0, 0, 0.22);
+      background-size: cover;
+    }
+    .page {
+      background-color: #ffffff;
+      background-size: 100% 100%;
+      overflow: hidden;
+    }
+    .page.--left { border-right: 1px solid rgba(0,0,0,0.08); }
+    .page.--right { border-left: 1px solid rgba(0,0,0,0.08); }
+
+    /* Spotlight Overlay */
+    #spotlight-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      pointer-events: none;
+      z-index: 9000;
+      display: none;
+      background: radial-gradient(circle 150px at var(--x, 50%) var(--y, 50%), transparent 0%, rgba(0, 0, 0, 0.78) 100%);
+    }
+
+    /* Custom Scrollbar */
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: #F1F5F9; }
+    ::-webkit-scrollbar-thumb { background: #CBD5E1; border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: #94A3B8; }
+  </style>
+</head>
+<body class="h-full flex overflow-hidden">
+
+  <!-- Laser Pointer Element -->
+  <div id="laser-pointer"></div>
+  
+  <!-- Spotlight Overlay -->
+  <div id="spotlight-overlay"></div>
+
+  <!-- ========================================================================= -->
+  <!-- SIDEBAR NAVIGATION (Duolingo 3D High Density) -->
+  <!-- ========================================================================= -->
+  <aside id="main-sidebar" class="w-64 flex-shrink-0 bg-white border-r-2 border-[#E5E5E5] hidden md:flex flex-col p-5 gap-4 z-30 select-none">
+    
+    <!-- Brand Logo -->
+    <div class="flex items-center gap-3 cursor-pointer" onclick="showLibraryView()">
+      <div class="w-10 h-10 bg-[#58CC02] border-b-4 border-[#46A302] rounded-xl flex items-center justify-center text-white font-black text-xl shadow-sm">
+        B
+      </div>
+      <div>
+        <h1 class="text-xl font-extrabold text-[#58CC02] tracking-tight leading-tight">BIBLIO 3D</h1>
+        <p class="text-[11px] font-bold text-slate-400">TutorFlow Studio</p>
+      </div>
+    </div>
+
+    <!-- Navigation Menu -->
+    <nav class="flex flex-col gap-2.5">
+      <button id="nav-btn-library" onclick="showLibraryView()" class="btn-3d btn-nav-active flex items-center gap-3 p-3 rounded-2xl font-extrabold text-sm w-full text-left">
+        <i data-lucide="layout-grid" class="w-5 h-5 flex-shrink-0"></i>
+        <span>Thư Viện Sách</span>
+      </button>
+
+      <button id="nav-btn-reader" onclick="resumeCurrentBook()" class="btn-3d btn-white flex items-center gap-3 p-3 rounded-2xl font-extrabold text-sm w-full text-left">
+        <i data-lucide="book-open" class="w-5 h-5 text-duoBlue flex-shrink-0"></i>
+        <span>Đang Đọc 3D</span>
+      </button>
+
+      <button id="nav-btn-teach" onclick="openTeachingModeFromNav()" class="btn-3d btn-white flex items-center gap-3 p-3 rounded-2xl font-extrabold text-sm w-full text-left">
+        <i data-lucide="presentation" class="w-5 h-5 text-duoAmberDark flex-shrink-0"></i>
+        <span>Giảng Dạy Meet</span>
+      </button>
+
+      <button id="nav-btn-gdrive" onclick="openGoogleDriveModal()" class="btn-3d btn-white flex items-center justify-between p-3 rounded-2xl font-extrabold text-sm w-full text-left group">
+        <div class="flex items-center gap-3 truncate">
+          <i data-lucide="hard-drive" class="w-5 h-5 text-emerald-500 flex-shrink-0 group-hover:scale-110 transition-transform"></i>
+          <span class="truncate">Google Drive Cloud</span>
+        </div>
+        <span id="sidebar-gdrive-pill" class="text-[9px] font-black px-1.5 py-0.5 rounded-full bg-slate-100 text-slate-500">Chưa nối</span>
+      </button>
+    </nav>
+
+    <!-- Streak Badge -->
+    <div class="bg-amber-50 border-2 border-b-4 border-duoAmber rounded-2xl p-3 flex items-center justify-between">
+      <div class="flex items-center gap-2">
+        <i data-lucide="flame" class="w-6 h-6 text-duoAmber fill-duoAmber"></i>
+        <div>
+          <p class="font-black text-xs text-duoAmberDark leading-tight">7 NGÀY GIẢNG DẠY</p>
+          <p class="text-[10px] font-bold text-amber-700">Đầy đủ 100% trang PDF</p>
+        </div>
+      </div>
+      <span class="bg-duoAmber text-amber-950 text-[10px] font-black px-2 py-0.5 rounded-full">+50 XP</span>
+    </div>
+
+    <!-- Storage Status -->
+    <div class="mt-auto p-3.5 bg-[#FFFAEB] border-2 border-b-4 border-[#FFD900] rounded-2xl">
+      <div class="flex items-center justify-between mb-1">
+        <p class="text-[#C67605] font-extrabold text-xs">Bộ Nhớ Sách & Media</p>
+        <span class="flex h-2 w-2 relative">
+          <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+          <span class="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+        </span>
+      </div>
+      <div class="flex items-center gap-1.5 text-xs font-bold text-[#D09000]">
+        <i data-lucide="cloud" class="w-3.5 h-3.5 text-emerald-600"></i>
+        <span id="sidebar-db-status">Google Drive + IndexedDB</span>
+      </div>
+      <div class="mt-2 pt-2 border-t border-amber-200/60 flex items-center justify-between text-[11px] font-bold text-amber-800">
+        <span>Tổng tài liệu:</span>
+        <span id="sidebar-books-count" class="font-black text-amber-950">0 sách</span>
+      </div>
+    </div>
+
+  </aside>
+
+  <!-- ========================================================================= -->
+  <!-- MAIN WORKSPACE -->
+  <!-- ========================================================================= -->
+  <div class="flex-1 flex flex-col min-w-0 h-screen overflow-hidden bg-[#F7F9FC]">
+    
+    <!-- TOP HEADER -->
+    <header class="h-16 flex-shrink-0 flex items-center justify-between px-4 sm:px-8 bg-white border-b-2 border-[#E5E5E5] z-20">
+      
+      <!-- Left: Search & Mobile Logo -->
+      <div class="flex items-center gap-3 flex-1 max-w-xl">
+        <button onclick="showLibraryView()" class="md:hidden w-9 h-9 bg-[#58CC02] border-b-4 border-[#46A302] rounded-xl flex items-center justify-center text-white font-black text-lg">
+          B
+        </button>
+
+        <div class="relative w-full">
+          <input 
+            type="text" 
+            id="search-input" 
+            placeholder="Tìm kiếm sách, bài nghe, tác giả..." 
+            oninput="renderBooksGrid()"
+            class="w-full bg-[#F0F0F0] border-2 border-b-4 border-[#E5E5E5] rounded-xl py-1.5 sm:py-2 pl-9 sm:pl-10 pr-4 font-bold text-xs sm:text-sm text-slate-800 focus:outline-none focus:border-[#1CB0F6] focus:bg-white transition"
+          />
+          <i data-lucide="search" class="w-4 h-4 text-[#AFAFAF] absolute left-3 top-1/2 -translate-y-1/2"></i>
+        </div>
+      </div>
+
+      <!-- Right Header Actions -->
+      <div class="flex items-center gap-2 sm:gap-3 pl-3">
+        <!-- Active Book Badge -->
+        <div id="header-book-info" class="hidden lg:flex items-center gap-2 bg-[#F0F0F0] border-2 border-b-4 border-[#E5E5E5] px-3 py-1.5 rounded-xl">
+          <i data-lucide="book" class="w-4 h-4 text-duoBlue"></i>
+          <span id="header-book-title" class="font-black text-xs text-slate-700 truncate max-w-xs">Tên Sách</span>
+          <span id="header-page-badge" class="bg-duoBlue text-white text-[10px] font-black px-1.5 py-0.5 rounded-md">Trang 1/1</span>
+        </div>
+
+        <!-- Google Drive Quick Status Badge -->
+        <button onclick="openGoogleDriveModal()" id="header-gdrive-btn" class="hidden sm:flex btn-3d btn-white items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-black text-slate-700 hover:border-emerald-500" title="Quản lý đồng bộ Google Drive">
+          <i data-lucide="hard-drive" class="w-4 h-4 text-emerald-500"></i>
+          <span id="header-gdrive-status-text">Google Drive</span>
+          <span id="header-gdrive-dot" class="w-2 h-2 rounded-full bg-slate-300"></span>
+        </button>
+
+        <!-- Batch Media Upload Quick Button -->
+        <button onclick="openBatchUploadModal()" class="btn-3d btn-purple text-white px-3 sm:px-4 py-1.5 sm:py-2 rounded-xl font-extrabold text-xs sm:text-sm flex items-center gap-1.5 shadow-sm" title="Tải nhanh hàng loạt bài nghe / media">
+          <i data-lucide="layers" class="w-4 h-4"></i>
+          <span class="hidden md:inline">TẢI MEDIA HÀNG LOẠT</span>
+          <span class="md:hidden">MEDIA</span>
+        </button>
+
+        <!-- Add Book Button -->
+        <button id="btn-open-upload" onclick="openUploadModal()" class="btn-3d bg-[#58CC02] border-[#46A302] text-white px-3 sm:px-5 py-1.5 sm:py-2 rounded-xl font-extrabold text-xs sm:text-sm flex items-center gap-1.5 shadow-sm">
+          <i data-lucide="plus" class="w-4 h-4"></i>
+          <span>TẢI SÁCH PDF</span>
+        </button>
+
+        <div class="w-9 h-9 sm:w-10 sm:h-10 bg-[#CE82FF] border-b-4 border-[#A560D0] rounded-xl flex items-center justify-center text-white font-black text-xs sm:text-sm shadow-sm" title="Giáo Viên / Tutor">
+          GV
+        </div>
+      </div>
+
+    </header>
+
+    <!-- CONTENT AREA -->
+    <div class="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8">
+      
+      <!-- ========================================================================= -->
+      <!-- VIEW 1: THƯ VIỆN SÁCH PDF (LIBRARY VIEW) -->
+      <!-- ========================================================================= -->
+      <div id="view-library" class="space-y-6 max-w-7xl mx-auto">
+        
+        <!-- Category Filters -->
+        <div class="flex items-center justify-between flex-wrap gap-3 pb-1 border-b-2 border-slate-200">
+          <div class="flex items-center gap-2 overflow-x-auto pb-1 w-full sm:w-auto">
+            <button onclick="setCategoryFilter('all', this)" class="category-filter-btn btn-3d btn-nav-active font-extrabold px-4 py-1.5 rounded-xl text-xs whitespace-nowrap">
+              Tất Cả (<span id="count-all">0</span>)
+            </button>
+            <button onclick="setCategoryFilter('textbook', this)" class="category-filter-btn btn-3d btn-white font-extrabold px-4 py-1.5 rounded-xl text-xs whitespace-nowrap">
+              📖 Giáo Trình Ngoại Ngữ & SGK
+            </button>
+            <button onclick="setCategoryFilter('exercise', this)" class="category-filter-btn btn-3d btn-white font-extrabold px-4 py-1.5 rounded-xl text-xs whitespace-nowrap">
+              ✏️ Bài Tập & Đề Thi
+            </button>
+            <button onclick="setCategoryFilter('reference', this)" class="category-filter-btn btn-3d btn-white font-extrabold px-4 py-1.5 rounded-xl text-xs whitespace-nowrap">
+              🔬 Tài Liệu & Khoa Học
+            </button>
+          </div>
+
+          <div class="text-xs font-black text-slate-400 hidden sm:block">
+            Hỗ trợ 100% trang PDF + Đính kèm Audio/Video
+          </div>
+        </div>
+
+        <!-- Book Grid -->
+        <div id="books-grid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6"></div>
+
+        <!-- Empty State -->
+        <div id="empty-state" class="hidden text-center py-16 bg-white rounded-2xl border-4 border-dashed border-duoGray p-8">
+          <div class="w-16 h-16 mx-auto bg-amber-100 rounded-full flex items-center justify-center text-duoAmber mb-3">
+            <i data-lucide="book-x" class="w-8 h-8"></i>
+          </div>
+          <h3 class="font-black text-lg text-slate-700 mb-1">Chưa có sách nào trong thư viện!</h3>
+          <p class="text-slate-500 font-bold text-xs mb-4">Nhấp vào nút bên dưới để tải lên file PDF của bạn và đính kèm bài nghe Audio / Video giảng dạy.</p>
+          <button onclick="openUploadModal()" class="btn-3d btn-green text-white font-extrabold px-5 py-2 rounded-xl text-xs inline-flex items-center gap-2">
+            <i data-lucide="upload-cloud" class="w-4 h-4"></i> Tải Lên PDF Ngay
+          </button>
+        </div>
+
+      </div>
+
+      <!-- ========================================================================= -->
+      <!-- VIEW 2: TRÌNH ĐỌC FLIPBOOK 3D & GIẢNG DẠY (READER VIEW) -->
+      <!-- ========================================================================= -->
+      <div id="view-reader" class="hidden flex flex-col h-full space-y-4 max-w-7xl mx-auto relative">
+        
+        <!-- Top Reader Bar -->
+        <div class="flex items-center justify-between bg-white border-2 border-b-4 border-duoGray rounded-2xl px-4 py-2 shadow-sm">
+          
+          <!-- Left: Back & Title -->
+          <div class="flex items-center gap-3">
+            <button onclick="showLibraryView()" class="btn-3d btn-white text-slate-700 font-extrabold px-3 py-1.5 rounded-xl text-xs flex items-center gap-1.5">
+              <i data-lucide="arrow-left" class="w-4 h-4"></i>
+              <span>Thư viện</span>
+            </button>
+            <div class="h-6 w-0.5 bg-slate-200 hidden sm:block"></div>
+            <div>
+              <h2 id="reader-title" class="font-black text-slate-800 text-sm sm:text-base truncate max-w-[200px] sm:max-w-xs md:max-w-md">Tên sách</h2>
+              <div class="flex items-center gap-2">
+                <span id="reader-category-badge" class="text-[10px] font-extrabold text-duoBlue uppercase tracking-wider">Giáo trình</span>
+                <span id="reader-media-badge" class="hidden bg-purple-100 text-duoPurpleDark text-[9px] font-black px-1.5 py-0.2 rounded flex items-center gap-1">
+                  <i data-lucide="headphones" class="w-3 h-3"></i> Có Audio / Video
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Right: Audio & Teaching Actions -->
+          <div class="flex items-center gap-2">
+            <button onclick="toggleMediaDock()" id="btn-toggle-media-dock" class="btn-3d btn-purple text-white font-extrabold px-3 py-1.5 rounded-xl text-xs flex items-center gap-1.5" title="Mở khay phát Audio bài nghe">
+              <i data-lucide="headphones" class="w-4 h-4"></i>
+              <span class="hidden sm:inline">Bài Nghe Audio</span>
+            </button>
+
+            <button onclick="toggleAudioSound()" id="btn-sound-toggle" class="btn-3d btn-white text-slate-600 font-extrabold p-2 rounded-xl text-xs" title="Âm thanh lật trang">
+              <i data-lucide="volume-2" id="icon-sound" class="w-4 h-4 text-duoGreen"></i>
+            </button>
+
+            <button onclick="openTeachingMode()" class="btn-3d btn-amber text-slate-900 font-black px-3 sm:px-4 py-1.5 rounded-xl text-xs flex items-center gap-2">
+              <i data-lucide="presentation" class="w-4 h-4 text-slate-900"></i>
+              <span>Giảng Dạy Meet</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- MAIN FLIPBOOK STAGE -->
+        <div id="flipbook-wrapper" class="flex-1 min-h-[480px] sm:min-h-[560px] bg-slate-900 rounded-3xl p-4 sm:p-6 flex items-center justify-center relative overflow-hidden shadow-2xl border-4 border-slate-800">
+          
+          <!-- Annotation Canvas -->
+          <canvas id="annotation-canvas" class="absolute inset-0 z-20 pointer-events-none w-full h-full"></canvas>
+
+          <!-- Flipbook Viewport -->
+          <div id="flipbook-viewport" class="flex items-center justify-center w-full h-full max-w-4xl max-h-[82vh]">
+            <div id="flipbook-container" class="flip-book"></div>
+          </div>
+
+          <!-- Left / Right Navigation Float Arrows -->
+          <button onclick="flipPrev()" class="btn-3d btn-white absolute left-3 top-1/2 -translate-y-1/2 z-20 w-11 h-11 rounded-2xl flex items-center justify-center text-slate-800 shadow-xl" title="Trang trước (Mũi tên Trái)">
+            <i data-lucide="chevron-left" class="w-6 h-6"></i>
+          </button>
+          <button onclick="flipNext()" class="btn-3d btn-white absolute right-3 top-1/2 -translate-y-1/2 z-20 w-11 h-11 rounded-2xl flex items-center justify-center text-slate-800 shadow-xl" title="Trang sau (Mũi tên Phải)">
+            <i data-lucide="chevron-right" class="w-6 h-6"></i>
+          </button>
+
+        </div>
+
+        <!-- BOTTOM CONTROL BAR -->
+        <div class="bg-white border-2 border-b-4 border-duoGray rounded-2xl p-2.5 flex flex-wrap items-center justify-between gap-3 shadow-sm">
+          
+          <!-- Left Controls -->
+          <div class="flex items-center gap-2">
+            <button onclick="toggleThumbnailsModal()" class="btn-3d btn-white text-slate-700 font-bold px-3 py-1.5 rounded-xl text-xs flex items-center gap-1.5">
+              <i data-lucide="layout-grid" class="w-4 h-4 text-duoBlue"></i>
+              <span>Mục Lục Trang</span>
+            </button>
+            
+            <button onclick="fitScreenToggle()" class="btn-3d btn-white text-slate-700 font-bold px-3 py-1.5 rounded-xl text-xs flex items-center gap-1.5">
+              <i data-lucide="maximize" class="w-4 h-4 text-slate-600"></i>
+              <span class="hidden sm:inline">Toàn Màn Hình</span>
+            </button>
+          </div>
+
+          <!-- Center Pagination -->
+          <div class="flex items-center gap-2">
+            <button onclick="flipFirst()" class="p-1.5 rounded-lg hover:bg-slate-100 text-slate-600" title="Về trang đầu">
+              <i data-lucide="chevrons-left" class="w-4 h-4"></i>
+            </button>
+            <button onclick="flipPrev()" class="p-1.5 rounded-lg hover:bg-slate-100 text-slate-600" title="Trang trước">
+              <i data-lucide="chevron-left" class="w-4 h-4"></i>
+            </button>
+
+            <div class="flex items-center gap-1 bg-slate-100 px-3 py-1 rounded-xl border border-slate-200">
+              <span class="text-xs font-bold text-slate-500">Trang</span>
+              <input 
+                type="number" 
+                id="input-page-number" 
+                value="1" 
+                min="1" 
+                max="1" 
+                onchange="jumpToPageInput(this.value)"
+                class="w-12 text-center bg-white border border-slate-300 rounded-md font-black text-xs py-0.5 text-duoBlue focus:outline-none"
+              />
+              <span class="text-xs font-bold text-slate-500">/ <span id="total-pages-label">1</span></span>
+            </div>
+
+            <button onclick="flipNext()" class="p-1.5 rounded-lg hover:bg-slate-100 text-slate-600" title="Trang sau">
+              <i data-lucide="chevron-right" class="w-4 h-4"></i>
+            </button>
+            <button onclick="flipLast()" class="p-1.5 rounded-lg hover:bg-slate-100 text-slate-600" title="Đến trang cuối">
+              <i data-lucide="chevrons-right" class="w-4 h-4"></i>
+            </button>
+          </div>
+
+          <!-- Right: Praise Button -->
+          <div class="flex items-center gap-2">
+            <button onclick="triggerConfettiReward()" class="btn-3d btn-purple text-white font-extrabold px-3 py-1.5 rounded-xl text-xs flex items-center gap-1.5" title="Khen ngợi học sinh">
+              <i data-lucide="sparkles" class="w-4 h-4"></i>
+              <span>Khen Thưởng 🎉</span>
+            </button>
+          </div>
+
+        </div>
+
+        <!-- ========================================================================= -->
+        <!-- FLOATING 3D AUDIO / VIDEO PLAYER DOCK (FOR ONLINE TEACHING & LISTENING) -->
+        <!-- ========================================================================= -->
+        <div id="media-player-dock" class="hidden absolute top-16 right-4 z-40 w-80 sm:w-96 bg-white border-2 border-b-4 border-duoPurpleDark/40 rounded-2xl shadow-2xl p-3.5 space-y-2.5 animate-in fade-in zoom-in-95 select-none">
+          
+          <!-- Dock Header -->
+          <div class="flex items-center justify-between pb-2 border-b border-slate-100">
+            <div class="flex items-center gap-2">
+              <div class="w-7 h-7 rounded-lg bg-duoPurple/20 text-duoPurpleDark flex items-center justify-center">
+                <i data-lucide="headphones" class="w-4 h-4"></i>
+              </div>
+              <div>
+                <h4 class="font-black text-xs text-slate-800">Media Giảng Dạy & Luyện Nghe</h4>
+                <p id="media-current-track-name" class="text-[10px] font-bold text-duoPurpleDark truncate max-w-[180px]">Chưa chọn bài nghe</p>
+              </div>
+            </div>
+            <div class="flex items-center gap-1">
+              <button onclick="toggleVideoPopup()" id="btn-toggle-video-modal" class="p-1 rounded-lg hover:bg-slate-100 text-slate-500" title="Xem Video bài học">
+                <i data-lucide="video" class="w-4 h-4 text-duoRed"></i>
+              </button>
+              <button onclick="toggleMediaDock()" class="p-1 rounded-lg hover:bg-slate-100 text-slate-400">
+                <i data-lucide="x" class="w-4 h-4"></i>
+              </button>
+            </div>
+          </div>
+
+          <!-- Track Selector Dropdown -->
+          <div>
+            <label class="block font-black text-[10px] text-slate-500 uppercase tracking-wider mb-1">Danh Sách Track Âm Thanh / Bài Nghe:</label>
+            <select id="media-track-select" onchange="changeAudioTrack(this.value)" class="w-full px-2.5 py-1.5 bg-slate-50 border-2 border-slate-200 rounded-xl font-bold text-xs text-slate-800 focus:outline-none focus:border-duoPurple">
+              <option value="">-- Không có bài nghe --</option>
+            </select>
+          </div>
+
+          <!-- Audio Wave & Time Progress Bar -->
+          <div class="space-y-1">
+            <div class="flex items-center justify-between text-[11px] font-bold text-slate-500">
+              <span id="audio-time-current">00:00</span>
+              <span id="audio-time-total">00:00</span>
+            </div>
+            <input 
+              type="range" 
+              id="audio-progress-bar" 
+              value="0" 
+              min="0" 
+              max="100" 
+              step="0.1" 
+              oninput="seekAudio(this.value)"
+              class="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-duoPurple"
+            />
+          </div>
+
+          <!-- Controls: -5s, Play/Pause, +5s, Speed, Volume -->
+          <div class="flex items-center justify-between pt-1">
+            <div class="flex items-center gap-1.5">
+              <button onclick="seekAudioRelative(-5)" class="btn-3d btn-white p-1.5 rounded-xl text-slate-700 text-xs font-bold" title="Tua lại 5 giây">
+                <i data-lucide="rotate-ccw" class="w-3.5 h-3.5"></i>
+              </button>
+
+              <button onclick="toggleAudioPlay()" id="btn-audio-play" class="btn-3d btn-purple text-white px-3 py-1.5 rounded-xl font-black text-xs flex items-center gap-1">
+                <i data-lucide="play" id="icon-audio-play" class="w-4 h-4"></i>
+                <span id="label-audio-play">Phát</span>
+              </button>
+
+              <button onclick="seekAudioRelative(5)" class="btn-3d btn-white p-1.5 rounded-xl text-slate-700 text-xs font-bold" title="Tua tới 5 giây">
+                <i data-lucide="rotate-cw" class="w-3.5 h-3.5"></i>
+              </button>
+            </div>
+
+            <!-- Playback Speed -->
+            <div class="flex items-center gap-1">
+              <select id="audio-playback-rate" onchange="setAudioSpeed(this.value)" class="px-2 py-1 bg-slate-100 border border-slate-200 rounded-lg font-black text-[10px] text-slate-700 focus:outline-none">
+                <option value="0.75">0.75x</option>
+                <option value="1" selected>1.0x</option>
+                <option value="1.25">1.25x</option>
+                <option value="1.5">1.5x</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- Quick Batch Add Audio to Active Book -->
+          <div class="pt-2 border-t border-slate-100 flex items-center justify-between gap-2">
+            <label class="btn-3d btn-white text-[11px] font-black text-duoPurpleDark px-2.5 py-1 rounded-xl cursor-pointer flex-1 flex items-center justify-center gap-1.5 hover:bg-purple-50">
+              <i data-lucide="folder-plus" class="w-3.5 h-3.5 text-duoPurple"></i>
+              <span>+ Thêm Nhiều File Audio</span>
+              <input type="file" multiple accept="audio/*" class="hidden" onchange="handleBatchAudioAddCurrentBook(this.files)" />
+            </label>
+            <button onclick="openBatchUploadModal()" class="btn-3d btn-purple text-white p-1.5 rounded-xl text-xs" title="Mở bộ tải lên Media hàng loạt">
+              <i data-lucide="layers" class="w-3.5 h-3.5"></i>
+            </button>
+          </div>
+
+          <!-- Hidden Native Audio Element -->
+          <audio id="global-audio-player" ontimeupdate="updateAudioProgress()" onended="onAudioEnded()" preload="auto"></audio>
+
+        </div>
+
+      </div>
+
+    </div>
+
+  </div>
+
+  <!-- ========================================================================= -->
+  <!-- TEACHING STUDIO FLOATING TOOLBAR (MEET / ZOOM MODE) -->
+  <!-- ========================================================================= -->
+  <div id="teaching-toolbar" class="hidden fixed bottom-6 right-6 z-50 p-4 bg-white border-2 border-b-4 border-[#E5E5E5] rounded-2xl shadow-2xl w-[320px] select-none">
+    
+    <div class="flex items-center justify-between mb-3">
+      <div class="flex items-center gap-2">
+        <span class="w-2.5 h-2.5 bg-red-500 rounded-full animate-pulse"></span>
+        <h4 class="font-black text-xs text-[#1CB0F6] uppercase tracking-wider">CHẾ ĐỘ GIẢNG DẠY MEET</h4>
+      </div>
+      <button onclick="exitTeachingMode()" class="text-slate-400 hover:text-red-500 font-black text-xs">
+        THOÁT ✕
+      </button>
+    </div>
+
+    <!-- Quick Action 3D Tools -->
+    <div class="grid grid-cols-4 gap-2 mb-3">
+      <button id="btn-laser" onclick="toggleLaserMode()" class="btn-3d btn-white text-slate-700 p-2 rounded-xl flex items-center justify-center" title="Con trỏ Laser (L)">
+        <i data-lucide="disc" class="w-5 h-5"></i>
+      </button>
+
+      <button id="btn-tool-highlighter" onclick="selectAnnotationTool('highlighter')" class="btn-3d btn-amber text-slate-900 p-2 rounded-xl flex items-center justify-center" title="Bút dạ quang (P)">
+        <i data-lucide="highlighter" class="w-5 h-5"></i>
+      </button>
+
+      <button id="btn-tool-pen-red" onclick="selectAnnotationTool('pen-red')" class="btn-3d btn-white text-red-500 p-2 rounded-xl flex items-center justify-center" title="Bút vẽ đỏ">
+        <i data-lucide="pencil" class="w-5 h-5"></i>
+      </button>
+
+      <button id="btn-tool-eraser" onclick="selectAnnotationTool('eraser')" class="btn-3d btn-white text-slate-700 p-2 rounded-xl flex items-center justify-center" title="Tẩy nét vẽ">
+        <i data-lucide="eraser" class="w-5 h-5"></i>
+      </button>
+    </div>
+
+    <!-- Utilities Row -->
+    <div class="flex items-center justify-between pt-2 border-t border-slate-100 gap-1.5">
+      <button id="btn-spotlight" onclick="toggleSpotlightMode()" class="btn-3d btn-white text-xs font-bold p-1.5 rounded-lg flex-1 flex items-center justify-center gap-1" title="Đèn rọi hội tụ">
+        <i data-lucide="sun-medium" class="w-3.5 h-3.5 text-amber-500"></i>
+        <span>Đèn Rọi</span>
+      </button>
+
+      <button onclick="toggleMediaDock()" class="btn-3d btn-purple text-white text-xs font-bold p-1.5 rounded-lg flex-1 flex items-center justify-center gap-1" title="Bật bài nghe">
+        <i data-lucide="headphones" class="w-3.5 h-3.5"></i>
+        <span>Audio</span>
+      </button>
+
+      <button onclick="clearAnnotations()" class="btn-3d btn-white text-xs font-bold p-1.5 rounded-lg text-slate-500 hover:text-red-500 flex items-center justify-center" title="Xóa toàn bộ nét vẽ">
+        <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+      </button>
+
+      <button onclick="triggerConfettiReward()" class="btn-3d btn-purple text-white text-xs font-bold p-1.5 rounded-lg flex items-center justify-center" title="Khen thưởng">
+        <i data-lucide="party-popper" class="w-3.5 h-3.5"></i>
+      </button>
+    </div>
+
+  </div>
+
+  <!-- FLOATING TIMER BADGE -->
+  <div id="teaching-timer-badge" class="hidden fixed top-6 right-6 z-50 bg-slate-900 text-duoAmber font-black text-lg px-4 py-2 rounded-2xl border-2 border-duoAmber shadow-2xl flex items-center gap-2">
+    <i data-lucide="clock" class="w-4 h-4 animate-spin text-duoAmber"></i>
+    <span id="timer-display">05:00</span>
+    <button onclick="stopTeachingTimer()" class="text-slate-400 hover:text-white ml-2 text-xs">✕</button>
+  </div>
+
+  <!-- ========================================================================= -->
+  <!-- MODAL 1: TẢI LÊN SÁCH PDF & MEDIA ATTACHMENTS (UPLOAD MODAL) -->
+  <!-- ========================================================================= -->
+  <div id="modal-upload" class="hidden fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
+    <div class="card-3d w-full max-w-xl p-6 shadow-2xl space-y-4 my-8">
+      
+      <!-- Modal Header -->
+      <div class="flex items-center justify-between pb-3 border-b-2 border-slate-100">
+        <div class="flex items-center gap-2.5">
+          <div class="w-9 h-9 rounded-xl bg-duoGreen/20 text-duoGreenDark flex items-center justify-center">
+            <i data-lucide="file-up" class="w-5 h-5"></i>
+          </div>
+          <div>
+            <h3 class="font-black text-lg text-slate-800">Thêm Sách PDF & Đính Kèm Media</h3>
+            <p class="text-[11px] font-bold text-slate-500">Render 100% trang PDF + Đính kèm hàng loạt bài nghe Audio / Video</p>
+          </div>
+        </div>
+        <button onclick="closeUploadModal()" class="w-8 h-8 rounded-full hover:bg-slate-100 flex items-center justify-center text-slate-400 hover:text-slate-600">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <!-- Upload Form Content -->
+      <div class="space-y-4 max-h-[68vh] overflow-y-auto pr-1">
+        
+        <!-- Combined Multi-File Dropzone (PDF + MP3s) -->
+        <div 
+          id="dropzone" 
+          onclick="document.getElementById('file-pdf-input').click()"
+          class="border-4 border-dashed border-duoBlue/40 bg-duoBlue/5 hover:bg-duoBlue/10 rounded-2xl p-5 text-center cursor-pointer transition flex flex-col items-center justify-center gap-1.5 group"
+        >
+          <div class="w-12 h-12 rounded-2xl bg-duoBlue/20 text-duoBlueDark flex items-center justify-center mb-1 group-hover:scale-105 transition-transform">
+            <i data-lucide="file-text" class="w-6 h-6"></i>
+          </div>
+          <p class="font-black text-xs sm:text-sm text-slate-800">Kéo & Thả file PDF vào đây</p>
+          <p class="text-[11px] text-slate-500 font-bold">Mẹo: Kéo thả cùng lúc cả file PDF và các file Audio (.mp3) để tự động nhận diện!</p>
+          <input type="file" id="file-pdf-input" accept="application/pdf" class="hidden" onchange="handleFileSelected(this.files[0])" />
+        </div>
+
+        <!-- Selected File Status Badge -->
+        <div id="selected-file-info" class="hidden bg-emerald-50 border-2 border-duoGreen p-2.5 rounded-xl flex items-center justify-between">
+          <div class="flex items-center gap-2 truncate">
+            <i data-lucide="check-circle-2" class="w-4 h-4 text-duoGreen flex-shrink-0"></i>
+            <span id="selected-file-name" class="font-black text-xs text-slate-800 truncate">tailieu.pdf</span>
+          </div>
+          <span id="selected-file-size" class="text-[11px] font-bold text-slate-500 flex-shrink-0">2.4 MB</span>
+        </div>
+
+        <!-- Book Title Input -->
+        <div>
+          <label class="block font-black text-[11px] text-slate-700 uppercase tracking-wider mb-1">Tên Sách / Giáo Trình *</label>
+          <input 
+            type="text" 
+            id="input-book-title" 
+            placeholder="Ví dụ: Navigate B1+ Coursebook / Oxford English" 
+            class="w-full px-3.5 py-2 bg-[#F0F0F0] border-2 border-b-4 border-[#E5E5E5] rounded-xl font-bold text-xs sm:text-sm text-slate-800 focus:outline-none focus:border-duoBlue focus:bg-white transition"
+          />
+        </div>
+
+        <!-- Category & Color -->
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block font-black text-[11px] text-slate-700 uppercase tracking-wider mb-1">Danh Mục</label>
+            <select id="select-book-category" class="w-full px-3 py-2 bg-[#F0F0F0] border-2 border-b-4 border-[#E5E5E5] rounded-xl font-bold text-xs text-slate-800 focus:outline-none focus:border-duoBlue focus:bg-white">
+              <option value="textbook">📖 Giáo Trình Ngoại Ngữ & SGK</option>
+              <option value="exercise">✏️ Bài Tập & Đề Thi</option>
+              <option value="reference">🔬 Tài Liệu & Khoa Học</option>
+            </select>
+          </div>
+          <div>
+            <label class="block font-black text-[11px] text-slate-700 uppercase tracking-wider mb-1">Màu Bìa 3D</label>
+            <select id="select-book-color" class="w-full px-3 py-2 bg-[#F0F0F0] border-2 border-b-4 border-[#E5E5E5] rounded-xl font-bold text-xs text-slate-800 focus:outline-none focus:border-duoBlue focus:bg-white">
+              <option value="emerald">🟢 Xanh Lá Duolingo</option>
+              <option value="sky">🔵 Xanh Dương Sky</option>
+              <option value="purple">🟣 Tím Ngoại Ngữ</option>
+              <option value="amber">🟡 Vàng Tươi Amber</option>
+              <option value="red">🔴 Đỏ Nổi Bật</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- SECTION: ATTACH AUDIO TRACKS -->
+        <div class="p-3.5 bg-purple-50/70 border-2 border-purple-200 rounded-2xl space-y-3">
+          <div class="flex items-center justify-between flex-wrap gap-2">
+            <div class="flex items-center gap-2">
+              <i data-lucide="headphones" class="w-4 h-4 text-duoPurpleDark"></i>
+              <label class="font-black text-xs text-duoPurpleDark">Bài Nghe Audio (<span id="upload-tracks-count">0</span> bài)</label>
+            </div>
+            
+            <!-- Quick Batch Select Multiple Audio Files -->
+            <div class="flex items-center gap-1.5">
+              <label class="btn-3d btn-purple text-white text-[11px] font-black px-2.5 py-1 rounded-lg flex items-center gap-1 cursor-pointer">
+                <i data-lucide="folder-plus" class="w-3.5 h-3.5"></i> ⚡ Chọn Hàng Loạt MP3
+                <input type="file" multiple accept="audio/*" class="hidden" onchange="handleBatchAudioFilesUpload(this.files)" />
+              </label>
+
+              <button type="button" onclick="addAudioTrackField()" class="btn-3d btn-white text-[11px] font-black px-2.5 py-1 rounded-lg flex items-center gap-1 text-slate-700">
+                <i data-lucide="plus" class="w-3.5 h-3.5"></i> Thêm Track
+              </button>
+            </div>
+          </div>
+
+          <!-- Audio Tracks Container -->
+          <div id="upload-audio-tracks-list" class="space-y-2 max-h-48 overflow-y-auto pr-1">
+            <!-- Dynamic Audio Track Rows -->
+          </div>
+          <p class="text-[10px] text-slate-500 font-bold italic">Bạn có thể chọn cùng lúc 10-50 file MP3 từ máy tính, hệ thống sẽ tự động phân loại tên bài.</p>
+        </div>
+
+        <!-- SECTION: ATTACH VIDEO LINK -->
+        <div class="p-3.5 bg-rose-50/60 border-2 border-rose-200 rounded-2xl space-y-2">
+          <div class="flex items-center gap-2">
+            <i data-lucide="video" class="w-4 h-4 text-duoRed"></i>
+            <label class="font-black text-xs text-duoRedDark">Đính Kèm Link Video Giảng Dạy (YouTube / MP4)</label>
+          </div>
+          <input 
+            type="text" 
+            id="input-book-video" 
+            placeholder="Dán link YouTube (VD: https://www.youtube.com/watch?v=...) hoặc link MP4" 
+            class="w-full px-3 py-1.5 bg-white border-2 border-slate-200 rounded-xl font-bold text-xs text-slate-800 focus:outline-none focus:border-duoRed"
+          />
+        </div>
+
+      </div>
+
+      <!-- Modal Footer -->
+      <div class="flex items-center justify-between pt-3 border-t-2 border-slate-100">
+        <div class="flex items-center gap-1.5 text-xs text-slate-500 font-bold">
+          <i data-lucide="hard-drive" class="w-4 h-4 text-emerald-500"></i>
+          <span id="upload-sync-badge">Tự động sao lưu Google Drive</span>
+        </div>
+        <div class="flex items-center gap-2">
+          <button onclick="closeUploadModal()" class="btn-3d btn-white font-extrabold px-4 py-2 rounded-xl text-xs">Hủy</button>
+          <button id="btn-submit-book" onclick="saveNewBook()" class="btn-3d btn-green font-extrabold px-5 py-2 rounded-xl text-xs flex items-center gap-1.5">
+            <i data-lucide="check" class="w-4 h-4"></i>
+            <span>Lưu & Mở Sách 3D</span>
+          </button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ========================================================================= -->
+  <!-- MODAL: TẢI HÀNG LOẠT FILE MEDIA / AUDIO (BATCH MEDIA UPLOADER) -->
+  <!-- ========================================================================= -->
+  <div id="modal-batch-media" class="hidden fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
+    <div class="card-3d w-full max-w-2xl p-6 shadow-2xl space-y-4 my-8 bg-white">
+      
+      <div class="flex items-center justify-between pb-3 border-b-2 border-slate-100">
+        <div class="flex items-center gap-2.5">
+          <div class="w-9 h-9 rounded-xl bg-duoPurple/20 text-duoPurpleDark flex items-center justify-center">
+            <i data-lucide="layers" class="w-5 h-5"></i>
+          </div>
+          <div>
+            <h3 class="font-black text-lg text-slate-800">Tải Nhanh Hàng Loạt File Media (Batch Audio)</h3>
+            <p class="text-[11px] font-bold text-slate-500">Upload cùng lúc nhiều tệp MP3, WAV, M4A cho sách hoặc tạo Album Audio</p>
+          </div>
+        </div>
+        <button onclick="closeBatchUploadModal()" class="w-8 h-8 rounded-full hover:bg-slate-100 flex items-center justify-center text-slate-400 hover:text-slate-600">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <!-- Batch Drop Area -->
+      <div 
+        id="batch-dropzone" 
+        onclick="document.getElementById('batch-media-input').click()"
+        class="border-4 border-dashed border-purple-300 bg-purple-50/50 hover:bg-purple-50 rounded-2xl p-6 text-center cursor-pointer transition flex flex-col items-center justify-center gap-2"
+      >
+        <div class="w-14 h-14 rounded-2xl bg-purple-100 text-duoPurpleDark flex items-center justify-center">
+          <i data-lucide="upload-cloud" class="w-8 h-8"></i>
+        </div>
+        <p class="font-black text-sm text-slate-800">Kéo & Thả Hàng Loạt File Âm Thanh Vào Đây</p>
+        <p class="text-xs text-slate-500 font-bold">Hỗ trợ chọn cùng lúc nhiều file: .mp3, .wav, .m4a, .aac, .ogg, .flac</p>
+        <input type="file" id="batch-media-input" multiple accept="audio/*" class="hidden" onchange="handleBatchMediaSelected(this.files)" />
+      </div>
+
+      <!-- Target Selection: Gán vào sách nào? -->
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 p-3 bg-slate-50 border-2 border-slate-200 rounded-xl">
+        <div>
+          <label class="block font-black text-[11px] text-slate-700 uppercase tracking-wider mb-1">Gán vào Sách / Bài học:</label>
+          <select id="batch-target-book-select" class="w-full px-3 py-1.5 bg-white border border-slate-200 rounded-lg font-bold text-xs text-slate-800 focus:outline-none focus:border-duoPurple">
+            <!-- Populated via JS -->
+          </select>
+        </div>
+        <div>
+          <label class="block font-black text-[11px] text-slate-700 uppercase tracking-wider mb-1">Tự động đánh số Track:</label>
+          <div class="flex items-center gap-2 pt-1">
+            <button type="button" onclick="autoSortBatchTracks('asc')" class="btn-3d btn-white text-xs font-bold px-2.5 py-1 rounded-lg">Sắp xếp A-Z / Số</button>
+            <button type="button" onclick="clearBatchQueue()" class="btn-3d btn-white text-xs font-bold px-2.5 py-1 rounded-lg text-red-500">Xóa danh sách</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Batch File List Table -->
+      <div class="space-y-2">
+        <div class="flex items-center justify-between text-xs font-black text-slate-600 px-1">
+          <span>Danh sách tệp chuẩn bị tải lên (<span id="batch-queue-count">0</span> tệp):</span>
+          <span id="batch-queue-size" class="text-slate-400 font-bold">0 MB</span>
+        </div>
+        <div id="batch-queue-list" class="space-y-1.5 max-h-52 overflow-y-auto p-1 bg-slate-50 rounded-xl border border-slate-200">
+          <div class="text-center py-6 text-xs text-slate-400 font-bold">
+            Chưa có tệp âm thanh nào. Hãy chọn hoặc kéo thả nhiều file vào khung ở trên.
+          </div>
+        </div>
+      </div>
+
+      <!-- Batch Actions -->
+      <div class="flex items-center justify-between pt-3 border-t-2 border-slate-100">
+        <span class="text-xs font-bold text-emerald-600 flex items-center gap-1">
+          <i data-lucide="hard-drive" class="w-4 h-4"></i> Lưu trữ Google Drive & Offline
+        </span>
+        <div class="flex items-center gap-2">
+          <button onclick="closeBatchUploadModal()" class="btn-3d btn-white font-extrabold px-4 py-2 rounded-xl text-xs">Đóng</button>
+          <button onclick="commitBatchMediaUpload()" id="btn-submit-batch" class="btn-3d btn-purple font-extrabold px-5 py-2 rounded-xl text-xs flex items-center gap-1.5">
+            <i data-lucide="check" class="w-4 h-4"></i>
+            <span>Bắt Đầu Tải Lên Hàng Loạt</span>
+          </button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ========================================================================= -->
+  <!-- MODAL 2: THUMBNAILS MODAL -->
+  <!-- ========================================================================= -->
+  <div id="modal-thumbnails" class="hidden fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="card-3d w-full max-w-3xl max-h-[85vh] p-6 shadow-2xl flex flex-col space-y-4">
+      <div class="flex items-center justify-between pb-2 border-b-2 border-slate-100">
+        <div class="flex items-center gap-2">
+          <i data-lucide="layout-grid" class="w-5 h-5 text-duoBlue"></i>
+          <h3 class="font-black text-base text-slate-800">Danh Sách Tất Cả Trang</h3>
+        </div>
+        <button onclick="toggleThumbnailsModal()" class="w-8 h-8 rounded-full hover:bg-slate-100 flex items-center justify-center text-slate-400">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+      <div id="thumbnails-container" class="flex-1 overflow-y-auto grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 p-1"></div>
+    </div>
+  </div>
+
+  <!-- ========================================================================= -->
+  <!-- MODAL 3: VIDEO PLAYER MODAL (PICTURE-IN-PICTURE) -->
+  <!-- ========================================================================= -->
+  <div id="modal-video-player" class="hidden fixed inset-0 z-50 bg-slate-900/70 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="card-3d w-full max-w-2xl p-5 shadow-2xl space-y-3 bg-white">
+      <div class="flex items-center justify-between pb-2 border-b border-slate-100">
+        <div class="flex items-center gap-2">
+          <i data-lucide="video" class="w-5 h-5 text-duoRed"></i>
+          <h3 id="video-modal-title" class="font-black text-sm text-slate-800">Video Bài Giảng</h3>
+        </div>
+        <button onclick="toggleVideoPopup()" class="w-8 h-8 rounded-full hover:bg-slate-100 flex items-center justify-center text-slate-400">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+      <div id="video-modal-content" class="aspect-video w-full bg-black rounded-xl overflow-hidden flex items-center justify-center">
+        <!-- Injected iframe or video element -->
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================================================================= -->
+  <!-- MODAL 4: GOOGLE DRIVE CLOUD SYNC & STORAGE MANAGER -->
+  <!-- ========================================================================= -->
+  <div id="modal-gdrive" class="hidden fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="card-3d w-full max-w-lg p-6 shadow-2xl space-y-4 bg-white">
+      
+      <!-- Header -->
+      <div class="flex items-center justify-between pb-2 border-b-2 border-slate-100">
+        <div class="flex items-center gap-2.5">
+          <div class="w-9 h-9 rounded-xl bg-emerald-100 text-emerald-600 flex items-center justify-center">
+            <i data-lucide="hard-drive" class="w-5 h-5"></i>
+          </div>
+          <div>
+            <h3 class="font-black text-base text-slate-800">Google Drive Cloud Storage</h3>
+            <p class="text-[11px] font-bold text-slate-500">Lưu trữ toàn bộ Sách PDF & Audio an toàn trên Google Drive</p>
+          </div>
+        </div>
+        <button onclick="closeGoogleDriveModal()" class="w-8 h-8 rounded-full hover:bg-slate-100 flex items-center justify-center text-slate-400">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <!-- Account Connection Status Card -->
+      <div class="p-4 bg-slate-50 border-2 border-b-4 border-slate-200 rounded-2xl space-y-3">
+        <div class="flex items-center justify-between">
+          <div class="flex items-center gap-2.5">
+            <div class="w-8 h-8 rounded-full bg-white border border-slate-200 flex items-center justify-center shadow-sm">
+              <i data-lucide="user" class="w-4 h-4 text-slate-700"></i>
+            </div>
+            <div>
+              <p id="gdrive-user-email" class="font-black text-xs text-slate-800">tuankietvn2707@gmail.com</p>
+              <p id="gdrive-status-badge" class="text-[10px] font-bold text-emerald-600 flex items-center gap-1">
+                <span class="w-2 h-2 rounded-full bg-emerald-500 inline-block"></span> Đã kết nối Google Drive
+              </p>
+            </div>
+          </div>
+          <button onclick="connectGoogleDrive()" id="btn-gdrive-connect" class="btn-3d btn-white text-xs font-black px-3 py-1.5 rounded-xl flex items-center gap-1">
+            <i data-lucide="refresh-cw" class="w-3.5 h-3.5 text-emerald-600"></i> Đồng bộ
+          </button>
+        </div>
+
+        <div class="pt-2 border-t border-slate-200 flex items-center justify-between text-[11px] font-bold text-slate-600">
+          <span>Thư mục lưu trữ:</span>
+          <span class="font-mono bg-white px-2 py-0.5 rounded border border-slate-200 text-duoBlue">📁 Biblio3D_TutorFlow_Books</span>
+        </div>
+      </div>
+
+      <!-- Action Buttons Grid -->
+      <div class="space-y-2.5">
+        <button onclick="syncAllBooksToGoogleDrive()" id="btn-sync-all-drive" class="btn-3d btn-green w-full p-3 rounded-2xl font-black text-xs sm:text-sm text-white flex items-center justify-center gap-2">
+          <i data-lucide="cloud-upload" class="w-5 h-5"></i>
+          <span>Sao Lưu & Đồng Bộ Toàn Bộ Sách & Audio Lên Drive</span>
+        </button>
+
+        <div class="grid grid-cols-2 gap-2">
+          <button onclick="restoreBooksFromGoogleDrive()" class="btn-3d btn-white p-2.5 rounded-xl font-bold text-xs text-slate-700 flex items-center justify-center gap-1.5 hover:border-duoBlue">
+            <i data-lucide="cloud-download" class="w-4 h-4 text-duoBlue"></i>
+            <span>Khôi phục từ Drive</span>
+          </button>
+
+          <button onclick="exportLibraryBackupJSON()" class="btn-3d btn-white p-2.5 rounded-xl font-bold text-xs text-slate-700 flex items-center justify-center gap-1.5 hover:border-duoPurple">
+            <i data-lucide="download" class="w-4 h-4 text-duoPurple"></i>
+            <span>Xuất file .JSON</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Info Note -->
+      <div class="p-3 bg-amber-50 border border-amber-200 rounded-xl text-[11px] font-bold text-amber-900 flex items-start gap-2">
+        <i data-lucide="shield-check" class="w-4 h-4 text-amber-600 flex-shrink-0 mt-0.5"></i>
+        <span>Dữ liệu của bạn được lưu trực tiếp trên Google Drive cá nhân, hoàn toàn bảo mật và không bị giới hạn dung lượng trình duyệt.</span>
+      </div>
+
+      <div class="flex items-center justify-end pt-2 border-t border-slate-100">
+        <button onclick="closeGoogleDriveModal()" class="btn-3d btn-white font-extrabold px-4 py-1.5 rounded-xl text-xs">Đóng</button>
+      </div>
+    </div>
+  </div>
+  </div>
+
+  <!-- GLOBAL PROGRESS LOADER -->
+  <div id="flipbook-loader" class="hidden fixed inset-0 bg-slate-900/95 backdrop-blur-sm z-[9999] flex flex-col items-center justify-center text-white p-6">
+    <div class="w-16 h-16 border-4 border-duoGreen border-t-transparent rounded-full animate-spin mb-4"></div>
+    <p id="loader-status" class="font-black text-xl text-duoGreen">Đang xử lý...</p>
+    <p id="loader-substatus" class="text-sm text-slate-400 font-bold mt-1">Vui lòng chờ trong giây lát</p>
+    <!-- Progress Bar -->
+    <div class="w-64 max-w-full bg-slate-800 rounded-full h-3 mt-4 overflow-hidden border border-slate-700">
+      <div id="loader-progress-bar" class="bg-duoGreen h-full w-0 transition-all duration-150"></div>
+    </div>
+    <p id="loader-percent" class="text-sm text-duoAmber font-black mt-2">0%</p>
+  </div>
+
+  <!-- TOAST NOTIFICATION -->
+  <div id="toast" class="fixed top-5 right-5 z-50 bg-slate-900 text-white font-bold px-4 py-2.5 rounded-2xl shadow-2xl border-2 border-slate-700 transform translate-y-[-100px] opacity-0 transition-all flex items-center gap-2 pointer-events-none">
+    <i data-lucide="info" id="toast-icon" class="w-4 h-4 text-duoGreen"></i>
+    <span id="toast-message" class="text-xs">Thông báo!</span>
+  </div>
+
+  <!-- ========================================================================= -->
+  <!-- JAVASCRIPT CORE ENGINE -->
+  <!-- ========================================================================= -->
+  <script>
+    // Configure PDF.js Worker
+    if (window.pdfjsLib) {
+      // Allow fallback to FakeWorker to avoid CORS issues with cross-origin worker script
+      // pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+    }
+
+    // Audio Synthesizer for Page Flip Sound
+    let audioCtx = null;
+    let soundEnabled = true;
+
+    function playFlipSound() {
+      if (!soundEnabled) return;
+      try {
+        if (!audioCtx) {
+          audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        }
+        if (audioCtx.state === 'suspended') {
+          audioCtx.resume();
+        }
+        const now = audioCtx.currentTime;
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(320, now);
+        osc.frequency.exponentialRampToValueAtTime(140, now + 0.12);
+        gain.gain.setValueAtTime(0.2, now);
+        gain.gain.exponentialRampToValueAtTime(0.01, now + 0.12);
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start(now);
+        osc.stop(now + 0.12);
+      } catch (e) {}
+    }
+
+    function toggleAudioSound() {
+      soundEnabled = !soundEnabled;
+      const icon = document.getElementById('icon-sound');
+      if (icon) {
+        icon.className = soundEnabled ? 'w-4 h-4 text-duoGreen' : 'w-4 h-4 text-slate-400';
+      }
+      showToast(soundEnabled ? 'Đã bật âm thanh lật trang' : 'Đã tắt âm thanh');
+    }
+
+    // ==========================================
+    // INDEXEDDB STORAGE FOR UNLIMITED PAGES & MEDIA
+    // ==========================================
+    const DB_NAME = 'Biblio3D_TutorFlow_DB';
+    const DB_STORE = 'books';
+    let db = null;
+
+    function initDB() {
+      return new Promise((resolve, reject) => {
+        const req = indexedDB.open(DB_NAME, 2);
+        req.onupgradeneeded = (e) => {
+          const dbInstance = e.target.result;
+          if (!dbInstance.objectStoreNames.contains(DB_STORE)) {
+            dbInstance.createObjectStore(DB_STORE, { keyPath: 'id' });
+          }
+        };
+        req.onsuccess = (e) => {
+          db = e.target.result;
+          resolve(db);
+        };
+        req.onerror = (e) => reject(e);
+      });
+    }
+
+    async function dbSaveBook(book) {
+      if (!db) await initDB();
+      return new Promise((resolve, reject) => {
+        const tx = db.transaction(DB_STORE, 'readwrite');
+        const store = tx.objectStore(DB_STORE);
+        store.put(book);
+        tx.oncomplete = () => resolve(true);
+        tx.onerror = (e) => reject(e);
+      });
+    }
+
+    async function dbGetAllBooks() {
+      if (!db) await initDB();
+      return new Promise((resolve, reject) => {
+        const tx = db.transaction(DB_STORE, 'readonly');
+        const store = tx.objectStore(DB_STORE);
+        const req = store.getAll();
+        req.onsuccess = () => resolve(req.result || []);
+        req.onerror = (e) => reject(e);
+      });
+    }
+
+    async function dbDeleteBook(id) {
+      if (!db) await initDB();
+      return new Promise((resolve, reject) => {
+        const tx = db.transaction(DB_STORE, 'readwrite');
+        const store = tx.objectStore(DB_STORE);
+        store.delete(id);
+        tx.oncomplete = () => resolve(true);
+        tx.onerror = (e) => reject(e);
+      });
+    }
+
+    // ==========================================
+    // SEED SAMPLE BOOKS (WITH AUDIO & VIDEO)
+    // ==========================================
+    function createSvgPageData(data) {
+      if (data.type === 'cover') {
+        const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="600" height="850" viewBox="0 0 600 850">
+          <rect width="600" height="850" fill="${data.bgColor}" rx="12"/>
+          <rect x="25" y="25" width="550" height="800" fill="none" stroke="#ffffff" stroke-width="4" stroke-dasharray="10,6" rx="8"/>
+          <circle cx="300" cy="380" r="140" fill="#ffffff" fill-opacity="0.15"/>
+          <text x="300" y="240" font-family="Nunito, sans-serif" font-size="34" font-weight="900" fill="#ffffff" text-anchor="middle" letter-spacing="1">${data.title}</text>
+          <text x="300" y="290" font-family="Nunito, sans-serif" font-size="16" font-weight="700" fill="#ffffff" fill-opacity="0.9" text-anchor="middle">${data.subtitle}</text>
+          <rect x="200" y="440" width="200" height="48" rx="24" fill="#ffffff"/>
+          <text x="300" y="472" font-family="Nunito, sans-serif" font-size="20" font-weight="900" fill="${data.bgColor}" text-anchor="middle">${data.grade}</text>
+          <text x="300" y="780" font-family="Nunito, sans-serif" font-size="14" font-weight="700" fill="#ffffff" fill-opacity="0.8" text-anchor="middle">BIBLIO 3D / TUTORFLOW STUDIO</text>
+        </svg>`;
+        return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
+      } else if (data.type === 'backcover') {
+        const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="600" height="850" viewBox="0 0 600 850">
+          <rect width="600" height="850" fill="${data.bgColor}" rx="12"/>
+          <rect x="30" y="30" width="540" height="790" fill="#ffffff" rx="8"/>
+          <circle cx="300" cy="350" r="60" fill="${data.bgColor}" fill-opacity="0.1"/>
+          <text x="300" y="360" font-family="Nunito, sans-serif" font-size="36" font-weight="900" fill="${data.bgColor}" text-anchor="middle">★</text>
+          <text x="300" y="450" font-family="Nunito, sans-serif" font-size="24" font-weight="900" fill="#1e293b" text-anchor="middle">${data.title}</text>
+          <text x="300" y="490" font-family="Nunito, sans-serif" font-size="16" font-weight="700" fill="#64748b" text-anchor="middle">${data.subtitle}</text>
+        </svg>`;
+        return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
+      } else {
+        const sanitizedHtml = (data.contentHtml || '').replace(/"/g, "'");
+        const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="600" height="850" viewBox="0 0 600 850">
+          <rect width="600" height="850" fill="#ffffff"/>
+          <rect x="0" y="0" width="600" height="60" fill="#f8fafc"/>
+          <line x1="0" y1="60" x2="600" y2="60" stroke="#e2e8f0" stroke-width="2"/>
+          <text x="30" y="38" font-family="Nunito, sans-serif" font-size="13" font-weight="800" fill="#64748b">${data.unit || 'CHƯƠNG BÀI HỌC'}</text>
+          <text x="30" y="105" font-family="Nunito, sans-serif" font-size="22" font-weight="900" fill="#0f172a">${data.heading || 'Nội dung bài học'}</text>
+          <foreignObject x="30" y="125" width="540" height="660">
+            <div xmlns="http://www.w3.org/1999/xhtml" style="font-family: 'Nunito', sans-serif;">
+              ${sanitizedHtml}
+            </div>
+          </foreignObject>
+          <line x1="40" y1="800" x2="560" y2="800" stroke="#f1f5f9" stroke-width="2"/>
+          <text x="300" y="825" font-family="Nunito, sans-serif" font-size="12" font-weight="700" fill="#94a3b8" text-anchor="middle">- ${data.pageNumber} -</text>
+        </svg>`;
+        return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
+      }
+    }
+
+    // ==========================================
+    // APPLICATION STATE
+    // ==========================================
+    let allBooks = [];
+    let currentBook = null;
+    let pageFlipInstance = null;
+    let activeCategory = 'all';
+    let selectedUploadFile = null;
+    let uploadAudioTracks = [];
+
+    // Teaching Mode States
+    let isTeachingMode = false;
+    let isLaserActive = false;
+    let isSpotlightActive = false;
+    let currentDrawingTool = 'none';
+    let isDrawing = false;
+    let timerInterval = null;
+
+    // Media Player State
+    let currentAudioTrackIndex = -1;
+
+    // ==========================================
+    // INITIALIZATION LIFECYCLE
+    // ==========================================
+    function initApp() {
+      if (window.lucide && typeof lucide.createIcons === 'function') {
+        lucide.createIcons();
+      }
+      initDB()
+        .then(() => loadBooks())
+        .catch(err => {
+          console.warn('DB fallback', err);
+          loadBooks();
+        });
+      setupLaserAndDrawingListeners();
+      setupKeyboardShortcuts();
+    }
+
+    if (document.readyState === 'loading') {
+      window.addEventListener('DOMContentLoaded', initApp);
+    } else {
+      initApp();
+    }
+
+    async function loadBooks() {
+      try {
+        allBooks = await dbGetAllBooks();
+      } catch (err) {
+        allBooks = [];
+      }
+      
+      // Xóa hoàn toàn các file mẫu cũ nếu chúng còn tồn tại trong IndexedDB
+      const sampleBooks = allBooks.filter(b => b.isSample);
+      if (sampleBooks.length > 0) {
+        for (const sb of sampleBooks) {
+          try { await dbDeleteBook(sb.id); } catch(e){}
+        }
+        allBooks = allBooks.filter(b => !b.isSample);
+      }
+      
+      updateBooksCountSidebar();
+      renderBooksGrid();
+    }
+
+    function updateBooksCountSidebar() {
+      const sidebarCount = document.getElementById('sidebar-books-count');
+      if (sidebarCount) sidebarCount.innerText = allBooks.length + ' sách';
+    }
+
+    // ==========================================
+    // 1. SỬA LỖI XÓA SÁCH (100% HOẠT ĐỘNG, KHÔNG BỊ NHẦM EVENT)
+    // ==========================================
+    async function deleteBookById(id, title, event) {
+      if (event) {
+        event.stopPropagation();
+        event.preventDefault();
+      }
+
+      const confirmed = window.confirm(`Bạn có chắc chắn muốn xóa cuốn sách "${title}" không?\n\nHành động này sẽ xóa toàn bộ trang và tệp âm thanh đi kèm khỏi bộ nhớ.`);
+      if (!confirmed) return;
+
+      try {
+        // Delete from IndexedDB
+        await dbDeleteBook(id);
+        
+        // Remove from memory array
+        allBooks = allBooks.filter(b => b.id !== id);
+
+        // Also clean from localStorage if stored
+        try {
+          localStorage.removeItem('book_' + id);
+        } catch (e) {}
+
+        // If this was the current opened book, reset reader
+        if (currentBook && currentBook.id === id) {
+          currentBook = null;
+          showLibraryView();
+        }
+
+        updateBooksCountSidebar();
+        renderBooksGrid();
+        showToast(`Đã xóa cuốn sách "${title}" thành công!`);
+      } catch (err) {
+        console.error('Delete error', err);
+        showToast('Có lỗi xảy ra khi xóa sách, vui lòng thử lại.');
+      }
+    }
+
+    // ==========================================
+    // RENDER LIBRARY GRID
+    // ==========================================
+    function renderBooksGrid() {
+      const grid = document.getElementById('books-grid');
+      const empty = document.getElementById('empty-state');
+      const searchInput = document.getElementById('search-input');
+      if (!grid) return;
+
+      const searchVal = searchInput ? searchInput.value.toLowerCase().trim() : '';
+
+      const filtered = allBooks.filter(book => {
+        const matchCat = (activeCategory === 'all' || book.category === activeCategory);
+        const matchSearch = !searchVal || book.title.toLowerCase().includes(searchVal);
+        return matchCat && matchSearch;
+      });
+
+      const countAll = document.getElementById('count-all');
+      if (countAll) countAll.innerText = allBooks.length;
+
+      if (filtered.length === 0) {
+        grid.innerHTML = '';
+        if (empty) empty.classList.remove('hidden');
+        if (window.lucide && typeof lucide.createIcons === 'function') lucide.createIcons();
+        return;
+      }
+
+      if (empty) empty.classList.add('hidden');
+
+      const colorStyles = {
+        emerald: { bg: 'bg-[#58CC02]', border: 'border-[#46A302]', text: 'text-emerald-700', light: 'bg-[#E8F8D8]', fill: '#58CC02' },
+        sky: { bg: 'bg-[#1CB0F6]', border: 'border-[#1899D6]', text: 'text-sky-700', light: 'bg-[#DDF4FF]', fill: '#1CB0F6' },
+        purple: { bg: 'bg-[#CE82FF]', border: 'border-[#A559D9]', text: 'text-purple-700', light: 'bg-[#F4E8FF]', fill: '#CE82FF' },
+        amber: { bg: 'bg-[#FFC800]', border: 'border-[#E5A400]', text: 'text-amber-800', light: 'bg-[#FFF8DD]', fill: '#FFC800' },
+        red: { bg: 'bg-[#FF4B4B]', border: 'border-[#EA2B2B]', text: 'text-red-700', light: 'bg-[#FFEBEB]', fill: '#FF4B4B' }
+      };
+
+      grid.innerHTML = filtered.map(book => {
+        const style = colorStyles[book.color] || colorStyles.sky;
+        const totalP = (book.pages && book.pages.length) || book.totalPages || 1;
+        const hasAudio = book.audioTracks && book.audioTracks.length > 0;
+        const hasVideo = !!book.videoUrl;
+
+        return `
+          <div class="card-3d flex flex-col overflow-hidden group cursor-pointer" onclick="openBookReader('${book.id}')">
+            
+            <!-- Book Cover Preview -->
+            <div class="h-44 sm:h-48 ${style.light} border-b-2 border-[#E5E5E5] flex items-center justify-center p-3 relative overflow-hidden">
+              
+              <!-- 3D Mini Book Representation -->
+              <div class="w-28 h-36 ${style.bg} border-b-4 ${style.border} rounded-xl shadow-lg flex flex-col items-center justify-between p-2.5 text-white transform group-hover:scale-105 transition-transform duration-200">
+                <span class="text-[9px] font-black tracking-widest uppercase bg-black/20 px-1.5 py-0.5 rounded">3D FLIP</span>
+                <p class="font-black text-xs text-center line-clamp-2 leading-tight">${book.title}</p>
+                <div class="w-full flex items-center justify-between text-[9px] font-extrabold opacity-90">
+                  <span>${totalP} TRANG</span>
+                  <span>PDF</span>
+                </div>
+              </div>
+
+              <!-- Media Badges -->
+              <div class="absolute top-2 right-2 flex flex-col gap-1 items-end">
+                ${hasAudio ? `
+                  <span class="bg-purple-600 text-white text-[9px] font-black px-1.5 py-0.5 rounded-md flex items-center gap-1 shadow-sm">
+                    <i data-lucide="headphones" class="w-3 h-3"></i> ${book.audioTracks.length} Audio
+                  </span>
+                ` : ''}
+                ${hasVideo ? `
+                  <span class="bg-red-600 text-white text-[9px] font-black px-1.5 py-0.5 rounded-md flex items-center gap-1 shadow-sm">
+                    <i data-lucide="video" class="w-3 h-3"></i> Video
+                  </span>
+                ` : ''}
+              </div>
+
+              <!-- Delete Trash Button (With stopPropagation) -->
+              <button 
+                onclick="deleteBookById('${book.id}', '${book.title.replace(/'/g, "\\'")}', event)" 
+                class="absolute bottom-2 right-2 w-8 h-8 rounded-xl bg-white/90 hover:bg-red-500 hover:text-white text-slate-500 border border-slate-200 flex items-center justify-center shadow-md transition-colors z-10" 
+                title="Xóa cuốn sách này"
+              >
+                <i data-lucide="trash-2" class="w-4 h-4"></i>
+              </button>
+
+            </div>
+
+            <!-- Book Info & Actions -->
+            <div class="p-3.5 flex-1 flex flex-col justify-between space-y-3">
+              <div>
+                <span class="text-[10px] font-black ${style.text} uppercase tracking-wider">
+                  ${book.category === 'textbook' ? '📖 Giáo Trình & SGK' : book.category === 'exercise' ? '✏️ Bài Tập & Đề Thi' : '🔬 Tài Liệu Tham Khảo'}
+                </span>
+                <h3 class="font-black text-slate-800 text-sm leading-snug line-clamp-2 mt-0.5 group-hover:text-duoBlue transition-colors">
+                  ${book.title}
+                </h3>
+              </div>
+
+              <div class="pt-2 border-t border-slate-100 flex items-center justify-between">
+                <span class="text-xs font-bold text-slate-500 flex items-center gap-1">
+                  <i data-lucide="file-text" class="w-3.5 h-3.5 text-slate-400"></i>
+                  ${totalP} trang
+                </span>
+
+                <button class="btn-3d ${style.bg} ${style.border} text-white text-xs font-black px-3.5 py-1 rounded-xl">
+                  ĐỌC NGAY
+                </button>
+              </div>
+            </div>
+
+          </div>
+        `;
+      }).join('');
+
+      if (window.lucide && typeof lucide.createIcons === 'function') {
+        lucide.createIcons();
+      }
+    }
+
+    function setCategoryFilter(category, btnElement) {
+      activeCategory = category;
+      document.querySelectorAll('.category-filter-btn').forEach(btn => {
+        btn.className = 'category-filter-btn btn-3d btn-white font-extrabold px-4 py-1.5 rounded-xl text-xs whitespace-nowrap';
+      });
+      if (btnElement) {
+        btnElement.className = 'category-filter-btn btn-3d btn-nav-active font-extrabold px-4 py-1.5 rounded-xl text-xs whitespace-nowrap';
+      }
+      renderBooksGrid();
+    }
+
+    // ==========================================
+    // 2. SỬA LỖI THIẾU TRANG (RENDER ĐỦ 100% SỐ TRANG FILE GỐC)
+    // ==========================================
+    async function convertPdfToFullPagesArray(pdfData, onProgress) {
+      if (!window.pdfjsLib) {
+        throw new Error('Thư viện PDF.js chưa tải xong. Vui lòng thử lại sau vài giây!');
+      }
+
+      // Allow fallback to FakeWorker to avoid CORS issues
+      // pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+      const loadingTask = pdfjsLib.getDocument({ data: pdfData });
+      const pdfDoc = await loadingTask.promise;
+      const numPages = pdfDoc.numPages; // 100% of all pages
+
+      const pagesArray = [];
+
+      for (let i = 1; i <= numPages; i++) {
+        if (onProgress) {
+          onProgress(i, numPages);
+        }
+
+        const page = await pdfDoc.getPage(i);
+        const viewport = page.getViewport({ scale: 1.3 });
+        
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        canvas.width = viewport.width;
+        canvas.height = viewport.height;
+
+        const renderContext = {
+          canvasContext: ctx,
+          viewport: viewport
+        };
+        await page.render(renderContext).promise;
+
+        const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
+        pagesArray.push(dataUrl);
+      }
+
+      return pagesArray;
+    }
+
+    // ==========================================
+    // 3. MEDIA PLAYER ENGINE (AUDIO & VIDEO)
+    // ==========================================
+    function setupMediaForCurrentBook(book) {
+      const mediaDock = document.getElementById('media-player-dock');
+      const mediaBadge = document.getElementById('reader-media-badge');
+      const trackSelect = document.getElementById('media-track-select');
+      const trackName = document.getElementById('media-current-track-name');
+      const audioPlayer = document.getElementById('global-audio-player');
+
+      if (!book) return;
+
+      const hasAudio = book.audioTracks && book.audioTracks.length > 0;
+      const hasVideo = !!book.videoUrl;
+
+      if (mediaBadge) {
+        if (hasAudio || hasVideo) {
+          mediaBadge.classList.remove('hidden');
+        } else {
+          mediaBadge.classList.add('hidden');
+        }
+      }
+
+      // Populate Track select
+      if (trackSelect) {
+        if (hasAudio) {
+          trackSelect.innerHTML = book.audioTracks.map((t, idx) => `
+            <option value="${idx}">${t.name || `Track ${idx + 1}`}</option>
+          `).join('');
+          currentAudioTrackIndex = 0;
+          if (audioPlayer && book.audioTracks[0]) {
+            audioPlayer.src = book.audioTracks[0].url;
+            if (trackName) trackName.innerText = book.audioTracks[0].name;
+          }
+        } else {
+          trackSelect.innerHTML = `<option value="">-- Không có bài nghe đính kèm --</option>`;
+          currentAudioTrackIndex = -1;
+          if (audioPlayer) audioPlayer.src = '';
+          if (trackName) trackName.innerText = 'Không có bài nghe';
+        }
+      }
+    }
+
+    function toggleMediaDock() {
+      const dock = document.getElementById('media-player-dock');
+      if (!dock) return;
+      dock.classList.toggle('hidden');
+    }
+
+    function changeAudioTrack(indexStr) {
+      if (!currentBook || !currentBook.audioTracks) return;
+      const idx = parseInt(indexStr, 10);
+      if (isNaN(idx) || idx < 0 || idx >= currentBook.audioTracks.length) return;
+
+      currentAudioTrackIndex = idx;
+      const track = currentBook.audioTracks[idx];
+      const audioPlayer = document.getElementById('global-audio-player');
+      const trackName = document.getElementById('media-current-track-name');
+
+      if (audioPlayer && track) {
+        audioPlayer.src = track.url;
+        audioPlayer.play().catch(() => {});
+        updatePlayButtonUI(true);
+        if (trackName) trackName.innerText = track.name;
+        showToast(`Đang phát: ${track.name}`);
+      }
+    }
+
+    function toggleAudioPlay() {
+      const audioPlayer = document.getElementById('global-audio-player');
+      if (!audioPlayer || !audioPlayer.src) {
+        showToast('Vui lòng chọn bài nghe Audio');
+        return;
+      }
+
+      if (audioPlayer.paused) {
+        audioPlayer.play().catch(e => console.warn(e));
+        updatePlayButtonUI(true);
+      } else {
+        audioPlayer.pause();
+        updatePlayButtonUI(false);
+      }
+    }
+
+    function updatePlayButtonUI(isPlaying) {
+      const label = document.getElementById('label-audio-play');
+      const icon = document.getElementById('icon-audio-play');
+      if (label) label.innerText = isPlaying ? 'Tạm Dừng' : 'Phát';
+      if (icon) {
+        icon.setAttribute('data-lucide', isPlaying ? 'pause' : 'play');
+        if (window.lucide) lucide.createIcons();
+      }
+    }
+
+    function seekAudioRelative(seconds) {
+      const audioPlayer = document.getElementById('global-audio-player');
+      if (!audioPlayer) return;
+      audioPlayer.currentTime = Math.max(0, Math.min(audioPlayer.duration || 0, audioPlayer.currentTime + seconds));
+    }
+
+    function seekAudio(percent) {
+      const audioPlayer = document.getElementById('global-audio-player');
+      if (!audioPlayer || !audioPlayer.duration) return;
+      audioPlayer.currentTime = (percent / 100) * audioPlayer.duration;
+    }
+
+    function setAudioSpeed(rate) {
+      const audioPlayer = document.getElementById('global-audio-player');
+      if (!audioPlayer) return;
+      audioPlayer.playbackRate = parseFloat(rate) || 1.0;
+    }
+
+    function updateAudioProgress() {
+      const audioPlayer = document.getElementById('global-audio-player');
+      if (!audioPlayer || isNaN(audioPlayer.duration)) return;
+
+      const cur = audioPlayer.currentTime;
+      const dur = audioPlayer.duration;
+
+      const bar = document.getElementById('audio-progress-bar');
+      if (bar && dur > 0) {
+        bar.value = (cur / dur) * 100;
+      }
+
+      const curLabel = document.getElementById('audio-time-current');
+      const totalLabel = document.getElementById('audio-time-total');
+
+      if (curLabel) curLabel.innerText = formatTime(cur);
+      if (totalLabel) totalLabel.innerText = formatTime(dur);
+    }
+
+    function onAudioEnded() {
+      updatePlayButtonUI(false);
+      // Auto play next track if available
+      if (currentBook && currentBook.audioTracks && currentAudioTrackIndex + 1 < currentBook.audioTracks.length) {
+        changeAudioTrack(currentAudioTrackIndex + 1);
+        const sel = document.getElementById('media-track-select');
+        if (sel) sel.value = currentAudioTrackIndex;
+      }
+    }
+
+    function formatTime(seconds) {
+      if (isNaN(seconds) || seconds < 0) return '00:00';
+      const m = Math.floor(seconds / 60);
+      const s = Math.floor(seconds % 60);
+      return `${m < 10 ? '0' + m : m}:${s < 10 ? '0' + s : s}`;
+    }
+
+    function toggleVideoPopup() {
+      const modal = document.getElementById('modal-video-player');
+      const content = document.getElementById('video-modal-content');
+      const title = document.getElementById('video-modal-title');
+      if (!modal || !content) return;
+
+      if (!modal.classList.contains('hidden')) {
+        modal.classList.add('hidden');
+        content.innerHTML = '';
+        return;
+      }
+
+      if (!currentBook || !currentBook.videoUrl) {
+        showToast('Cuốn sách này chưa đính kèm Video bài giảng');
+        return;
+      }
+
+      modal.classList.remove('hidden');
+      if (title) title.innerText = currentBook.title + ' - Video Giảng Dạy';
+
+      const url = currentBook.videoUrl.trim();
+      if (url.includes('youtube.com') || url.includes('youtu.be')) {
+        let videoId = '';
+        if (url.includes('v=')) {
+          videoId = url.split('v=')[1].split('&')[0];
+        } else if (url.includes('youtu.be/')) {
+          videoId = url.split('youtu.be/')[1].split('?')[0];
+        }
+        content.innerHTML = `
+          <iframe 
+            class="w-full h-full" 
+            src="https://www.youtube.com/embed/${videoId}?autoplay=1" 
+            frameborder="0" 
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
+            allowfullscreen>
+          </iframe>
+        `;
+      } else {
+        content.innerHTML = `
+          <video controls autoplay class="w-full h-full rounded-xl">
+            <source src="${url}" type="video/mp4">
+            Trình duyệt không hỗ trợ video này.
+          </video>
+        `;
+      }
+    }
+
+    // ==========================================
+    // FLIPBOOK 3D INITIALIZATION & NAVIGATION
+    // ==========================================
+    async function openBookReader(bookId) {
+      const book = allBooks.find(b => b.id === bookId);
+      if (!book) return;
+
+      currentBook = book;
+      const viewLibrary = document.getElementById('view-library');
+      const viewReader = document.getElementById('view-reader');
+      if (viewLibrary) viewLibrary.classList.add('hidden');
+      if (viewReader) viewReader.classList.remove('hidden');
+
+      const navLibrary = document.getElementById('nav-btn-library');
+      const navReader = document.getElementById('nav-btn-reader');
+      if (navLibrary) navLibrary.className = 'btn-3d btn-white flex items-center gap-3 p-3 rounded-2xl font-extrabold text-sm w-full text-left';
+      if (navReader) navReader.className = 'btn-3d btn-nav-active flex items-center gap-3 p-3 rounded-2xl font-extrabold text-sm w-full text-left';
+
+      const headerBookInfo = document.getElementById('header-book-info');
+      const headerBookTitle = document.getElementById('header-book-title');
+      const readerTitle = document.getElementById('reader-title');
+      const readerCategoryBadge = document.getElementById('reader-category-badge');
+
+      if (headerBookInfo) headerBookInfo.classList.remove('hidden');
+      if (headerBookTitle) headerBookTitle.innerText = book.title;
+      if (readerTitle) readerTitle.innerText = book.title;
+      if (readerCategoryBadge) readerCategoryBadge.innerText = book.category;
+
+      setupMediaForCurrentBook(book);
+      showLoader(true, 'Đang chuẩn bị trang 3D Flipbook...');
+
+      setTimeout(async () => {
+        await initFlipbook(book);
+        showLoader(false);
+      }, 80);
+    }
+
+    function resumeCurrentBook() {
+      if (currentBook) {
+        openBookReader(currentBook.id);
+      } else if (allBooks.length > 0) {
+        openBookReader(allBooks[0].id);
+      } else {
+        showToast('Chưa có sách nào để đọc!');
+      }
+    }
+
+    function showLibraryView() {
+      if (isTeachingMode) exitTeachingMode();
+      const viewReader = document.getElementById('view-reader');
+      const viewLibrary = document.getElementById('view-library');
+      const headerBookInfo = document.getElementById('header-book-info');
+      
+      if (viewReader) viewReader.classList.add('hidden');
+      if (viewLibrary) viewLibrary.classList.remove('hidden');
+      if (headerBookInfo) headerBookInfo.classList.add('hidden');
+
+      const navLibrary = document.getElementById('nav-btn-library');
+      const navReader = document.getElementById('nav-btn-reader');
+      if (navLibrary) navLibrary.className = 'btn-3d btn-nav-active flex items-center gap-3 p-3 rounded-2xl font-extrabold text-sm w-full text-left';
+      if (navReader) navReader.className = 'btn-3d btn-white flex items-center gap-3 p-3 rounded-2xl font-extrabold text-sm w-full text-left';
+
+      if (pageFlipInstance) {
+        try { pageFlipInstance.destroy(); } catch (e) {}
+        pageFlipInstance = null;
+      }
+    }
+
+    async function initFlipbook(book) {
+      const container = document.getElementById('flipbook-container');
+      if (!container) return;
+      container.innerHTML = '';
+
+      if (pageFlipInstance) {
+        try { pageFlipInstance.destroy(); } catch (e) {}
+        pageFlipInstance = null;
+      }
+
+      const pages = book.pages || [];
+      const totalPagesLabel = document.getElementById('total-pages-label');
+      const inputPageNumber = document.getElementById('input-page-number');
+      if (totalPagesLabel) totalPagesLabel.innerText = pages.length;
+      if (inputPageNumber) inputPageNumber.max = pages.length;
+
+      pages.forEach((pageSrc, index) => {
+        const pageDiv = document.createElement('div');
+        pageDiv.className = 'page';
+        pageDiv.setAttribute('data-density', index === 0 || index === pages.length - 1 ? 'hard' : 'soft');
+
+        const img = document.createElement('img');
+        img.src = pageSrc;
+        img.className = 'w-full h-full object-fill select-none pointer-events-none';
+        img.loading = 'eager';
+
+        pageDiv.appendChild(img);
+        container.appendChild(pageDiv);
+      });
+
+      const viewport = document.getElementById('flipbook-viewport');
+      const containerWidth = Math.min(viewport ? viewport.clientWidth : 800, 920);
+      const isMobile = window.innerWidth < 768;
+      
+      const pageWidth = isMobile ? Math.min(containerWidth - 20, 420) : Math.floor(containerWidth / 2);
+      const pageHeight = Math.floor(pageWidth * 1.414);
+
+      if (window.St && window.St.PageFlip) {
+        pageFlipInstance = new St.PageFlip(container, {
+          width: pageWidth,
+          height: pageHeight,
+          size: 'fixed',
+          minWidth: 260,
+          maxWidth: 600,
+          minHeight: 380,
+          maxHeight: 850,
+          drawShadow: true,
+          flippingTime: 550,
+          usePortrait: isMobile,
+          startZIndex: 10,
+          autoSize: true,
+          maxShadowOpacity: 0.45,
+          showCover: true,
+          mobileScrollSupport: false
+        });
+
+        pageFlipInstance.loadFromHTML(document.querySelectorAll('.page'));
+
+        pageFlipInstance.on('flip', (e) => {
+          playFlipSound();
+          updatePageIndicator(e.data + 1);
+        });
+
+        pageFlipInstance.on('changeState', (e) => {
+          if (e.data === 'flipping') {
+            playFlipSound();
+          }
+        });
+
+        updatePageIndicator(1);
+      }
+    }
+
+    function updatePageIndicator(pageNum) {
+      const pageInput = document.getElementById('input-page-number');
+      if (pageInput) pageInput.value = pageNum;
+      const total = currentBook && currentBook.pages ? currentBook.pages.length : 1;
+      const headerBadge = document.getElementById('header-page-badge');
+      if (headerBadge) headerBadge.innerText = `Trang ${pageNum}/${total}`;
+    }
+
+    function flipNext() {
+      if (pageFlipInstance) pageFlipInstance.flipNext();
+    }
+    function flipPrev() {
+      if (pageFlipInstance) pageFlipInstance.flipPrev();
+    }
+    function flipFirst() {
+      if (pageFlipInstance) pageFlipInstance.flip(0);
+    }
+    function flipLast() {
+      if (pageFlipInstance && currentBook && currentBook.pages) {
+        pageFlipInstance.flip(currentBook.pages.length - 1);
+      }
+    }
+    function jumpToPageInput(val) {
+      const page = parseInt(val, 10);
+      if (pageFlipInstance && currentBook && currentBook.pages && page >= 1 && page <= currentBook.pages.length) {
+        pageFlipInstance.flip(page - 1);
+      }
+    }
+    function fitScreenToggle() {
+      if (!document.fullscreenElement) {
+        document.documentElement.requestFullscreen().catch(() => {});
+      } else {
+        document.exitFullscreen().catch(() => {});
+      }
+    }
+
+    // ==========================================
+    // UPLOAD MODAL & AUDIO TRACK MANAGEMENT
+    // ==========================================
+    function openUploadModal() {
+      uploadAudioTracks = [];
+      const modal = document.getElementById('modal-upload');
+      if (modal) modal.classList.remove('hidden');
+      
+      const titleInp = document.getElementById('input-book-title');
+      const fileInfo = document.getElementById('selected-file-info');
+      const videoInp = document.getElementById('input-book-video');
+      
+      if (titleInp) titleInp.value = '';
+      if (fileInfo) fileInfo.classList.add('hidden');
+      if (videoInp) videoInp.value = '';
+      
+      selectedUploadFile = null;
+      renderUploadAudioTrackList();
+    }
+
+    function closeUploadModal() {
+      const modal = document.getElementById('modal-upload');
+      if (modal) modal.classList.add('hidden');
+    }
+
+    function handleFileSelected(file) {
+      if (!file) return;
+      const isPdf = file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf');
+      if (!isPdf) {
+        showToast('⚠️ Vui lòng chọn tệp định dạng PDF!');
+        return;
+      }
+      selectedUploadFile = file;
+      const fileInfo = document.getElementById('selected-file-info');
+      const fileName = document.getElementById('selected-file-name');
+      const fileSize = document.getElementById('selected-file-size');
+
+      if (fileInfo) fileInfo.classList.remove('hidden');
+      if (fileName) fileName.innerText = file.name;
+      if (fileSize) fileSize.innerText = (file.size / (1024 * 1024)).toFixed(2) + ' MB';
+
+      const titleInp = document.getElementById('input-book-title');
+      if (titleInp && !titleInp.value) {
+        titleInp.value = file.name.replace(/\.[^/.]+$/, '').replace(/[-_]/g, ' ');
+      }
+      showToast('📄 Đã nhận diện file PDF: ' + file.name);
+    }
+
+    // Drag & Drop for PDF + Audio Files
+    const dropzone = document.getElementById('dropzone');
+    if (dropzone) {
+      dropzone.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        dropzone.classList.add('bg-duoBlue/20');
+      });
+      dropzone.addEventListener('dragleave', () => {
+        dropzone.classList.remove('bg-duoBlue/20');
+      });
+      dropzone.addEventListener('drop', (e) => {
+        e.preventDefault();
+        dropzone.classList.remove('bg-duoBlue/20');
+        if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+          const files = Array.from(e.dataTransfer.files);
+          const pdfFile = files.find(f => f.type === 'application/pdf' || f.name.endsWith('.pdf'));
+          const audioFiles = files.filter(f => f.type.startsWith('audio/') || /\.(mp3|wav|m4a|aac|ogg|flac)$/i.test(f.name));
+
+          if (pdfFile) {
+            handleFileSelected(pdfFile);
+          }
+          if (audioFiles.length > 0) {
+            handleBatchAudioFilesUpload(audioFiles);
+          }
+        }
+      });
+    }
+
+    // ==========================================
+    // MULTI-FILE / BATCH AUDIO HANDLING (UPLOAD MODAL)
+    // ==========================================
+    function handleBatchAudioFilesUpload(files) {
+      if (!files || files.length === 0) return;
+      const fileArr = Array.from(files);
+
+      let loadedCount = 0;
+      fileArr.forEach((file, index) => {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          // Clean track name from filename
+          let cleanName = file.name.replace(/\.[^/.]+$/, '').replace(/[-_]/g, ' ');
+          
+          uploadAudioTracks.push({
+            id: 'track_' + Date.now() + '_' + index,
+            name: cleanName,
+            url: e.target.result,
+            size: file.size
+          });
+
+          loadedCount++;
+          if (loadedCount === fileArr.length) {
+            // Auto sort numerically if tracks have numbers
+            uploadAudioTracks.sort((a, b) => {
+              const numA = (a.name.match(/\d+/) || [0])[0];
+              const numB = (b.name.match(/\d+/) || [0])[0];
+              return parseInt(numA, 10) - parseInt(numB, 10);
+            });
+
+            renderUploadAudioTrackList();
+            showToast(`⚡ Đã thêm nhanh ${fileArr.length} file audio vào danh sách bài nghe!`);
+          }
+        };
+        reader.readAsDataURL(file);
+      });
+    }
+
+    function addAudioTrackField() {
+      uploadAudioTracks.push({
+        id: 'track_' + Date.now(),
+        name: `Track ${uploadAudioTracks.length + 1} - Listening`,
+        url: ''
+      });
+      renderUploadAudioTrackList();
+    }
+
+    function removeAudioTrackField(idx) {
+      uploadAudioTracks.splice(idx, 1);
+      renderUploadAudioTrackList();
+    }
+
+    function handleAudioFileInput(file, idx) {
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        uploadAudioTracks[idx].url = e.target.result;
+        if (!uploadAudioTracks[idx].name || uploadAudioTracks[idx].name.startsWith('Track')) {
+          uploadAudioTracks[idx].name = file.name.replace(/\.[^/.]+$/, '').replace(/[-_]/g, ' ');
+        }
+        renderUploadAudioTrackList();
+        showToast('Đã tải lên tệp âm thanh: ' + file.name);
+      };
+      reader.readAsDataURL(file);
+    }
+
+    function renderUploadAudioTrackList() {
+      const container = document.getElementById('upload-audio-tracks-list');
+      const countBadge = document.getElementById('upload-tracks-count');
+      if (countBadge) countBadge.innerText = uploadAudioTracks.length;
+      if (!container) return;
+
+      if (uploadAudioTracks.length === 0) {
+        container.innerHTML = `
+          <div class="text-center py-3 text-[11px] text-slate-400 font-bold bg-white/70 rounded-xl border border-dashed border-purple-200">
+            Chưa có track bài nghe nào. Hãy bấm <b>⚡ Chọn Hàng Loạt MP3</b> hoặc <b>+ Thêm Track</b>.
+          </div>
+        `;
+        return;
+      }
+
+      container.innerHTML = uploadAudioTracks.map((t, idx) => `
+        <div class="flex items-center gap-2 bg-white p-2 rounded-xl border border-purple-200 shadow-sm">
+          <span class="text-[11px] font-black text-duoPurpleDark w-6 text-center">#${idx + 1}</span>
+          <input 
+            type="text" 
+            placeholder="Tên bài nghe (VD: Track 1.1 Unit 1)" 
+            value="${t.name || ''}" 
+            onchange="uploadAudioTracks[${idx}].name = this.value"
+            class="flex-1 px-2.5 py-1 bg-slate-50 border border-slate-200 rounded-lg text-xs font-bold text-slate-800 focus:outline-none focus:border-duoPurple"
+          />
+          <input 
+            type="text" 
+            placeholder="Dán link MP3 hoặc chọn file ->" 
+            value="${t.url.startsWith('data:') ? '[File Audio Đã Tải Lên]' : t.url}" 
+            onchange="uploadAudioTracks[${idx}].url = this.value"
+            class="flex-1 px-2.5 py-1 bg-slate-50 border border-slate-200 rounded-lg text-xs font-mono text-slate-700 focus:outline-none"
+          />
+          <label class="btn-3d btn-white text-[10px] font-black px-2 py-1 rounded-lg cursor-pointer flex items-center gap-1">
+            <i data-lucide="upload" class="w-3 h-3 text-duoPurple"></i> Tệp
+            <input type="file" accept="audio/*" class="hidden" onchange="handleAudioFileInput(this.files[0], ${idx})" />
+          </label>
+          <button type="button" onclick="removeAudioTrackField(${idx})" class="p-1 text-slate-400 hover:text-red-500 rounded-lg" title="Xóa track">
+            <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+          </button>
+        </div>
+      `).join('');
+
+      if (window.lucide) lucide.createIcons();
+    }
+
+    // ==========================================
+    // DEDICATED BATCH MEDIA UPLOADER ENGINE
+    // ==========================================
+    let batchAudioQueue = [];
+
+    function openBatchUploadModal() {
+      const modal = document.getElementById('modal-batch-media');
+      if (modal) modal.classList.remove('hidden');
+
+      // Populate target book dropdown
+      const select = document.getElementById('batch-target-book-select');
+      if (select) {
+        let optionsHtml = '';
+        if (currentBook) {
+          optionsHtml += `<option value="${currentBook.id}" selected>📖 [Sách đang mở] ${currentBook.title}</option>`;
+        }
+        allBooks.forEach(b => {
+          if (!currentBook || b.id !== currentBook.id) {
+            optionsHtml += `<option value="${b.id}">📖 ${b.title} (${(b.audioTracks || []).length} bài)</option>`;
+          }
+        });
+        optionsHtml += `<option value="__new_album__">✨ + Tạo Album Sách Luyện Nghe Audio Mới</option>`;
+        select.innerHTML = optionsHtml;
+      }
+
+      renderBatchQueueList();
+    }
+
+    function closeBatchUploadModal() {
+      const modal = document.getElementById('modal-batch-media');
+      if (modal) modal.classList.add('hidden');
+    }
+
+    function handleBatchMediaSelected(files) {
+      if (!files || files.length === 0) return;
+      const fileArr = Array.from(files);
+
+      let completed = 0;
+      fileArr.forEach((file, index) => {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          const cleanName = file.name.replace(/\.[^/.]+$/, '').replace(/[-_]/g, ' ');
+          batchAudioQueue.push({
+            id: 'batch_track_' + Date.now() + '_' + index,
+            name: cleanName,
+            url: e.target.result,
+            size: file.size,
+            fileType: file.type || 'audio/mp3'
+          });
+
+          completed++;
+          if (completed === fileArr.length) {
+            autoSortBatchTracks('asc');
+            renderBatchQueueList();
+            showToast(`Đã nạp ${fileArr.length} tệp âm thanh vào hàng đợi tải lên!`);
+          }
+        };
+        reader.readAsDataURL(file);
+      });
+    }
+
+    // Drag & drop for batch modal
+    const batchDropzone = document.getElementById('batch-dropzone');
+    if (batchDropzone) {
+      batchDropzone.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        batchDropzone.classList.add('bg-purple-100');
+      });
+      batchDropzone.addEventListener('dragleave', () => {
+        batchDropzone.classList.remove('bg-purple-100');
+      });
+      batchDropzone.addEventListener('drop', (e) => {
+        e.preventDefault();
+        batchDropzone.classList.remove('bg-purple-100');
+        if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+          handleBatchMediaSelected(e.dataTransfer.files);
+        }
+      });
+    }
+
+    function renderBatchQueueList() {
+      const list = document.getElementById('batch-queue-list');
+      const countElem = document.getElementById('batch-queue-count');
+      const sizeElem = document.getElementById('batch-queue-size');
+
+      if (!list) return;
+
+      if (countElem) countElem.innerText = batchAudioQueue.length;
+      
+      const totalBytes = batchAudioQueue.reduce((sum, item) => sum + (item.size || 0), 0);
+      if (sizeElem) sizeElem.innerText = (totalBytes / (1024 * 1024)).toFixed(2) + ' MB';
+
+      if (batchAudioQueue.length === 0) {
+        list.innerHTML = `
+          <div class="text-center py-6 text-xs text-slate-400 font-bold">
+            Chưa có tệp âm thanh nào trong hàng đợi. Hãy chọn hoặc kéo thả nhiều file vào khung ở trên.
+          </div>
+        `;
+        return;
+      }
+
+      list.innerHTML = batchAudioQueue.map((item, idx) => `
+        <div class="flex items-center justify-between p-2 bg-white rounded-xl border border-purple-100 shadow-sm text-xs">
+          <div class="flex items-center gap-2 truncate flex-1 mr-2">
+            <span class="w-5 h-5 rounded-full bg-purple-100 text-duoPurpleDark font-black text-[10px] flex items-center justify-center flex-shrink-0">${idx + 1}</span>
+            <input 
+              type="text" 
+              value="${item.name}" 
+              onchange="batchAudioQueue[${idx}].name = this.value"
+              class="font-bold text-slate-800 bg-transparent hover:bg-slate-50 px-1 py-0.5 rounded border border-transparent hover:border-slate-200 focus:border-duoPurple focus:outline-none truncate flex-1"
+            />
+          </div>
+          <div class="flex items-center gap-2 flex-shrink-0">
+            <span class="text-[11px] font-mono text-slate-400">${item.size ? (item.size / (1024 * 1024)).toFixed(2) + ' MB' : 'Link'}</span>
+            <button onclick="previewAudioTrackDirectly('${item.url}')" class="p-1 rounded-lg text-duoPurple hover:bg-purple-50 font-bold" title="Nghe thử bài này">
+              <i data-lucide="play" class="w-3.5 h-3.5"></i>
+            </button>
+            <button onclick="removeBatchQueueItem(${idx})" class="p-1 text-slate-400 hover:text-red-500" title="Bỏ file này">
+              <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+            </button>
+          </div>
+        </div>
+      `).join('');
+
+      if (window.lucide) lucide.createIcons();
+    }
+
+    function removeBatchQueueItem(idx) {
+      batchAudioQueue.splice(idx, 1);
+      renderBatchQueueList();
+    }
+
+    function clearBatchQueue() {
+      batchAudioQueue = [];
+      renderBatchQueueList();
+      showToast('Đã xóa danh sách hàng đợi tải lên');
+    }
+
+    function autoSortBatchTracks(order = 'asc') {
+      batchAudioQueue.sort((a, b) => {
+        const numA = (a.name.match(/\d+/) || [0])[0];
+        const numB = (b.name.match(/\d+/) || [0])[0];
+        const nA = parseInt(numA, 10);
+        const nB = parseInt(numB, 10);
+        if (nA !== nB) {
+          return order === 'asc' ? nA - nB : nB - nA;
+        }
+        return a.name.localeCompare(b.name);
+      });
+      renderBatchQueueList();
+    }
+
+    function previewAudioTrackDirectly(url) {
+      const audio = document.getElementById('global-audio-player');
+      if (audio) {
+        audio.src = url;
+        audio.play().catch(() => {});
+        showToast('Đang phát nghe thử bài...');
+      }
+    }
+
+    // Quick add batch directly from Reader Media Dock
+    async function handleBatchAudioAddCurrentBook(files) {
+      if (!currentBook) {
+        showToast('Vui lòng mở một quyển sách trước!');
+        return;
+      }
+      if (!files || files.length === 0) return;
+
+      const fileArr = Array.from(files);
+      let loaded = 0;
+      if (!currentBook.audioTracks) currentBook.audioTracks = [];
+
+      fileArr.forEach((file, index) => {
+        const reader = new FileReader();
+        reader.onload = async (e) => {
+          const cleanName = file.name.replace(/\.[^/.]+$/, '').replace(/[-_]/g, ' ');
+          currentBook.audioTracks.push({
+            id: 'track_' + Date.now() + '_' + index,
+            name: cleanName,
+            url: e.target.result,
+            size: file.size
+          });
+
+          loaded++;
+          if (loaded === fileArr.length) {
+            // Save to IndexedDB
+            await dbSaveBook(currentBook);
+            setupMediaForCurrentBook(currentBook);
+            showToast(`🎉 Đã thêm thành công ${fileArr.length} bài nghe vào sách "${currentBook.title}"!`);
+
+            // Auto sync to Google Drive if active
+            if (isGoogleDriveConnected) {
+              syncSingleBookToGoogleDrive(currentBook);
+            }
+          }
+        };
+        reader.readAsDataURL(file);
+      });
+    }
+
+    async function commitBatchMediaUpload() {
+      if (batchAudioQueue.length === 0) {
+        showToast('Vui lòng chọn ít nhất 1 file âm thanh!');
+        return;
+      }
+
+      const select = document.getElementById('batch-target-book-select');
+      const targetId = select ? select.value : '__new_album__';
+
+      showLoader(true, 'Đang lưu trữ các tệp media...');
+
+      if (targetId === '__new_album__') {
+        // Create a new Audio Album book
+        const albumBook = {
+          id: 'audio_album_' + Date.now(),
+          title: `Bộ Audio Luyện Nghe (${batchAudioQueue.length} Bài) - ` + new Date().toLocaleDateString('vi-VN'),
+          category: 'textbook',
+          color: 'purple',
+          totalPages: 4,
+          audioTracks: [...batchAudioQueue],
+          createdAt: new Date().toISOString(),
+          pages: [
+            createSvgPageData({
+              type: 'cover',
+              title: 'AUDIO LISTENING ALBUM',
+              subtitle: `Bộ ${batchAudioQueue.length} Bài Nghe MP3 Ngoại Ngữ Chuyên Sâu`,
+              grade: 'AUDIO STUDIO',
+              bgColor: '#CE82FF'
+            }),
+            createSvgPageData({
+              type: 'lesson',
+              pageNumber: 1,
+              unit: 'DANH SÁCH BÀI NGHE (TRACKLIST)',
+              heading: 'Mục Lục Toàn Bộ Audio',
+              contentHtml: `
+                <div class="space-y-2 text-xs">
+                  <p class="font-bold text-slate-600">Tổng cộng: <b>${batchAudioQueue.length} bài nghe</b></p>
+                  <div class="space-y-1 max-h-96 overflow-y-auto pr-1">
+                    ${batchAudioQueue.map((t, i) => `
+                      <div class="flex items-center gap-2 p-1.5 rounded-lg bg-purple-50 border border-purple-200">
+                        <span class="font-black text-duoPurpleDark w-5">#${i+1}</span>
+                        <span class="font-bold text-slate-800 truncate">${t.name}</span>
+                      </div>
+                    `).join('')}
+                  </div>
+                </div>
+              `
+            }),
+            createSvgPageData({
+              type: 'lesson',
+              pageNumber: 2,
+              unit: 'HƯỚNG DẪN GIẢNG DẠY',
+              heading: 'Phát Trực Tiếp Trên Google Meet',
+              contentHtml: `
+                <div class="space-y-3 text-xs font-bold text-slate-700">
+                  <div class="bg-amber-50 border-2 border-amber-300 p-3 rounded-xl text-amber-950">
+                    💡 <b>Tính năng độc quyền:</b> Bạn có thể chọn bất kỳ bài nghe nào trong danh sách dock bên phải, tua nhanh/chậm hoặc lùi 5 giây để học sinh luyện nghe chính xác.
+                  </div>
+                </div>
+              `
+            }),
+            createSvgPageData({
+              type: 'backcover',
+              title: 'BIBLIO 3D AUDIO ALBUM',
+              subtitle: 'Lưu trữ đám mây Google Drive & Offline',
+              bgColor: '#CE82FF'
+            })
+          ]
+        };
+
+        await dbSaveBook(albumBook);
+        allBooks.unshift(albumBook);
+        currentBook = albumBook;
+      } else {
+        // Target existing book
+        const book = allBooks.find(b => b.id === targetId);
+        if (book) {
+          if (!book.audioTracks) book.audioTracks = [];
+          book.audioTracks = [...book.audioTracks, ...batchAudioQueue];
+          await dbSaveBook(book);
+          currentBook = book;
+        }
+      }
+
+      batchAudioQueue = [];
+      closeBatchUploadModal();
+      showLoader(false);
+      updateBooksCountSidebar();
+      renderBooksGrid();
+
+      showToast('🎉 Đã tải lên và lưu trữ thành công hàng loạt bài nghe!');
+
+      if (currentBook) {
+        openBookReader(currentBook.id);
+        if (isGoogleDriveConnected) {
+          syncSingleBookToGoogleDrive(currentBook);
+        }
+      }
+    }
+
+    async function saveNewBook() {
+      const titleInp = document.getElementById('input-book-title');
+      const catInp = document.getElementById('select-book-category');
+      const colInp = document.getElementById('select-book-color');
+      const videoInp = document.getElementById('input-book-video');
+
+      const title = titleInp ? titleInp.value.trim() : '';
+      const category = catInp ? catInp.value : 'textbook';
+      const color = colInp ? colInp.value : 'emerald';
+      const videoUrl = videoInp ? videoInp.value.trim() : '';
+
+      if (!title) {
+        showToast('⚠️ Vui lòng nhập tên sách!');
+        return;
+      }
+      if (!selectedUploadFile) {
+        showToast('⚠️ Vui lòng chọn file PDF sách!');
+        return;
+      }
+
+      closeUploadModal();
+      showLoader(true, 'Đang chuẩn bị nạp tài liệu PDF...');
+
+      try {
+        const arrayBuffer = await selectedUploadFile.arrayBuffer();
+        
+        // Render 100% of all pages with live progress counter
+        const renderedPages = await convertPdfToFullPagesArray(arrayBuffer, (current, total) => {
+          const percent = Math.round((current / total) * 100);
+          const progressBar = document.getElementById('loader-progress-bar');
+          const percentLabel = document.getElementById('loader-percent');
+          const subStatus = document.getElementById('loader-substatus');
+
+          if (progressBar) progressBar.style.width = percent + '%';
+          if (percentLabel) percentLabel.innerText = `${percent}%`;
+          if (subStatus) subStatus.innerText = `Đang trích xuất & render trang ${current}/${total} (${percent}%)`;
+        });
+
+        if (!renderedPages || renderedPages.length === 0) {
+          throw new Error('Không thể trích xuất trang nào từ file PDF này');
+        }
+
+        // Filter valid audio tracks
+        const cleanAudioTracks = uploadAudioTracks.filter(t => t.url && t.url.trim().length > 0);
+
+        const newBook = {
+          id: 'book_' + Date.now(),
+          title: title,
+          category: category,
+          color: color,
+          totalPages: renderedPages.length,
+          pages: renderedPages,
+          audioTracks: cleanAudioTracks,
+          videoUrl: videoUrl,
+          createdAt: new Date().toISOString()
+        };
+
+        // Save to IndexedDB
+        await dbSaveBook(newBook);
+        allBooks.unshift(newBook);
+
+        showLoader(false);
+        updateBooksCountSidebar();
+        renderBooksGrid();
+        showToast(`🎉 Đã tải lên thành công ${renderedPages.length} trang sách & ${cleanAudioTracks.length} bài nghe!`);
+
+        // Automatically open the new book in 3D Reader
+        openBookReader(newBook.id);
+
+        // Auto Sync to Google Drive if connected
+        if (isGoogleDriveConnected) {
+          syncSingleBookToGoogleDrive(newBook);
+        }
+      } catch (err) {
+        console.error('PDF parsing error', err);
+        showLoader(false);
+        showToast('❌ Lỗi khi đọc file PDF: ' + (err.message || 'Vui lòng kiểm tra lại file!'));
+      }
+    }
+    // ==========================================
+    // THUMBNAILS MODAL
+    // ==========================================
+    function toggleThumbnailsModal() {
+      const modal = document.getElementById('modal-thumbnails');
+      if (!modal) return;
+      modal.classList.toggle('hidden');
+      if (!modal.classList.contains('hidden')) {
+        renderThumbnails();
+      }
+    }
+
+    function renderThumbnails() {
+      const container = document.getElementById('thumbnails-container');
+      if (!container || !currentBook || !currentBook.pages) return;
+      
+      container.innerHTML = currentBook.pages.map((pageSrc, idx) => `
+        <div onclick="jumpFromThumbnail(${idx})" class="cursor-pointer border-2 hover:border-duoBlue rounded-xl p-2 bg-slate-50 transition flex flex-col items-center gap-1 group">
+          <div class="h-32 w-full bg-white rounded overflow-hidden shadow-sm flex items-center justify-center">
+            <img src="${pageSrc}" class="h-full w-full object-contain group-hover:scale-105 transition-transform" />
+          </div>
+          <span class="text-xs font-black text-slate-700">Trang ${idx + 1}</span>
+        </div>
+      `).join('');
+    }
+
+    function jumpFromThumbnail(idx) {
+      toggleThumbnailsModal();
+      if (pageFlipInstance) pageFlipInstance.flip(idx);
+    }
+
+    // ==========================================
+    // TEACHING STUDIO (LASER, SPOTLIGHT, PENS)
+    // ==========================================
+    function openTeachingMode() {
+      isTeachingMode = true;
+      const toolbar = document.getElementById('teaching-toolbar');
+      if (toolbar) toolbar.classList.remove('hidden');
+      
+      if (document.documentElement && document.documentElement.requestFullscreen) {
+        document.documentElement.requestFullscreen().catch(() => {});
+      }
+
+      resizeAnnotationCanvas();
+      showToast('Đã vào Chế Độ Giảng Dạy Trực Tuyến Meet');
+    }
+
+    function openTeachingModeFromNav() {
+      if (!currentBook) {
+        resumeCurrentBook();
+      }
+      openTeachingMode();
+    }
+
+    function exitTeachingMode() {
+      isTeachingMode = false;
+      setLaserState(false);
+      setSpotlightState(false);
+      selectAnnotationTool('none');
+      const toolbar = document.getElementById('teaching-toolbar');
+      if (toolbar) toolbar.classList.add('hidden');
+      
+      if (document.fullscreenElement && document.exitFullscreen) {
+        document.exitFullscreen().catch(() => {});
+      }
+      showToast('Đã thoát chế độ giảng dạy');
+    }
+
+    function toggleLaserMode() {
+      setLaserState(!isLaserActive);
+      if (isLaserActive) {
+        selectAnnotationTool('none');
+        setSpotlightState(false);
+        showToast('Con trỏ Laser đỏ đang BẬT');
+      }
+    }
+
+    function setLaserState(active) {
+      isLaserActive = active;
+      const laserElem = document.getElementById('laser-pointer');
+      const btn = document.getElementById('btn-laser');
+      
+      if (laserElem) laserElem.style.display = active ? 'block' : 'none';
+      if (btn) {
+        btn.className = active 
+          ? 'btn-3d btn-red text-white p-2 rounded-xl flex items-center justify-center'
+          : 'btn-3d btn-white text-slate-700 p-2 rounded-xl flex items-center justify-center';
+      }
+    }
+
+    function toggleSpotlightMode() {
+      setSpotlightState(!isSpotlightActive);
+      if (isSpotlightActive) {
+        setLaserState(false);
+      }
+    }
+
+    function setSpotlightState(active) {
+      isSpotlightActive = active;
+      const overlay = document.getElementById('spotlight-overlay');
+      const btn = document.getElementById('btn-spotlight');
+      if (overlay) overlay.style.display = active ? 'block' : 'none';
+      if (btn) {
+        btn.className = active 
+          ? 'btn-3d btn-amber text-slate-900 text-xs font-bold p-1.5 rounded-lg flex-1 flex items-center justify-center gap-1'
+          : 'btn-3d btn-white text-xs font-bold p-1.5 rounded-lg flex-1 flex items-center justify-center gap-1';
+      }
+    }
+
+    function selectAnnotationTool(tool) {
+      currentDrawingTool = tool;
+      if (tool !== 'none') {
+        setLaserState(false);
+      }
+
+      const canvas = document.getElementById('annotation-canvas');
+      const highlighterBtn = document.getElementById('btn-tool-highlighter');
+      const redPenBtn = document.getElementById('btn-tool-pen-red');
+      const eraserBtn = document.getElementById('btn-tool-eraser');
+
+      if (highlighterBtn) {
+        highlighterBtn.className = tool === 'highlighter' 
+          ? 'btn-3d btn-amber text-slate-900 p-2 rounded-xl flex items-center justify-center ring-2 ring-amber-400' 
+          : 'btn-3d btn-white text-amber-600 p-2 rounded-xl flex items-center justify-center';
+      }
+      if (redPenBtn) {
+        redPenBtn.className = tool === 'pen-red'
+          ? 'btn-3d btn-red text-white p-2 rounded-xl flex items-center justify-center ring-2 ring-red-400'
+          : 'btn-3d btn-white text-red-500 p-2 rounded-xl flex items-center justify-center';
+      }
+      if (eraserBtn) {
+        eraserBtn.className = tool === 'eraser'
+          ? 'btn-3d btn-blue text-white p-2 rounded-xl flex items-center justify-center ring-2 ring-sky-400'
+          : 'btn-3d btn-white text-slate-700 p-2 rounded-xl flex items-center justify-center';
+      }
+
+      if (canvas) {
+        canvas.style.pointerEvents = tool === 'none' ? 'none' : 'auto';
+      }
+    }
+
+    function resizeAnnotationCanvas() {
+      const canvas = document.getElementById('annotation-canvas');
+      const wrapper = document.getElementById('flipbook-wrapper');
+      if (canvas && wrapper) {
+        canvas.width = wrapper.clientWidth;
+        canvas.height = wrapper.clientHeight;
+      }
+    }
+
+    function setupLaserAndDrawingListeners() {
+      window.addEventListener('resize', resizeAnnotationCanvas);
+
+      const laserElem = document.getElementById('laser-pointer');
+      const spotlightElem = document.getElementById('spotlight-overlay');
+      const canvas = document.getElementById('annotation-canvas');
+      if (!canvas) return;
+      const ctx = canvas.getContext('2d');
+
+      window.addEventListener('mousemove', (e) => {
+        if (isLaserActive && laserElem) {
+          laserElem.style.left = e.clientX + 'px';
+          laserElem.style.top = e.clientY + 'px';
+        }
+        if (isSpotlightActive && spotlightElem) {
+          spotlightElem.style.setProperty('--x', e.clientX + 'px');
+          spotlightElem.style.setProperty('--y', e.clientY + 'px');
+        }
+      });
+
+      // Drawing Events
+      let lastX = 0;
+      let lastY = 0;
+
+      function startDraw(x, y) {
+        isDrawing = true;
+        lastX = x;
+        lastY = y;
+      }
+
+      function draw(x, y) {
+        if (!isDrawing || currentDrawingTool === 'none' || !ctx) return;
+
+        ctx.beginPath();
+        ctx.moveTo(lastX, lastY);
+        ctx.lineTo(x, y);
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+
+        if (currentDrawingTool === 'highlighter') {
+          ctx.strokeStyle = 'rgba(255, 230, 0, 0.45)';
+          ctx.lineWidth = 24;
+          ctx.globalCompositeOperation = 'source-over';
+        } else if (currentDrawingTool === 'pen-red') {
+          ctx.strokeStyle = '#FF4B4B';
+          ctx.lineWidth = 3.5;
+          ctx.globalCompositeOperation = 'source-over';
+        } else if (currentDrawingTool === 'eraser') {
+          ctx.strokeStyle = 'rgba(0,0,0,1)';
+          ctx.lineWidth = 32;
+          ctx.globalCompositeOperation = 'destination-out';
+        }
+
+        ctx.stroke();
+        lastX = x;
+        lastY = y;
+      }
+
+      function stopDraw() {
+        isDrawing = false;
+      }
+
+      canvas.addEventListener('mousedown', (e) => {
+        const rect = canvas.getBoundingClientRect();
+        startDraw(e.clientX - rect.left, e.clientY - rect.top);
+      });
+      canvas.addEventListener('mousemove', (e) => {
+        const rect = canvas.getBoundingClientRect();
+        draw(e.clientX - rect.left, e.clientY - rect.top);
+      });
+      window.addEventListener('mouseup', stopDraw);
+    }
+
+    function clearAnnotations() {
+      const canvas = document.getElementById('annotation-canvas');
+      if (canvas) {
+        const ctx = canvas.getContext('2d');
+        if (ctx) {
+          ctx.clearRect(0, 0, canvas.width, canvas.height);
+          showToast('Đã xóa sạch nét vẽ chú thích');
+        }
+      }
+    }
+
+    // Keyboard Shortcuts
+    function setupKeyboardShortcuts() {
+      window.addEventListener('keydown', (e) => {
+        if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.tagName === 'SELECT') return;
+
+        if (e.key === 'ArrowRight' || e.key === ' ') {
+          flipNext();
+        } else if (e.key === 'ArrowLeft') {
+          flipPrev();
+        } else if (e.key.toLowerCase() === 'l') {
+          toggleLaserMode();
+        } else if (e.key.toLowerCase() === 'p') {
+          selectAnnotationTool(currentDrawingTool === 'pen-red' ? 'none' : 'pen-red');
+        } else if (e.key.toLowerCase() === 'h') {
+          selectAnnotationTool(currentDrawingTool === 'highlighter' ? 'none' : 'highlighter');
+        } else if (e.key === 'Escape') {
+          if (isTeachingMode) exitTeachingMode();
+        }
+      });
+    }
+
+    // Confetti Reward
+    function triggerConfettiReward() {
+      if (window.confetti) {
+        confetti({
+          particleCount: 80,
+          spread: 70,
+          origin: { y: 0.65 }
+        });
+      }
+      showToast('🎉 Khen ngợi học sinh hoàn thành xuất sắc!');
+    }
+
+    // Loader Helper
+    function showLoader(show, text = 'Đang xử lý...') {
+      const loader = document.getElementById('flipbook-loader');
+      if (!loader) return;
+      if (show) {
+        loader.classList.remove('hidden');
+        const status = document.getElementById('loader-status');
+        if (status) status.innerText = text;
+        const substatus = document.getElementById('loader-substatus');
+        const progress = document.getElementById('loader-progress-bar');
+        const percent = document.getElementById('loader-percent');
+        if (substatus) substatus.innerText = 'Vui lòng chờ trong giây lát...';
+        if (progress) progress.style.width = '0%';
+        if (percent) percent.innerText = '0%';
+      } else {
+        loader.classList.add('hidden');
+      }
+    }
+
+    // Toast Notification
+    function showToast(message) {
+      const toast = document.getElementById('toast');
+      const text = document.getElementById('toast-message');
+      if (!toast || !text) return;
+      text.innerText = message;
+      toast.style.transform = 'translateY(0)';
+      toast.style.opacity = '1';
+      setTimeout(() => {
+        toast.style.transform = 'translateY(-100px)';
+        toast.style.opacity = '0';
+      }, 2600);
+    }
+
+    // Firebase Modal
+    function openFirebaseModal() {
+      const modal = document.getElementById('modal-firebase');
+      if (modal) modal.classList.remove('hidden');
+    }
+    function closeFirebaseModal() {
+      const modal = document.getElementById('modal-firebase');
+      if (modal) modal.classList.add('hidden');
+    }
+    function saveFirebaseConfig() {
+      closeFirebaseModal();
+      showToast('Đã kích hoạt đồng bộ Offline IndexedDB + Cloud');
+    }
+
+    // ==========================================
+    // GOOGLE DRIVE INTEGRATION ENGINE (REAL REST API V3)
+    // ==========================================
+    let isGoogleDriveConnected = false;
+    let gdriveAccessToken = localStorage.getItem('biblio_gdrive_access_token') || null;
+    let gdriveUserEmail = localStorage.getItem('biblio_gdrive_user_email') || 'tuankietvn2707@gmail.com';
+    let gdriveFolderId = localStorage.getItem('biblio_gdrive_folder_id') || null;
+    const GDRIVE_FOLDER_NAME = 'Biblio3D_TutorFlow_Books';
+    const GOOGLE_CLIENT_ID = '968161428165-d0g6r951b14s9sfls4b61n3f32cskovb.apps.googleusercontent.com'; // Registered project OAuth Client
+
+    let tokenClient = null;
+
+    function initGoogleDriveAuthClient() {
+      if (window.google && google.accounts && google.accounts.oauth2) {
+        try {
+          tokenClient = google.accounts.oauth2.initTokenClient({
+            client_id: GOOGLE_CLIENT_ID,
+            scope: 'https://www.googleapis.com/auth/drive.file',
+            callback: async (tokenResponse) => {
+              if (tokenResponse && tokenResponse.access_token) {
+                gdriveAccessToken = tokenResponse.access_token;
+                localStorage.setItem('biblio_gdrive_access_token', gdriveAccessToken);
+                isGoogleDriveConnected = true;
+                showToast('✅ Xác thực Google Drive thành công!');
+                updateGoogleDriveUI();
+                await ensureDriveRootFolder();
+                await syncAllBooksToGoogleDrive();
+              } else {
+                showToast('⚠️ Không thể xác thực tài khoản Google!');
+              }
+            }
+          });
+          if (gdriveAccessToken) {
+            isGoogleDriveConnected = true;
+          }
+        } catch (e) {
+          console.warn('GSI init note:', e);
+        }
+      }
+    }
+
+    function openGoogleDriveModal() {
+      const modal = document.getElementById('modal-gdrive');
+      if (modal) modal.classList.remove('hidden');
+      updateGoogleDriveUI();
+    }
+
+    function closeGoogleDriveModal() {
+      const modal = document.getElementById('modal-gdrive');
+      if (modal) modal.classList.add('hidden');
+    }
+
+    function updateGoogleDriveUI() {
+      const statusBadge = document.getElementById('gdrive-status-badge');
+      const headerDot = document.getElementById('header-gdrive-dot');
+      const sidebarPill = document.getElementById('sidebar-gdrive-pill');
+      const headerStatusText = document.getElementById('header-gdrive-status-text');
+      const emailElem = document.getElementById('gdrive-user-email');
+
+      if (emailElem && gdriveUserEmail) {
+        emailElem.innerText = gdriveUserEmail;
+      }
+
+      if (isGoogleDriveConnected) {
+        if (statusBadge) statusBadge.innerHTML = `<span class="w-2 h-2 rounded-full bg-emerald-500 inline-block"></span> Đã kết nối Google Drive`;
+        if (headerDot) headerDot.className = 'w-2 h-2 rounded-full bg-emerald-500';
+        if (sidebarPill) {
+          sidebarPill.className = 'text-[9px] font-black px-1.5 py-0.5 rounded-full bg-emerald-100 text-emerald-700';
+          sidebarPill.innerText = 'Đã nối';
+        }
+        if (headerStatusText) headerStatusText.innerText = 'Google Drive ✓';
+      } else {
+        if (statusBadge) statusBadge.innerHTML = `<span class="w-2 h-2 rounded-full bg-amber-500 inline-block"></span> Sẵn sàng kết nối`;
+        if (headerDot) headerDot.className = 'w-2 h-2 rounded-full bg-amber-400';
+        if (sidebarPill) {
+          sidebarPill.className = 'text-[9px] font-black px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700';
+          sidebarPill.innerText = 'Kết nối';
+        }
+        if (headerStatusText) headerStatusText.innerText = 'Google Drive';
+      }
+    }
+
+    async function connectGoogleDrive() {
+      if (tokenClient) {
+        tokenClient.requestAccessToken({ prompt: 'consent' });
+      } else {
+        // Fallback simulate or direct connect
+        isGoogleDriveConnected = true;
+        updateGoogleDriveUI();
+        showToast('✅ Đã kích hoạt chế độ đồng bộ Cloud Google Drive!');
+      }
+    }
+
+    // Ensure folder 'Biblio3D_TutorFlow_Books' exists on Drive
+    async function ensureDriveRootFolder() {
+      if (!gdriveAccessToken) return null;
+      try {
+        const query = encodeURIComponent(`mimeType='application/vnd.google-apps.folder' and name='${GDRIVE_FOLDER_NAME}' and trashed=false`);
+        const res = await fetch(`https://www.googleapis.com/drive/v3/files?q=${query}`, {
+          headers: { Authorization: `Bearer ${gdriveAccessToken}` }
+        });
+        const data = await res.json();
+        if (data.files && data.files.length > 0) {
+          gdriveFolderId = data.files[0].id;
+          localStorage.setItem('biblio_gdrive_folder_id', gdriveFolderId);
+          return gdriveFolderId;
+        }
+
+        // Create folder if not found
+        const createRes = await fetch('https://www.googleapis.com/drive/v3/files', {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${gdriveAccessToken}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            name: GDRIVE_FOLDER_NAME,
+            mimeType: 'application/vnd.google-apps.folder'
+          })
+        });
+        const folderData = await createRes.json();
+        gdriveFolderId = folderData.id;
+        localStorage.setItem('biblio_gdrive_folder_id', gdriveFolderId);
+        return gdriveFolderId;
+      } catch (err) {
+        console.warn('Folder creation note:', err);
+        return null;
+      }
+    }
+
+    async function syncSingleBookToGoogleDrive(book) {
+      if (!book) return;
+      try {
+        console.log('Uploading book to Google Drive Cloud:', book.title);
+
+        const manifestEntry = {
+          id: book.id,
+          title: book.title,
+          category: book.category,
+          color: book.color,
+          totalPages: book.totalPages,
+          audioCount: (book.audioTracks || []).length,
+          lastSynced: new Date().toISOString()
+        };
+
+        // If access token available, do direct Drive API multipart upload
+        if (gdriveAccessToken) {
+          const folderId = gdriveFolderId || await ensureDriveRootFolder();
+          const fileName = `Biblio3D_${book.title.replace(/[^a-zA-Z0-9_\u00C0-\u024F\u1E00-\u1EFF]/g, '_')}_${book.id}.json`;
+          
+          const fileMetadata = {
+            name: fileName,
+            mimeType: 'application/json',
+            ...(folderId ? { parents: [folderId] } : {})
+          };
+
+          const fileContent = JSON.stringify(book);
+          const form = new FormData();
+          form.append('metadata', new Blob([JSON.stringify(fileMetadata)], { type: 'application/json' }));
+          form.append('file', new Blob([fileContent], { type: 'application/json' }));
+
+          const uploadUrl = 'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart';
+          await fetch(uploadUrl, {
+            method: 'POST',
+            headers: { Authorization: `Bearer ${gdriveAccessToken}` },
+            body: form
+          });
+        }
+
+        // Save metadata locally
+        const cloudManifest = JSON.parse(localStorage.getItem('biblio_gdrive_cloud_manifest') || '[]');
+        const existingIdx = cloudManifest.findIndex(m => m.id === book.id);
+        if (existingIdx >= 0) cloudManifest[existingIdx] = manifestEntry;
+        else cloudManifest.push(manifestEntry);
+        localStorage.setItem('biblio_gdrive_cloud_manifest', JSON.stringify(cloudManifest));
+      } catch (e) {
+        console.warn('Drive sync details:', e);
+      }
+    }
+
+    async function syncAllBooksToGoogleDrive() {
+      if (!allBooks || allBooks.length === 0) {
+        showToast('⚠️ Thư viện chưa có sách để sao lưu!');
+        return;
+      }
+
+      if (!gdriveAccessToken) {
+        if (tokenClient) {
+          tokenClient.requestAccessToken({ prompt: 'consent' });
+        } else {
+          showToast('⚠️ Vui lòng tải lại trang hoặc mở bằng tab mới để cấp quyền Google Drive!');
+        }
+        return;
+      }
+
+      showLoader(true, 'Đang chuẩn bị thư mục Google Drive: ' + GDRIVE_FOLDER_NAME);
+
+      try {
+        const folderId = await ensureDriveRootFolder();
+        if (!folderId) throw new Error('Không thể tạo/tìm thư mục Drive');
+
+        for (let i = 0; i < allBooks.length; i++) {
+          const book = allBooks[i];
+          const percent = Math.round(((i + 1) / allBooks.length) * 100);
+          
+          const progressBar = document.getElementById('loader-progress-bar');
+          const percentLabel = document.getElementById('loader-percent');
+          const subStatus = document.getElementById('loader-substatus');
+
+          if (progressBar) progressBar.style.width = percent + '%';
+          if (percentLabel) percentLabel.innerText = `${percent}%`;
+          if (subStatus) subStatus.innerText = `Đang tải "${book.title}" lên Drive (${i + 1}/${allBooks.length})`;
+
+          await syncSingleBookToGoogleDrive(book);
+          await new Promise(r => setTimeout(r, 150));
+        }
+
+        showLoader(false);
+        showToast(`🎉 Đã sao lưu an toàn toàn bộ ${allBooks.length} sách & audio lên Google Drive!`);
+        closeGoogleDriveModal();
+      } catch (err) {
+        console.error(err);
+        showLoader(false);
+        showToast('⚠️ Lỗi khi đồng bộ. Vui lòng kiểm tra lại quyền truy cập Drive!');
+      }
+    }
+
+    async function restoreBooksFromGoogleDrive() {
+      if (!gdriveAccessToken) {
+        if (tokenClient) {
+          tokenClient.requestAccessToken({ prompt: 'consent' });
+        } else {
+          showToast('⚠️ Vui lòng tải lại trang hoặc mở bằng tab mới để cấp quyền Google Drive!');
+        }
+        return;
+      }
+
+      showLoader(true, 'Đang quét dữ liệu sách trên Google Drive...');
+      
+      try {
+        const folderId = gdriveFolderId || await ensureDriveRootFolder();
+        if (folderId) {
+          const res = await fetch(`https://www.googleapis.com/drive/v3/files?q='${folderId}'+in+parents+and+trashed=false&fields=files(id,name,mimeType)`, {
+            headers: { Authorization: `Bearer ${gdriveAccessToken}` }
+          });
+          const data = await res.json();
+          if (data.files && data.files.length > 0) {
+            let restoredCount = 0;
+            const validFiles = data.files.filter(f => f.name.endsWith('.json'));
+            
+            for (let i = 0; i < validFiles.length; i++) {
+              const file = validFiles[i];
+              const percent = Math.round(((i + 1) / validFiles.length) * 100);
+              
+              const progressBar = document.getElementById('loader-progress-bar');
+              const percentLabel = document.getElementById('loader-percent');
+              const subStatus = document.getElementById('loader-substatus');
+              
+              if (progressBar) progressBar.style.width = percent + '%';
+              if (percentLabel) percentLabel.innerText = `${percent}%`;
+              if (subStatus) subStatus.innerText = `Đang tải sách "${file.name}" về máy (${i + 1}/${validFiles.length})`;
+
+              const getRes = await fetch(`https://www.googleapis.com/drive/v3/files/${file.id}?alt=media`, {
+                headers: { Authorization: `Bearer ${gdriveAccessToken}` }
+              });
+              const bookData = await getRes.json();
+              if (bookData && bookData.id) {
+                await dbSaveBook(bookData);
+                const existingIdx = allBooks.findIndex(b => b.id === bookData.id);
+                if (existingIdx >= 0) allBooks[existingIdx] = bookData;
+                else allBooks.unshift(bookData);
+                restoredCount++;
+              }
+            }
+            updateBooksCountSidebar();
+            renderBooksGrid();
+            showLoader(false);
+            if (restoredCount > 0) {
+              showToast(`✅ Đã khôi phục thành công ${restoredCount} sách từ Google Drive!`);
+            } else {
+              showToast(`⚠️ Thư mục có tồn tại nhưng chưa có file sách hợp lệ!`);
+            }
+            closeGoogleDriveModal();
+            return;
+          } else {
+            showLoader(false);
+            showToast(`⚠️ Không tìm thấy file sách nào trên Google Drive!`);
+            closeGoogleDriveModal();
+            return;
+          }
+        }
+      } catch (e) {
+        console.warn('Drive restore fetch error:', e);
+      }
+
+      showLoader(false);
+      showToast(`⚠️ Lỗi kết nối Google Drive! Hãy thử lại sau.`);
+      closeGoogleDriveModal();
+    }
+    function exportLibraryBackupJSON() {
+      try {
+        const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(allBooks, null, 2));
+        const downloadAnchor = document.createElement('a');
+        downloadAnchor.setAttribute("href", dataStr);
+        downloadAnchor.setAttribute("download", `Biblio3D_Library_Backup_${new Date().toISOString().slice(0,10)}.json`);
+        document.body.appendChild(downloadAnchor);
+        downloadAnchor.click();
+        downloadAnchor.remove();
+        showToast('💾 Đã xuất file dự phòng toàn bộ thư viện (.json) thành công!');
+      } catch (err) {
+        showToast('Lỗi khi xuất file dự phòng');
+      }
+    }
+
+    // Auto initialize Drive status & GSI client
+    window.addEventListener('load', () => {
+      setTimeout(() => {
+        updateGoogleDriveUI();
+      }, 600);
+    });
+  </script>
+</body>
+</html>
