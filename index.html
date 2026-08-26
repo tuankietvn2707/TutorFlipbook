@@ -2803,7 +2803,7 @@
     let gdriveUserEmail = localStorage.getItem('biblio_gdrive_user_email') || 'tuankietvn2707@gmail.com';
     let gdriveFolderId = localStorage.getItem('biblio_gdrive_folder_id') || null;
     const GDRIVE_FOLDER_NAME = 'Biblio3D_TutorFlow_Books';
-    const GOOGLE_CLIENT_ID = '155457897598-p3dlupj9dkl83tagsmm7nn42ij8hbv7d.apps.googleusercontent.com'; // Project OAuth Client ID
+    const GOOGLE_CLIENT_ID = '11163283172-4gsl5rhffmsissqh1et360998dnhrq23.apps.googleusercontent.com'; // Project OAuth Client ID (tutorflow-def01)
 
     let tokenClient = null;
 
@@ -2892,23 +2892,69 @@
       }
     }
 
-    // Ensure folder 'Biblio3D_TutorFlow_Books' exists on Drive
+    // Handle expired or invalid Google OAuth token
+    function handleDriveAuthExpired(message) {
+      console.warn('Google Drive token expired or invalid');
+      gdriveAccessToken = null;
+      localStorage.removeItem('biblio_gdrive_access_token');
+      isGoogleDriveConnected = false;
+      updateGoogleDriveUI();
+      showToast(message || '⚠️ Phiên đăng nhập Google Drive đã hết hạn. Vui lòng bấm Kết nối lại!');
+      if (tokenClient) {
+        tokenClient.requestAccessToken({ prompt: 'consent' });
+      }
+    }
+
+    // Ensure folder 'Biblio3D_TutorFlow_Books' exists on Drive (with auto token-refresh and fallback)
     async function ensureDriveRootFolder() {
       if (!gdriveAccessToken) return null;
+
       try {
-        const query = encodeURIComponent(`mimeType='application/vnd.google-apps.folder' and name='${GDRIVE_FOLDER_NAME}' and trashed=false`);
-        const res = await fetch(`https://www.googleapis.com/drive/v3/files?q=${query}`, {
-          headers: { Authorization: `Bearer ${gdriveAccessToken}` }
-        });
-        const data = await res.json();
-        if (data.files && data.files.length > 0) {
-          gdriveFolderId = data.files[0].id;
-          localStorage.setItem('biblio_gdrive_folder_id', gdriveFolderId);
-          return gdriveFolderId;
+        // 1. Verify cached folder ID if exists
+        if (gdriveFolderId) {
+          try {
+            const checkRes = await fetch(`https://www.googleapis.com/drive/v3/files/${gdriveFolderId}?fields=id,name,trashed`, {
+              headers: { Authorization: `Bearer ${gdriveAccessToken}` }
+            });
+            if (checkRes.status === 401) {
+              handleDriveAuthExpired();
+              return null;
+            }
+            if (checkRes.ok) {
+              const checkData = await checkRes.json();
+              if (checkData && checkData.id && !checkData.trashed) {
+                return checkData.id;
+              }
+            }
+          } catch (e) {
+            console.warn('Folder check fallback:', e);
+          }
         }
 
-        // Create folder if not found
-        const createRes = await fetch('https://www.googleapis.com/drive/v3/files', {
+        // 2. Search for existing folder by name
+        const query = `mimeType = 'application/vnd.google-apps.folder' and name = '${GDRIVE_FOLDER_NAME}' and trashed = false`;
+        const searchUrl = `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(query)}&fields=files(id,name,trashed)&spaces=drive`;
+        
+        const res = await fetch(searchUrl, {
+          headers: { Authorization: `Bearer ${gdriveAccessToken}` }
+        });
+
+        if (res.status === 401) {
+          handleDriveAuthExpired();
+          return null;
+        }
+
+        if (res.ok) {
+          const data = await res.json();
+          if (data.files && data.files.length > 0) {
+            gdriveFolderId = data.files[0].id;
+            localStorage.setItem('biblio_gdrive_folder_id', gdriveFolderId);
+            return gdriveFolderId;
+          }
+        }
+
+        // 3. Create folder if not found
+        const createRes = await fetch('https://www.googleapis.com/drive/v3/files?fields=id,name', {
           method: 'POST',
           headers: {
             Authorization: `Bearer ${gdriveAccessToken}`,
@@ -2919,13 +2965,27 @@
             mimeType: 'application/vnd.google-apps.folder'
           })
         });
-        const folderData = await createRes.json();
-        gdriveFolderId = folderData.id;
-        localStorage.setItem('biblio_gdrive_folder_id', gdriveFolderId);
-        return gdriveFolderId;
+
+        if (createRes.status === 401) {
+          handleDriveAuthExpired();
+          return null;
+        }
+
+        if (createRes.ok) {
+          const folderData = await createRes.json();
+          if (folderData && folderData.id) {
+            gdriveFolderId = folderData.id;
+            localStorage.setItem('biblio_gdrive_folder_id', gdriveFolderId);
+            return gdriveFolderId;
+          }
+        }
+
+        // Fallback: If folder creation is restricted, we return 'root' so sync still proceeds safely
+        console.warn('Could not create subfolder, defaulting to root Drive storage');
+        return 'root';
       } catch (err) {
-        console.warn('Folder creation note:', err);
-        return null;
+        console.warn('Folder creation exception:', err);
+        return 'root';
       }
     }
 
@@ -2940,14 +3000,23 @@
           localStorage.setItem('biblio_gdrive_cloud_manifest', JSON.stringify(filtered));
         } catch (e) {}
 
-        // 2. If access token available, delete from Google Drive Cloud folder
+        // 2. If access token available, delete from Google Drive Cloud
         if (gdriveAccessToken) {
           const folderId = gdriveFolderId || await ensureDriveRootFolder();
-          if (folderId) {
-            const query = encodeURIComponent(`'${folderId}' in parents and trashed=false and (name contains '_${bookId}.json' or name contains '_${bookId}')`);
-            const res = await fetch(`https://www.googleapis.com/drive/v3/files?q=${query}&fields=files(id,name)`, {
-              headers: { Authorization: `Bearer ${gdriveAccessToken}` }
-            });
+          const query = folderId && folderId !== 'root'
+            ? `'${folderId}' in parents and trashed=false and (name contains '_${bookId}.json' or name contains '_${bookId}')`
+            : `name contains 'Biblio3D_' and name contains '_${bookId}' and trashed=false`;
+          
+          const res = await fetch(`https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(query)}&fields=files(id,name)`, {
+            headers: { Authorization: `Bearer ${gdriveAccessToken}` }
+          });
+
+          if (res.status === 401) {
+            handleDriveAuthExpired();
+            return;
+          }
+
+          if (res.ok) {
             const data = await res.json();
             if (data.files && data.files.length > 0) {
               for (const file of data.files) {
@@ -2985,18 +3054,27 @@
           const sanitizedTitle = book.title.replace(/[^a-zA-Z0-9_\u00C0-\u024F\u1E00-\u1EFF]/g, '_');
           const fileName = `Biblio3D_${sanitizedTitle}_${book.id}.json`;
 
-          // Check if file already exists in Drive folder (by ID or exact filename)
+          // Check if file already exists in Drive (by ID or exact filename)
           let existingFile = null;
           if (existingFilesList && Array.isArray(existingFilesList)) {
             existingFile = existingFilesList.find(f => f.name.includes(`_${book.id}.json`) || f.name === fileName);
-          } else if (folderId) {
-            const query = encodeURIComponent(`'${folderId}' in parents and trashed=false and (name contains '_${book.id}.json' or name = '${fileName}')`);
-            const searchRes = await fetch(`https://www.googleapis.com/drive/v3/files?q=${query}&fields=files(id,name)`, {
+          } else if (gdriveAccessToken) {
+            const query = folderId && folderId !== 'root'
+              ? `'${folderId}' in parents and trashed=false and (name contains '_${book.id}.json' or name = '${fileName}')`
+              : `name contains 'Biblio3D_' and (name contains '_${book.id}.json' or name = '${fileName}') and trashed=false`;
+            
+            const searchRes = await fetch(`https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(query)}&fields=files(id,name)`, {
               headers: { Authorization: `Bearer ${gdriveAccessToken}` }
             });
-            const searchData = await searchRes.json();
-            if (searchData.files && searchData.files.length > 0) {
-              existingFile = searchData.files[0];
+            if (searchRes.status === 401) {
+              handleDriveAuthExpired();
+              return { status: 'error', reason: 'auth_expired' };
+            }
+            if (searchRes.ok) {
+              const searchData = await searchRes.json();
+              if (searchData.files && searchData.files.length > 0) {
+                existingFile = searchData.files[0];
+              }
             }
           }
 
@@ -3015,7 +3093,7 @@
           if (existingFile && forceUpdate) {
             console.log(`Cập nhật file sách trên Drive: ${existingFile.name}`);
             const fileContent = JSON.stringify(book);
-            await fetch(`https://www.googleapis.com/upload/drive/v3/files/${existingFile.id}?uploadType=media`, {
+            const patchRes = await fetch(`https://www.googleapis.com/upload/drive/v3/files/${existingFile.id}?uploadType=media`, {
               method: 'PATCH',
               headers: {
                 Authorization: `Bearer ${gdriveAccessToken}`,
@@ -3023,12 +3101,16 @@
               },
               body: fileContent
             });
+            if (patchRes.status === 401) {
+              handleDriveAuthExpired();
+              return { status: 'error', reason: 'auth_expired' };
+            }
           } else {
             // Upload new file via multipart POST
             const fileMetadata = {
               name: fileName,
               mimeType: 'application/json',
-              ...(folderId ? { parents: [folderId] } : {})
+              ...(folderId && folderId !== 'root' ? { parents: [folderId] } : {})
             };
 
             const fileContent = JSON.stringify(book);
@@ -3037,11 +3119,15 @@
             form.append('file', new Blob([fileContent], { type: 'application/json' }));
 
             const uploadUrl = 'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart';
-            await fetch(uploadUrl, {
+            const uploadRes = await fetch(uploadUrl, {
               method: 'POST',
               headers: { Authorization: `Bearer ${gdriveAccessToken}` },
               body: form
             });
+            if (uploadRes.status === 401) {
+              handleDriveAuthExpired();
+              return { status: 'error', reason: 'auth_expired' };
+            }
           }
         }
 
@@ -3068,7 +3154,7 @@
         if (tokenClient) {
           tokenClient.requestAccessToken({ prompt: 'consent' });
         } else {
-          showToast('⚠️ Vui lòng tải lại trang hoặc mở bằng tab mới để cấp quyền Google Drive!');
+          showToast('⚠️ Vui lòng cấp quyền Google Drive để đồng bộ!');
         }
         return;
       }
@@ -3077,12 +3163,22 @@
 
       try {
         const folderId = await ensureDriveRootFolder();
-        if (!folderId) throw new Error('Không thể tạo/tìm thư mục Drive');
-
+        
         // Fetch existing files on Google Drive once to optimize network requests
-        const listRes = await fetch(`https://www.googleapis.com/drive/v3/files?q='${folderId}'+in+parents+and+trashed=false&fields=files(id,name)`, {
+        const query = folderId && folderId !== 'root'
+          ? `'${folderId}' in parents and trashed=false`
+          : `name contains 'Biblio3D_' and trashed=false`;
+
+        const listRes = await fetch(`https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(query)}&fields=files(id,name)`, {
           headers: { Authorization: `Bearer ${gdriveAccessToken}` }
         });
+
+        if (listRes.status === 401) {
+          showLoader(false);
+          handleDriveAuthExpired();
+          return;
+        }
+
         const listData = await listRes.json();
         const existingFiles = (listData && listData.files) || [];
 
@@ -3129,7 +3225,7 @@
       } catch (err) {
         console.error(err);
         showLoader(false);
-        showToast('⚠️ Lỗi khi đồng bộ. Vui lòng kiểm tra lại quyền truy cập Drive!');
+        showToast('⚠️ Lỗi khi đồng bộ. Vui lòng thử lại sau!');
       }
     }
 
@@ -3138,7 +3234,7 @@
         if (tokenClient) {
           tokenClient.requestAccessToken({ prompt: 'consent' });
         } else {
-          showToast('⚠️ Vui lòng tải lại trang hoặc mở bằng tab mới để cấp quyền Google Drive!');
+          showToast('⚠️ Vui lòng cấp quyền Google Drive để khôi phục!');
         }
         return;
       }
@@ -3147,30 +3243,46 @@
       
       try {
         const folderId = gdriveFolderId || await ensureDriveRootFolder();
-        if (folderId) {
-          const res = await fetch(`https://www.googleapis.com/drive/v3/files?q='${folderId}'+in+parents+and+trashed=false&fields=files(id,name,mimeType)`, {
-            headers: { Authorization: `Bearer ${gdriveAccessToken}` }
-          });
-          const data = await res.json();
-          if (data.files && data.files.length > 0) {
-            let restoredCount = 0;
-            const validFiles = data.files.filter(f => f.name.endsWith('.json'));
-            
-            for (let i = 0; i < validFiles.length; i++) {
-              const file = validFiles[i];
-              const percent = Math.round(((i + 1) / validFiles.length) * 100);
-              
-              const progressBar = document.getElementById('loader-progress-bar');
-              const percentLabel = document.getElementById('loader-percent');
-              const subStatus = document.getElementById('loader-substatus');
-              
-              if (progressBar) progressBar.style.width = percent + '%';
-              if (percentLabel) percentLabel.innerText = `${percent}%`;
-              if (subStatus) subStatus.innerText = `Đang tải sách "${file.name}" về máy (${i + 1}/${validFiles.length})`;
+        const query = folderId && folderId !== 'root'
+          ? `'${folderId}' in parents and trashed=false and (name contains 'Biblio3D_' or mimeType='application/json')`
+          : `name contains 'Biblio3D_' and trashed=false`;
 
-              const getRes = await fetch(`https://www.googleapis.com/drive/v3/files/${file.id}?alt=media`, {
-                headers: { Authorization: `Bearer ${gdriveAccessToken}` }
-              });
+        const res = await fetch(`https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(query)}&fields=files(id,name,mimeType)`, {
+          headers: { Authorization: `Bearer ${gdriveAccessToken}` }
+        });
+
+        if (res.status === 401) {
+          showLoader(false);
+          handleDriveAuthExpired();
+          return;
+        }
+
+        const data = await res.json();
+        if (data.files && data.files.length > 0) {
+          let restoredCount = 0;
+          const validFiles = data.files.filter(f => f.name.endsWith('.json') || f.name.startsWith('Biblio3D_'));
+          
+          for (let i = 0; i < validFiles.length; i++) {
+            const file = validFiles[i];
+            const percent = Math.round(((i + 1) / validFiles.length) * 100);
+            
+            const progressBar = document.getElementById('loader-progress-bar');
+            const percentLabel = document.getElementById('loader-percent');
+            const subStatus = document.getElementById('loader-substatus');
+            
+            if (progressBar) progressBar.style.width = percent + '%';
+            if (percentLabel) percentLabel.innerText = `${percent}%`;
+            if (subStatus) subStatus.innerText = `Đang tải sách "${file.name}" về máy (${i + 1}/${validFiles.length})`;
+
+            const getRes = await fetch(`https://www.googleapis.com/drive/v3/files/${file.id}?alt=media`, {
+              headers: { Authorization: `Bearer ${gdriveAccessToken}` }
+            });
+            if (getRes.status === 401) {
+              showLoader(false);
+              handleDriveAuthExpired();
+              return;
+            }
+            if (getRes.ok) {
               const bookData = await getRes.json();
               if (bookData && bookData.id) {
                 await dbSaveBook(bookData);
@@ -3180,22 +3292,22 @@
                 restoredCount++;
               }
             }
-            updateBooksCountSidebar();
-            renderBooksGrid();
-            showLoader(false);
-            if (restoredCount > 0) {
-              showToast(`✅ Đã khôi phục thành công ${restoredCount} sách từ Google Drive!`);
-            } else {
-              showToast(`⚠️ Thư mục có tồn tại nhưng chưa có file sách hợp lệ!`);
-            }
-            closeGoogleDriveModal();
-            return;
-          } else {
-            showLoader(false);
-            showToast(`⚠️ Không tìm thấy file sách nào trên Google Drive!`);
-            closeGoogleDriveModal();
-            return;
           }
+          updateBooksCountSidebar();
+          renderBooksGrid();
+          showLoader(false);
+          if (restoredCount > 0) {
+            showToast(`✅ Đã khôi phục thành công ${restoredCount} sách từ Google Drive!`);
+          } else {
+            showToast(`⚠️ Không tìm thấy tệp sách JSON hợp lệ trong thư mục!`);
+          }
+          closeGoogleDriveModal();
+          return;
+        } else {
+          showLoader(false);
+          showToast(`⚠️ Không tìm thấy file sách nào trên Google Drive!`);
+          closeGoogleDriveModal();
+          return;
         }
       } catch (e) {
         console.warn('Drive restore fetch error:', e);
