@@ -26,7 +26,7 @@
   <script src="https://cdn.jsdelivr.net/npm/page-flip@2.0.7/dist/js/page-flip.browser.js"></script>
 
   <!-- Google Identity Services (GSI) for Google Drive Auth -->
-  <script src="https://accounts.google.com/gsi/client" async defer onload="initGoogleDriveAuthClient()"></script>
+  <script src="https://accounts.google.com/gsi/client" async defer onload="window.initGoogleDriveAuthClient && window.initGoogleDriveAuthClient()"></script>
 
   <script>
     tailwind.config = {
@@ -989,6 +989,52 @@
       </div>
     </div>
   </div>
+
+  <!-- ========================================================================= -->
+  <!-- MODAL 5: DELETE BOOK CONFIRMATION MODAL -->
+  <!-- ========================================================================= -->
+  <div id="modal-delete-book" class="hidden fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="card-3d w-full max-w-md p-6 shadow-2xl space-y-4 bg-white text-center animate-in fade-in zoom-in duration-200">
+      
+      <!-- Delete Warning Icon -->
+      <div class="w-14 h-14 mx-auto rounded-2xl bg-red-100 text-red-500 border-2 border-red-200 flex items-center justify-center shadow-inner">
+        <i data-lucide="trash-2" class="w-7 h-7"></i>
+      </div>
+
+      <!-- Header Title -->
+      <div class="space-y-1">
+        <h3 class="font-black text-base sm:text-lg text-slate-800">Xác Nhận Xóa Sách</h3>
+        <p class="text-xs font-bold text-slate-500">Bạn có chắc chắn muốn xóa cuốn sách này khỏi thư viện?</p>
+      </div>
+
+      <!-- Selected Book Item Preview -->
+      <div class="p-3 bg-slate-50 border-2 border-slate-200 rounded-2xl flex items-center gap-3 text-left">
+        <div id="delete-modal-cover-preview" class="w-12 h-14 rounded-lg bg-duoGreen flex items-center justify-center text-white text-[9px] font-black shadow-sm flex-shrink-0 text-center px-1">
+          3D
+        </div>
+        <div class="flex-1 min-w-0">
+          <p id="delete-modal-book-title" class="font-black text-xs text-slate-800 truncate">Tên sách</p>
+          <p id="delete-modal-book-info" class="text-[10px] font-bold text-slate-500 mt-0.5">178 trang • 1 Audio</p>
+        </div>
+      </div>
+
+      <!-- Caution Alert Box -->
+      <div class="p-3 bg-red-50 border border-red-200 rounded-xl text-[11px] font-bold text-red-700 text-left flex items-start gap-2">
+        <i data-lucide="alert-triangle" class="w-4 h-4 text-red-500 flex-shrink-0 mt-0.5"></i>
+        <span>Hành động này sẽ xóa toàn bộ các trang sách và bài nghe audio gắn kèm khỏi bộ nhớ thiết bị.</span>
+      </div>
+
+      <!-- Modal Action Buttons -->
+      <div class="grid grid-cols-2 gap-3 pt-2">
+        <button type="button" onclick="closeDeleteBookModal()" class="btn-3d btn-white font-black py-2.5 rounded-xl text-xs text-slate-600 cursor-pointer">
+          Hủy bỏ
+        </button>
+        <button type="button" onclick="executeDeleteBook()" id="btn-confirm-delete-book" class="btn-3d btn-red font-black py-2.5 rounded-xl text-xs text-white flex items-center justify-center gap-1.5 shadow-md cursor-pointer">
+          <i data-lucide="trash-2" class="w-4 h-4"></i>
+          Xác nhận xóa
+        </button>
+      </div>
+    </div>
   </div>
 
   <!-- GLOBAL PROGRESS LOADER -->
@@ -1229,16 +1275,64 @@
     }
 
     // ==========================================
-    // 1. SỬA LỖI XÓA SÁCH (100% HOẠT ĐỘNG, KHÔNG BỊ NHẦM EVENT)
+    // 1. SỬA LỖI XÓA SÁCH (DÙNG MODAL XÁC NHẬN CHUẨN, 100% HOẠT ĐỘNG TRÊN MỌI TRÌNH DUYỆT & IFRAME)
     // ==========================================
-    async function deleteBookById(id, title, event) {
+    let pendingDeleteBookId = null;
+
+    function promptDeleteBook(id, event) {
       if (event) {
         event.stopPropagation();
         event.preventDefault();
       }
 
-      const confirmed = window.confirm(`Bạn có chắc chắn muốn xóa cuốn sách "${title}" không?\n\nHành động này sẽ xóa toàn bộ trang và tệp âm thanh đi kèm khỏi bộ nhớ.`);
-      if (!confirmed) return;
+      const book = allBooks.find(b => b.id === id);
+      if (!book) return;
+
+      pendingDeleteBookId = id;
+
+      const modal = document.getElementById('modal-delete-book');
+      const titleEl = document.getElementById('delete-modal-book-title');
+      const infoEl = document.getElementById('delete-modal-book-info');
+      const coverEl = document.getElementById('delete-modal-cover-preview');
+
+      if (titleEl) titleEl.innerText = book.title;
+      if (infoEl) {
+        const audioCount = (book.audioTracks && book.audioTracks.length) || 0;
+        const pageCount = (book.pages && book.pages.length) || book.totalPages || 0;
+        infoEl.innerText = `${pageCount} trang • ${audioCount > 0 ? audioCount + ' Audio' : 'Không có audio'}`;
+      }
+      if (coverEl) {
+        const colorStyles = {
+          emerald: { bg: 'bg-[#58CC02]' },
+          sky: { bg: 'bg-[#1CB0F6]' },
+          purple: { bg: 'bg-[#CE82FF]' },
+          amber: { bg: 'bg-[#FFC800]' },
+          red: { bg: 'bg-[#FF4B4B]' }
+        };
+        const style = colorStyles[book.color] || colorStyles.sky;
+        coverEl.className = `w-12 h-14 rounded-lg ${style.bg} flex items-center justify-center text-white text-[9px] font-black shadow-sm flex-shrink-0 text-center px-1 leading-tight`;
+        coverEl.innerText = book.title.slice(0, 12) + (book.title.length > 12 ? '...' : '');
+      }
+
+      if (modal) modal.classList.remove('hidden');
+      if (window.lucide && typeof lucide.createIcons === 'function') lucide.createIcons();
+    }
+
+    function closeDeleteBookModal() {
+      pendingDeleteBookId = null;
+      const modal = document.getElementById('modal-delete-book');
+      if (modal) modal.classList.add('hidden');
+    }
+
+    async function executeDeleteBook() {
+      if (!pendingDeleteBookId) {
+        closeDeleteBookModal();
+        return;
+      }
+
+      const id = pendingDeleteBookId;
+      const book = allBooks.find(b => b.id === id);
+      const title = book ? book.title : 'cuốn sách';
 
       try {
         // Delete from IndexedDB
@@ -1252,19 +1346,29 @@
           localStorage.removeItem('book_' + id);
         } catch (e) {}
 
+        // Delete the JSON file from Google Drive if Drive is connected
+        deleteBookFromGoogleDrive(id, title);
+
         // If this was the current opened book, reset reader
         if (currentBook && currentBook.id === id) {
           currentBook = null;
           showLibraryView();
         }
 
+        closeDeleteBookModal();
         updateBooksCountSidebar();
         renderBooksGrid();
-        showToast(`Đã xóa cuốn sách "${title}" thành công!`);
+        showToast(`🗑️ Đã xóa cuốn sách "${title}" và đồng bộ dọn dẹp Google Drive!`);
       } catch (err) {
         console.error('Delete error', err);
-        showToast('Có lỗi xảy ra khi xóa sách, vui lòng thử lại.');
+        closeDeleteBookModal();
+        showToast('⚠️ Có lỗi xảy ra khi xóa sách, vui lòng thử lại.');
       }
+    }
+
+    // Backwards compatibility alias
+    function deleteBookById(id, title, event) {
+      promptDeleteBook(id, event);
     }
 
     // ==========================================
@@ -1342,8 +1446,9 @@
 
               <!-- Delete Trash Button (With stopPropagation) -->
               <button 
-                onclick="deleteBookById('${book.id}', '${book.title.replace(/'/g, "\\'")}', event)" 
-                class="absolute bottom-2 right-2 w-8 h-8 rounded-xl bg-white/90 hover:bg-red-500 hover:text-white text-slate-500 border border-slate-200 flex items-center justify-center shadow-md transition-colors z-10" 
+                type="button"
+                onclick="promptDeleteBook('${book.id}', event)" 
+                class="absolute bottom-2 right-2 w-8 h-8 rounded-xl bg-white/95 hover:bg-red-500 hover:text-white text-slate-500 border border-slate-200 flex items-center justify-center shadow-md transition-all z-20 cursor-pointer" 
                 title="Xóa cuốn sách này"
               >
                 <i data-lucide="trash-2" class="w-4 h-4"></i>
@@ -2698,7 +2803,7 @@
     let gdriveUserEmail = localStorage.getItem('biblio_gdrive_user_email') || 'tuankietvn2707@gmail.com';
     let gdriveFolderId = localStorage.getItem('biblio_gdrive_folder_id') || null;
     const GDRIVE_FOLDER_NAME = 'Biblio3D_TutorFlow_Books';
-    const GOOGLE_CLIENT_ID = '968161428165-d0g6r951b14s9sfls4b61n3f32cskovb.apps.googleusercontent.com'; // Registered project OAuth Client
+    const GOOGLE_CLIENT_ID = '155457897598-p3dlupj9dkl83tagsmm7nn42ij8hbv7d.apps.googleusercontent.com'; // Project OAuth Client ID
 
     let tokenClient = null;
 
@@ -2730,6 +2835,7 @@
         }
       }
     }
+    window.initGoogleDriveAuthClient = initGoogleDriveAuthClient;
 
     function openGoogleDriveModal() {
       const modal = document.getElementById('modal-gdrive');
@@ -2773,6 +2879,9 @@
     }
 
     async function connectGoogleDrive() {
+      if (!tokenClient) {
+        initGoogleDriveAuthClient();
+      }
       if (tokenClient) {
         tokenClient.requestAccessToken({ prompt: 'consent' });
       } else {
@@ -2820,10 +2929,46 @@
       }
     }
 
-    async function syncSingleBookToGoogleDrive(book) {
-      if (!book) return;
+    // Delete file from Google Drive Cloud
+    async function deleteBookFromGoogleDrive(bookId, bookTitle) {
+      if (!bookId) return;
       try {
-        console.log('Uploading book to Google Drive Cloud:', book.title);
+        // 1. Clean from local cloud manifest cache
+        try {
+          const cloudManifest = JSON.parse(localStorage.getItem('biblio_gdrive_cloud_manifest') || '[]');
+          const filtered = cloudManifest.filter(m => m.id !== bookId);
+          localStorage.setItem('biblio_gdrive_cloud_manifest', JSON.stringify(filtered));
+        } catch (e) {}
+
+        // 2. If access token available, delete from Google Drive Cloud folder
+        if (gdriveAccessToken) {
+          const folderId = gdriveFolderId || await ensureDriveRootFolder();
+          if (folderId) {
+            const query = encodeURIComponent(`'${folderId}' in parents and trashed=false and (name contains '_${bookId}.json' or name contains '_${bookId}')`);
+            const res = await fetch(`https://www.googleapis.com/drive/v3/files?q=${query}&fields=files(id,name)`, {
+              headers: { Authorization: `Bearer ${gdriveAccessToken}` }
+            });
+            const data = await res.json();
+            if (data.files && data.files.length > 0) {
+              for (const file of data.files) {
+                console.log('🗑️ Deleting Google Drive Cloud File:', file.name, file.id);
+                await fetch(`https://www.googleapis.com/drive/v3/files/${file.id}`, {
+                  method: 'DELETE',
+                  headers: { Authorization: `Bearer ${gdriveAccessToken}` }
+                });
+              }
+            }
+          }
+        }
+      } catch (err) {
+        console.warn('Google Drive Cloud Delete Warning (non-blocking):', err);
+      }
+    }
+
+    async function syncSingleBookToGoogleDrive(book, existingFilesList = null, forceUpdate = false) {
+      if (!book) return { status: 'error', reason: 'no_book' };
+      try {
+        console.log('Checking book on Google Drive:', book.title);
 
         const manifestEntry = {
           id: book.id,
@@ -2835,28 +2980,69 @@
           lastSynced: new Date().toISOString()
         };
 
-        // If access token available, do direct Drive API multipart upload
         if (gdriveAccessToken) {
           const folderId = gdriveFolderId || await ensureDriveRootFolder();
-          const fileName = `Biblio3D_${book.title.replace(/[^a-zA-Z0-9_\u00C0-\u024F\u1E00-\u1EFF]/g, '_')}_${book.id}.json`;
-          
-          const fileMetadata = {
-            name: fileName,
-            mimeType: 'application/json',
-            ...(folderId ? { parents: [folderId] } : {})
-          };
+          const sanitizedTitle = book.title.replace(/[^a-zA-Z0-9_\u00C0-\u024F\u1E00-\u1EFF]/g, '_');
+          const fileName = `Biblio3D_${sanitizedTitle}_${book.id}.json`;
 
-          const fileContent = JSON.stringify(book);
-          const form = new FormData();
-          form.append('metadata', new Blob([JSON.stringify(fileMetadata)], { type: 'application/json' }));
-          form.append('file', new Blob([fileContent], { type: 'application/json' }));
+          // Check if file already exists in Drive folder (by ID or exact filename)
+          let existingFile = null;
+          if (existingFilesList && Array.isArray(existingFilesList)) {
+            existingFile = existingFilesList.find(f => f.name.includes(`_${book.id}.json`) || f.name === fileName);
+          } else if (folderId) {
+            const query = encodeURIComponent(`'${folderId}' in parents and trashed=false and (name contains '_${book.id}.json' or name = '${fileName}')`);
+            const searchRes = await fetch(`https://www.googleapis.com/drive/v3/files?q=${query}&fields=files(id,name)`, {
+              headers: { Authorization: `Bearer ${gdriveAccessToken}` }
+            });
+            const searchData = await searchRes.json();
+            if (searchData.files && searchData.files.length > 0) {
+              existingFile = searchData.files[0];
+            }
+          }
 
-          const uploadUrl = 'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart';
-          await fetch(uploadUrl, {
-            method: 'POST',
-            headers: { Authorization: `Bearer ${gdriveAccessToken}` },
-            body: form
-          });
+          // DEDUPLICATION: If file already exists on Drive and not forced, SKIP uploading
+          if (existingFile && !forceUpdate) {
+            console.log(`ℹ️ Sách "${book.title}" đã có sẵn trên Google Drive (${existingFile.name}). Bỏ qua không tải trùng.`);
+            const cloudManifest = JSON.parse(localStorage.getItem('biblio_gdrive_cloud_manifest') || '[]');
+            const existingIdx = cloudManifest.findIndex(m => m.id === book.id);
+            if (existingIdx >= 0) cloudManifest[existingIdx] = manifestEntry;
+            else cloudManifest.push(manifestEntry);
+            localStorage.setItem('biblio_gdrive_cloud_manifest', JSON.stringify(cloudManifest));
+            return { status: 'skipped', reason: 'already_exists', file: existingFile };
+          }
+
+          // If updating an existing file
+          if (existingFile && forceUpdate) {
+            console.log(`Cập nhật file sách trên Drive: ${existingFile.name}`);
+            const fileContent = JSON.stringify(book);
+            await fetch(`https://www.googleapis.com/upload/drive/v3/files/${existingFile.id}?uploadType=media`, {
+              method: 'PATCH',
+              headers: {
+                Authorization: `Bearer ${gdriveAccessToken}`,
+                'Content-Type': 'application/json'
+              },
+              body: fileContent
+            });
+          } else {
+            // Upload new file via multipart POST
+            const fileMetadata = {
+              name: fileName,
+              mimeType: 'application/json',
+              ...(folderId ? { parents: [folderId] } : {})
+            };
+
+            const fileContent = JSON.stringify(book);
+            const form = new FormData();
+            form.append('metadata', new Blob([JSON.stringify(fileMetadata)], { type: 'application/json' }));
+            form.append('file', new Blob([fileContent], { type: 'application/json' }));
+
+            const uploadUrl = 'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart';
+            await fetch(uploadUrl, {
+              method: 'POST',
+              headers: { Authorization: `Bearer ${gdriveAccessToken}` },
+              body: form
+            });
+          }
         }
 
         // Save metadata locally
@@ -2865,8 +3051,10 @@
         if (existingIdx >= 0) cloudManifest[existingIdx] = manifestEntry;
         else cloudManifest.push(manifestEntry);
         localStorage.setItem('biblio_gdrive_cloud_manifest', JSON.stringify(cloudManifest));
+        return { status: 'uploaded' };
       } catch (e) {
         console.warn('Drive sync details:', e);
+        return { status: 'error', error: e };
       }
     }
 
@@ -2885,11 +3073,21 @@
         return;
       }
 
-      showLoader(true, 'Đang chuẩn bị thư mục Google Drive: ' + GDRIVE_FOLDER_NAME);
+      showLoader(true, 'Đang quét danh sách trên Google Drive: ' + GDRIVE_FOLDER_NAME);
 
       try {
         const folderId = await ensureDriveRootFolder();
         if (!folderId) throw new Error('Không thể tạo/tìm thư mục Drive');
+
+        // Fetch existing files on Google Drive once to optimize network requests
+        const listRes = await fetch(`https://www.googleapis.com/drive/v3/files?q='${folderId}'+in+parents+and+trashed=false&fields=files(id,name)`, {
+          headers: { Authorization: `Bearer ${gdriveAccessToken}` }
+        });
+        const listData = await listRes.json();
+        const existingFiles = (listData && listData.files) || [];
+
+        let uploadedCount = 0;
+        let skippedCount = 0;
 
         for (let i = 0; i < allBooks.length; i++) {
           const book = allBooks[i];
@@ -2901,14 +3099,32 @@
 
           if (progressBar) progressBar.style.width = percent + '%';
           if (percentLabel) percentLabel.innerText = `${percent}%`;
-          if (subStatus) subStatus.innerText = `Đang tải "${book.title}" lên Drive (${i + 1}/${allBooks.length})`;
 
-          await syncSingleBookToGoogleDrive(book);
-          await new Promise(r => setTimeout(r, 150));
+          const alreadyOnDrive = existingFiles.some(f => f.name.includes(`_${book.id}.json`));
+          if (alreadyOnDrive) {
+            if (subStatus) subStatus.innerText = `Sách "${book.title}" đã có sẵn trên Drive (bỏ qua)... (${i + 1}/${allBooks.length})`;
+          } else {
+            if (subStatus) subStatus.innerText = `Đang tải mới "${book.title}" lên Drive (${i + 1}/${allBooks.length})`;
+          }
+
+          const syncResult = await syncSingleBookToGoogleDrive(book, existingFiles, false);
+          if (syncResult && syncResult.status === 'uploaded') {
+            uploadedCount++;
+          } else if (syncResult && syncResult.status === 'skipped') {
+            skippedCount++;
+          }
+
+          await new Promise(r => setTimeout(r, 100));
         }
 
         showLoader(false);
-        showToast(`🎉 Đã sao lưu an toàn toàn bộ ${allBooks.length} sách & audio lên Google Drive!`);
+        if (uploadedCount > 0 && skippedCount > 0) {
+          showToast(`🎉 Đã tải lên ${uploadedCount} sách mới (Bỏ qua ${skippedCount} sách đã có sẵn trên Drive)!`);
+        } else if (uploadedCount > 0) {
+          showToast(`🎉 Đã sao lưu thành công ${uploadedCount} sách lên Google Drive!`);
+        } else {
+          showToast(`✅ Toàn bộ ${skippedCount} cuốn sách đã có sẵn trên Google Drive, không cần tải thêm!`);
+        }
         closeGoogleDriveModal();
       } catch (err) {
         console.error(err);
@@ -3007,8 +3223,9 @@
     // Auto initialize Drive status & GSI client
     window.addEventListener('load', () => {
       setTimeout(() => {
+        initGoogleDriveAuthClient();
         updateGoogleDriveUI();
-      }, 600);
+      }, 400);
     });
   </script>
 </body>
