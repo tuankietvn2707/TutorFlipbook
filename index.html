@@ -960,22 +960,27 @@
 
       <!-- Action Buttons Grid -->
       <div class="space-y-2.5">
-        <button onclick="syncAllBooksToGoogleDrive()" id="btn-sync-all-drive" class="btn-3d btn-green w-full p-3 rounded-2xl font-black text-xs sm:text-sm text-white flex items-center justify-center gap-2">
+        <button onclick="syncAllBooksToGoogleDrive(false)" id="btn-sync-all-drive" class="btn-3d btn-green w-full p-3 rounded-2xl font-black text-xs sm:text-sm text-white flex items-center justify-center gap-2">
           <i data-lucide="cloud-upload" class="w-5 h-5"></i>
-          <span>Sao Lưu & Đồng Bộ Toàn Bộ Sách & Audio Lên Drive</span>
+          <span>Sao Lưu & Đồng Bộ Sách Lên Google Drive</span>
         </button>
 
         <div class="grid grid-cols-2 gap-2">
+          <button onclick="syncAllBooksToGoogleDrive(true)" class="btn-3d btn-white p-2.5 rounded-xl font-bold text-xs text-amber-700 flex items-center justify-center gap-1.5 hover:border-amber-400" title="Tải lại toàn bộ sách và ghi đè trên Drive">
+            <i data-lucide="refresh-ccw" class="w-4 h-4 text-amber-500"></i>
+            <span>Đồng bộ đè toàn bộ</span>
+          </button>
+
           <button onclick="restoreBooksFromGoogleDrive()" class="btn-3d btn-white p-2.5 rounded-xl font-bold text-xs text-slate-700 flex items-center justify-center gap-1.5 hover:border-duoBlue">
             <i data-lucide="cloud-download" class="w-4 h-4 text-duoBlue"></i>
             <span>Khôi phục từ Drive</span>
           </button>
-
-          <button onclick="exportLibraryBackupJSON()" class="btn-3d btn-white p-2.5 rounded-xl font-bold text-xs text-slate-700 flex items-center justify-center gap-1.5 hover:border-duoPurple">
-            <i data-lucide="download" class="w-4 h-4 text-duoPurple"></i>
-            <span>Xuất file .JSON</span>
-          </button>
         </div>
+
+        <button onclick="exportLibraryBackupJSON()" class="btn-3d btn-white w-full p-2.5 rounded-xl font-bold text-xs text-slate-700 flex items-center justify-center gap-1.5 hover:border-duoPurple">
+          <i data-lucide="download" class="w-4 h-4 text-duoPurple"></i>
+          <span>Xuất file dự phòng máy tính (.JSON)</span>
+        </button>
       </div>
 
       <!-- Info Note -->
@@ -987,6 +992,76 @@
       <div class="flex items-center justify-end pt-2 border-t border-slate-100">
         <button onclick="closeGoogleDriveModal()" class="btn-3d btn-white font-extrabold px-4 py-1.5 rounded-xl text-xs">Đóng</button>
       </div>
+    </div>
+  </div>
+
+  <!-- ========================================================================= -->
+  <!-- MODAL 4B: GOOGLE DRIVE API ACTIVATION REQUIRED MODAL -->
+  <!-- ========================================================================= -->
+  <div id="modal-gdrive-enable-api" class="hidden fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="card-3d w-full max-w-lg p-6 shadow-2xl space-y-4 bg-white animate-in fade-in zoom-in duration-200">
+      
+      <!-- Header with Drive & Alert Icon -->
+      <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+        <div class="flex items-center gap-3">
+          <div class="w-12 h-12 rounded-2xl bg-amber-100 border-2 border-amber-200 flex items-center justify-center text-amber-600 shadow-sm flex-shrink-0">
+            <i data-lucide="alert-circle" class="w-6 h-6"></i>
+          </div>
+          <div>
+            <h3 class="font-black text-base sm:text-lg text-slate-800">Kích Hoạt Google Drive API</h3>
+            <p class="text-xs font-bold text-slate-500">Chỉ cần thực hiện 1 lần duy nhất cho tài khoản</p>
+          </div>
+        </div>
+        <button onclick="closeDriveApiEnableModal()" class="w-8 h-8 rounded-full hover:bg-slate-100 flex items-center justify-center text-slate-400">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <!-- Explanation Card -->
+      <div class="p-4 bg-amber-50/80 border-2 border-amber-200 rounded-2xl space-y-3">
+        <p class="text-xs font-bold text-amber-950 leading-relaxed">
+          Google Cloud Project <code class="bg-amber-100 px-1.5 py-0.5 rounded font-mono text-amber-900 font-black">11163283172</code> chưa được bật dịch vụ <b>Google Drive API</b>. Vì vậy Google tạm thời từ chối quyền ghi file lên Drive.
+        </p>
+        
+        <div class="space-y-2 pt-1 border-t border-amber-200 text-xs font-bold text-slate-700">
+          <p class="font-black text-slate-800 text-[13px] flex items-center gap-1.5">
+            <span class="w-5 h-5 rounded-full bg-duoBlue text-white flex items-center justify-center text-[10px]">✨</span>
+            Hướng dẫn kích hoạt cực nhanh (30 giây):
+          </p>
+          <div class="flex items-start gap-2 bg-white p-2.5 rounded-xl border border-amber-200">
+            <span class="w-5 h-5 rounded-full bg-amber-500 text-white flex items-center justify-center text-[10px] flex-shrink-0 mt-0.5 font-black">1</span>
+            <span>Bấm nút màu xanh <b>"Mở Trang Google Cloud Console"</b> bên dưới.</span>
+          </div>
+          <div class="flex items-start gap-2 bg-white p-2.5 rounded-xl border border-amber-200">
+            <span class="w-5 h-5 rounded-full bg-amber-500 text-white flex items-center justify-center text-[10px] flex-shrink-0 mt-0.5 font-black">2</span>
+            <span>Trên trang Google vừa mở, bấm nút màu xanh <b class="text-blue-600">"ENABLE" (hoặc "BẬT")</b>.</span>
+          </div>
+          <div class="flex items-start gap-2 bg-white p-2.5 rounded-xl border border-amber-200">
+            <span class="w-5 h-5 rounded-full bg-amber-500 text-white flex items-center justify-center text-[10px] flex-shrink-0 mt-0.5 font-black">3</span>
+            <span>Đợi khoảng 10 giây rồi quay lại đây bấm <b>"Tôi đã bật, thử lại ngay"</b>.</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Action Buttons -->
+      <div class="space-y-2.5 pt-1">
+        <a id="btn-open-gdrive-console" href="https://console.developers.google.com/apis/api/drive.googleapis.com/overview?project=11163283172" target="_blank" rel="noopener noreferrer" class="btn-3d btn-green w-full p-3 rounded-2xl font-black text-xs sm:text-sm text-white flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/20">
+          <i data-lucide="external-link" class="w-5 h-5"></i>
+          <span>Mở Trang Google Cloud Console (Để Bật API)</span>
+        </a>
+
+        <div class="grid grid-cols-2 gap-2">
+          <button onclick="retrySyncAfterApiEnabled()" class="btn-3d btn-blue p-2.5 rounded-xl font-bold text-xs text-white flex items-center justify-center gap-1.5">
+            <i data-lucide="refresh-cw" class="w-4 h-4"></i>
+            <span>Tôi đã bật, thử lại</span>
+          </button>
+
+          <button onclick="closeDriveApiEnableModal()" class="btn-3d btn-white p-2.5 rounded-xl font-bold text-xs text-slate-700 flex items-center justify-center gap-1.5">
+            <span>Đóng thông báo</span>
+          </button>
+        </div>
+      </div>
+
     </div>
   </div>
 
@@ -1040,13 +1115,17 @@
   <!-- GLOBAL PROGRESS LOADER -->
   <div id="flipbook-loader" class="hidden fixed inset-0 bg-slate-900/95 backdrop-blur-sm z-[9999] flex flex-col items-center justify-center text-white p-6">
     <div class="w-16 h-16 border-4 border-duoGreen border-t-transparent rounded-full animate-spin mb-4"></div>
-    <p id="loader-status" class="font-black text-xl text-duoGreen">Đang xử lý...</p>
-    <p id="loader-substatus" class="text-sm text-slate-400 font-bold mt-1">Vui lòng chờ trong giây lát</p>
+    <p id="loader-status" class="font-black text-xl text-duoGreen text-center max-w-md">Đang xử lý...</p>
+    <p id="loader-substatus" class="text-sm text-slate-400 font-bold mt-1 text-center max-w-md">Vui lòng chờ trong giây lát</p>
     <!-- Progress Bar -->
     <div class="w-64 max-w-full bg-slate-800 rounded-full h-3 mt-4 overflow-hidden border border-slate-700">
       <div id="loader-progress-bar" class="bg-duoGreen h-full w-0 transition-all duration-150"></div>
     </div>
     <p id="loader-percent" class="text-sm text-duoAmber font-black mt-2">0%</p>
+    <!-- Dismiss button if taking too long -->
+    <button type="button" onclick="showLoader(false)" class="mt-6 px-4 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-bold text-slate-300 border border-slate-700 transition cursor-pointer">
+      ✕ Đóng thông báo
+    </button>
   </div>
 
   <!-- TOAST NOTIFICATION -->
@@ -1134,6 +1213,17 @@
         store.put(book);
         tx.oncomplete = () => resolve(true);
         tx.onerror = (e) => reject(e);
+      });
+    }
+
+    async function dbGetBook(id) {
+      if (!db) await initDB();
+      return new Promise((resolve, reject) => {
+        const tx = db.transaction(DB_STORE, 'readonly');
+        const store = tx.objectStore(DB_STORE);
+        const req = store.get(id);
+        req.onsuccess = () => resolve(req.result || null);
+        req.onerror = (e) => reject(e);
       });
     }
 
@@ -2803,7 +2893,18 @@
     let gdriveUserEmail = localStorage.getItem('biblio_gdrive_user_email') || 'tuankietvn2707@gmail.com';
     let gdriveFolderId = localStorage.getItem('biblio_gdrive_folder_id') || null;
     const GDRIVE_FOLDER_NAME = 'Biblio3D_TutorFlow_Books';
-    const GOOGLE_CLIENT_ID = '11163283172-4gsl5rhffmsissqh1et360998dnhrq23.apps.googleusercontent.com'; // Project OAuth Client ID (tutorflow-def01)
+    // Dynamic Google OAuth Client ID matching domain (Google AI Studio & Vercel)
+    const CLIENT_ID_AISTUDIO = '11163283172-g50iktv7debgv9vfp4h9dp0jrfruikjn.apps.googleusercontent.com'; // For ais-dev-24rpbuzdc...run.app
+    const CLIENT_ID_VERCEL = '11163283172-4gsl5rhffmsissqh1et360998dnhrq23.apps.googleusercontent.com'; // For tutor-flipbook.vercel.app
+    
+    function getGoogleClientId() {
+      const hostname = window.location.hostname;
+      if (hostname.includes('vercel.app')) {
+        return CLIENT_ID_VERCEL;
+      }
+      return CLIENT_ID_AISTUDIO;
+    }
+    const GOOGLE_CLIENT_ID = getGoogleClientId();
 
     let tokenClient = null;
 
@@ -2846,6 +2947,50 @@
     function closeGoogleDriveModal() {
       const modal = document.getElementById('modal-gdrive');
       if (modal) modal.classList.add('hidden');
+    }
+
+    function openDriveApiEnableModal(activationUrl) {
+      const modal = document.getElementById('modal-gdrive-enable-api');
+      const btnLink = document.getElementById('btn-open-gdrive-console');
+      if (btnLink && activationUrl) {
+        btnLink.href = activationUrl;
+      }
+      if (modal) modal.classList.remove('hidden');
+    }
+
+    function closeDriveApiEnableModal() {
+      const modal = document.getElementById('modal-gdrive-enable-api');
+      if (modal) modal.classList.add('hidden');
+    }
+
+    async function retrySyncAfterApiEnabled() {
+      closeDriveApiEnableModal();
+      showToast('🔄 Đang thử lại đồng bộ Google Drive...');
+      await new Promise(r => setTimeout(r, 600));
+      await syncAllBooksToGoogleDrive(false);
+    }
+
+    function checkAndHandleDriveApiDisabled(err) {
+      if (!err) return false;
+      const errStr = typeof err === 'object' ? JSON.stringify(err) : String(err || '');
+      const isApiDisabled = errStr.includes('SERVICE_DISABLED') || 
+                            errStr.includes('accessNotConfigured') || 
+                            errStr.includes('Google Drive API has not been used') ||
+                            errStr.includes('Enable it by visiting') ||
+                            (errStr.includes('403') && errStr.includes('drive.googleapis.com'));
+
+      if (isApiDisabled) {
+        let activationUrl = 'https://console.developers.google.com/apis/api/drive.googleapis.com/overview?project=11163283172';
+        const match = errStr.match(/https:\/\/console\.developers\.google\.com\/apis\/api\/drive\.googleapis\.com\/overview\?project=\d+/);
+        if (match && match[0]) {
+          activationUrl = match[0];
+        }
+        
+        showLoader(false);
+        openDriveApiEnableModal(activationUrl);
+        return true;
+      }
+      return false;
     }
 
     function updateGoogleDriveUI() {
@@ -2971,6 +3116,12 @@
           return null;
         }
 
+        if (createRes.status === 403) {
+          const errText = await createRes.text();
+          checkAndHandleDriveApiDisabled(errText);
+          return null;
+        }
+
         if (createRes.ok) {
           const folderData = await createRes.json();
           if (folderData && folderData.id) {
@@ -3034,34 +3185,124 @@
       }
     }
 
-    async function syncSingleBookToGoogleDrive(book, existingFilesList = null, forceUpdate = false) {
+    // Robust Resumable Upload to Google Drive for large files (supports books with 100+ high-res pages & audio)
+    async function uploadToGoogleDriveResumable({ fileName, fileBlob, mimeType = 'application/json', folderId = null, existingFileId = null, onProgress = null }) {
+      if (!gdriveAccessToken) throw new Error('Chưa có token xác thực Google Drive');
+
+      const metadata = {
+        name: fileName,
+        mimeType: mimeType
+      };
+      if (!existingFileId && folderId && folderId !== 'root') {
+        metadata.parents = [folderId];
+      }
+
+      // Step 1: Initiate Resumable Upload Session
+      const initUrl = existingFileId
+        ? `https://www.googleapis.com/upload/drive/v3/files/${existingFileId}?uploadType=resumable`
+        : `https://www.googleapis.com/upload/drive/v3/files?uploadType=resumable`;
+      
+      const initMethod = existingFileId ? 'PATCH' : 'POST';
+
+      const initRes = await fetch(initUrl, {
+        method: initMethod,
+        headers: {
+          Authorization: `Bearer ${gdriveAccessToken}`,
+          'Content-Type': 'application/json; charset=UTF-8',
+          'X-Upload-Content-Type': mimeType,
+          'X-Upload-Content-Length': fileBlob.size.toString()
+        },
+        body: JSON.stringify(metadata)
+      });
+
+      if (initRes.status === 401) {
+        handleDriveAuthExpired();
+        throw new Error('Phiên đăng nhập Google Drive đã hết hạn');
+      }
+
+      if (initRes.status === 403) {
+        const errText = await initRes.text();
+        checkAndHandleDriveApiDisabled(errText);
+        throw new Error('Google Drive API chưa được bật trên Google Cloud');
+      }
+
+      if (!initRes.ok) {
+        const errText = await initRes.text();
+        if (checkAndHandleDriveApiDisabled(errText)) {
+          throw new Error('Google Drive API chưa được bật trên Google Cloud');
+        }
+        throw new Error(`Google Drive API lỗi khởi tạo (${initRes.status}): ${errText}`);
+      }
+
+      const sessionUri = initRes.headers.get('Location');
+      if (!sessionUri) {
+        throw new Error('Không nhận được Session URL từ Google Drive');
+      }
+
+      // Step 2: Upload Binary Data via PUT with Real-time Progress Tracking
+      return new Promise((resolve, reject) => {
+        const xhr = new XMLHttpRequest();
+        xhr.open('PUT', sessionUri, true);
+        xhr.setRequestHeader('Content-Type', mimeType);
+
+        if (xhr.upload && onProgress) {
+          xhr.upload.onprogress = (e) => {
+            if (e.lengthComputable) {
+              onProgress(e.loaded, e.total);
+            }
+          };
+        }
+
+        xhr.onload = () => {
+          if (xhr.status >= 200 && xhr.status < 300) {
+            try {
+              const resData = JSON.parse(xhr.responseText || '{}');
+              resolve(resData);
+            } catch (e) {
+              resolve({ id: existingFileId, name: fileName });
+            }
+          } else {
+            reject(new Error(`Tải lên dữ liệu thất bại (${xhr.status}): ${xhr.responseText}`));
+          }
+        };
+
+        xhr.onerror = () => reject(new Error('Lỗi kết nối mạng khi tải lên Google Drive'));
+        xhr.ontimeout = () => reject(new Error('Quá thời gian chờ khi gửi tệp lên Google Drive'));
+        xhr.send(fileBlob);
+      });
+    }
+
+    async function syncSingleBookToGoogleDrive(book, existingFilesList = null, forceUpdate = false, onProgress = null) {
       if (!book) return { status: 'error', reason: 'no_book' };
       try {
-        console.log('Checking book on Google Drive:', book.title);
+        console.log('Synchronizing book to Google Drive:', book.title);
+
+        // Fetch full book data from IndexedDB to guarantee all pages & audio tracks are complete
+        const fullBook = (await dbGetBook(book.id)) || book;
 
         const manifestEntry = {
-          id: book.id,
-          title: book.title,
-          category: book.category,
-          color: book.color,
-          totalPages: book.totalPages,
-          audioCount: (book.audioTracks || []).length,
+          id: fullBook.id,
+          title: fullBook.title,
+          category: fullBook.category,
+          color: fullBook.color,
+          totalPages: fullBook.totalPages || (fullBook.pages && fullBook.pages.length) || 0,
+          audioCount: (fullBook.audioTracks || []).length,
           lastSynced: new Date().toISOString()
         };
 
         if (gdriveAccessToken) {
           const folderId = gdriveFolderId || await ensureDriveRootFolder();
-          const sanitizedTitle = book.title.replace(/[^a-zA-Z0-9_\u00C0-\u024F\u1E00-\u1EFF]/g, '_');
-          const fileName = `Biblio3D_${sanitizedTitle}_${book.id}.json`;
+          const sanitizedTitle = (fullBook.title || 'Untitled').replace(/[^a-zA-Z0-9_\u00C0-\u024F\u1E00-\u1EFF]/g, '_');
+          const fileName = `Biblio3D_${sanitizedTitle}_${fullBook.id}.json`;
 
-          // Check if file already exists in Drive (by ID or exact filename)
+          // Check if file already exists in Drive
           let existingFile = null;
           if (existingFilesList && Array.isArray(existingFilesList)) {
-            existingFile = existingFilesList.find(f => f.name.includes(`_${book.id}.json`) || f.name === fileName);
-          } else if (gdriveAccessToken) {
+            existingFile = existingFilesList.find(f => f.name.includes(`_${fullBook.id}.json`) || f.name === fileName);
+          } else {
             const query = folderId && folderId !== 'root'
-              ? `'${folderId}' in parents and trashed=false and (name contains '_${book.id}.json' or name = '${fileName}')`
-              : `name contains 'Biblio3D_' and (name contains '_${book.id}.json' or name = '${fileName}') and trashed=false`;
+              ? `'${folderId}' in parents and trashed=false and (name contains '_${fullBook.id}.json' or name = '${fileName}')`
+              : `name contains 'Biblio3D_' and (name contains '_${fullBook.id}.json' or name = '${fileName}') and trashed=false`;
             
             const searchRes = await fetch(`https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(query)}&fields=files(id,name)`, {
               headers: { Authorization: `Bearer ${gdriveAccessToken}` }
@@ -3078,74 +3319,50 @@
             }
           }
 
-          // DEDUPLICATION: If file already exists on Drive and not forced, SKIP uploading
+          // DEDUPLICATION: If already on Drive and not forced, skip uploading
           if (existingFile && !forceUpdate) {
-            console.log(`ℹ️ Sách "${book.title}" đã có sẵn trên Google Drive (${existingFile.name}). Bỏ qua không tải trùng.`);
+            console.log(`ℹ️ Sách "${fullBook.title}" đã có sẵn trên Drive (${existingFile.name}). Bỏ qua.`);
             const cloudManifest = JSON.parse(localStorage.getItem('biblio_gdrive_cloud_manifest') || '[]');
-            const existingIdx = cloudManifest.findIndex(m => m.id === book.id);
+            const existingIdx = cloudManifest.findIndex(m => m.id === fullBook.id);
             if (existingIdx >= 0) cloudManifest[existingIdx] = manifestEntry;
             else cloudManifest.push(manifestEntry);
             localStorage.setItem('biblio_gdrive_cloud_manifest', JSON.stringify(cloudManifest));
             return { status: 'skipped', reason: 'already_exists', file: existingFile };
           }
 
-          // If updating an existing file
-          if (existingFile && forceUpdate) {
-            console.log(`Cập nhật file sách trên Drive: ${existingFile.name}`);
-            const fileContent = JSON.stringify(book);
-            const patchRes = await fetch(`https://www.googleapis.com/upload/drive/v3/files/${existingFile.id}?uploadType=media`, {
-              method: 'PATCH',
-              headers: {
-                Authorization: `Bearer ${gdriveAccessToken}`,
-                'Content-Type': 'application/json'
-              },
-              body: fileContent
-            });
-            if (patchRes.status === 401) {
-              handleDriveAuthExpired();
-              return { status: 'error', reason: 'auth_expired' };
-            }
-          } else {
-            // Upload new file via multipart POST
-            const fileMetadata = {
-              name: fileName,
-              mimeType: 'application/json',
-              ...(folderId && folderId !== 'root' ? { parents: [folderId] } : {})
-            };
+          // Prepare Payload as Blob
+          const fileContent = JSON.stringify(fullBook);
+          const fileBlob = new Blob([fileContent], { type: 'application/json' });
 
-            const fileContent = JSON.stringify(book);
-            const form = new FormData();
-            form.append('metadata', new Blob([JSON.stringify(fileMetadata)], { type: 'application/json' }));
-            form.append('file', new Blob([fileContent], { type: 'application/json' }));
+          const uploadResult = await uploadToGoogleDriveResumable({
+            fileName: fileName,
+            fileBlob: fileBlob,
+            mimeType: 'application/json',
+            folderId: folderId,
+            existingFileId: (existingFile && forceUpdate) ? existingFile.id : null,
+            onProgress: onProgress
+          });
 
-            const uploadUrl = 'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart';
-            const uploadRes = await fetch(uploadUrl, {
-              method: 'POST',
-              headers: { Authorization: `Bearer ${gdriveAccessToken}` },
-              body: form
-            });
-            if (uploadRes.status === 401) {
-              handleDriveAuthExpired();
-              return { status: 'error', reason: 'auth_expired' };
-            }
-          }
+          console.log(`✅ Uploaded book "${fullBook.title}" to Drive successfully:`, uploadResult);
         }
 
-        // Save metadata locally
+        // Update local sync manifest
         const cloudManifest = JSON.parse(localStorage.getItem('biblio_gdrive_cloud_manifest') || '[]');
-        const existingIdx = cloudManifest.findIndex(m => m.id === book.id);
+        const existingIdx = cloudManifest.findIndex(m => m.id === fullBook.id);
         if (existingIdx >= 0) cloudManifest[existingIdx] = manifestEntry;
         else cloudManifest.push(manifestEntry);
         localStorage.setItem('biblio_gdrive_cloud_manifest', JSON.stringify(cloudManifest));
+
         return { status: 'uploaded' };
       } catch (e) {
-        console.warn('Drive sync details:', e);
-        return { status: 'error', error: e };
+        console.error('Drive sync details error:', e);
+        return { status: 'error', error: e.message || e };
       }
     }
 
-    async function syncAllBooksToGoogleDrive() {
-      if (!allBooks || allBooks.length === 0) {
+    async function syncAllBooksToGoogleDrive(forceUpdate = false) {
+      const booksToSync = (allBooks && allBooks.length > 0) ? allBooks : await dbGetAllBooks();
+      if (!booksToSync || booksToSync.length === 0) {
         showToast('⚠️ Thư viện chưa có sách để sao lưu!');
         return;
       }
@@ -3159,12 +3376,12 @@
         return;
       }
 
-      showLoader(true, 'Đang quét danh sách trên Google Drive: ' + GDRIVE_FOLDER_NAME);
+      showLoader(true, 'Đang chuẩn bị sao lưu lên Google Drive...');
 
       try {
         const folderId = await ensureDriveRootFolder();
         
-        // Fetch existing files on Google Drive once to optimize network requests
+        // Fetch existing files on Google Drive
         const query = folderId && folderId !== 'root'
           ? `'${folderId}' in parents and trashed=false`
           : `name contains 'Biblio3D_' and trashed=false`;
@@ -3179,53 +3396,81 @@
           return;
         }
 
+        if (listRes.status === 403) {
+          showLoader(false);
+          const errText = await listRes.text();
+          if (checkAndHandleDriveApiDisabled(errText)) return;
+        }
+
         const listData = await listRes.json();
         const existingFiles = (listData && listData.files) || [];
 
         let uploadedCount = 0;
         let skippedCount = 0;
+        let errorCount = 0;
+        const errorMessages = [];
 
-        for (let i = 0; i < allBooks.length; i++) {
-          const book = allBooks[i];
-          const percent = Math.round(((i + 1) / allBooks.length) * 100);
-          
-          const progressBar = document.getElementById('loader-progress-bar');
-          const percentLabel = document.getElementById('loader-percent');
-          const subStatus = document.getElementById('loader-substatus');
+        const progressBar = document.getElementById('loader-progress-bar');
+        const percentLabel = document.getElementById('loader-percent');
+        const statusLabel = document.getElementById('loader-status');
+        const subStatus = document.getElementById('loader-substatus');
 
-          if (progressBar) progressBar.style.width = percent + '%';
-          if (percentLabel) percentLabel.innerText = `${percent}%`;
+        for (let i = 0; i < booksToSync.length; i++) {
+          const book = booksToSync[i];
+          const overallPercent = Math.round(((i) / booksToSync.length) * 100);
 
-          const alreadyOnDrive = existingFiles.some(f => f.name.includes(`_${book.id}.json`));
-          if (alreadyOnDrive) {
-            if (subStatus) subStatus.innerText = `Sách "${book.title}" đã có sẵn trên Drive (bỏ qua)... (${i + 1}/${allBooks.length})`;
-          } else {
-            if (subStatus) subStatus.innerText = `Đang tải mới "${book.title}" lên Drive (${i + 1}/${allBooks.length})`;
-          }
+          if (statusLabel) statusLabel.innerText = `Đang sao lưu sách (${i + 1}/${booksToSync.length})`;
+          if (subStatus) subStatus.innerText = `Đang chuẩn bị "${book.title}"...`;
+          if (progressBar) progressBar.style.width = overallPercent + '%';
+          if (percentLabel) percentLabel.innerText = `${overallPercent}%`;
 
-          const syncResult = await syncSingleBookToGoogleDrive(book, existingFiles, false);
+          // Single book progress callback
+          const onProgress = (loadedBytes, totalBytes) => {
+            const loadedMB = (loadedBytes / (1024 * 1024)).toFixed(1);
+            const totalMB = (totalBytes / (1024 * 1024)).toFixed(1);
+            const bookPercent = Math.round((loadedBytes / totalBytes) * 100);
+            const currentOverall = Math.round(((i + (loadedBytes / totalBytes)) / booksToSync.length) * 100);
+            
+            if (subStatus) subStatus.innerText = `Đang tải lên "${book.title}": ${loadedMB}MB / ${totalMB}MB (${bookPercent}%)`;
+            if (progressBar) progressBar.style.width = currentOverall + '%';
+            if (percentLabel) percentLabel.innerText = `${currentOverall}%`;
+          };
+
+          const syncResult = await syncSingleBookToGoogleDrive(book, existingFiles, forceUpdate, onProgress);
           if (syncResult && syncResult.status === 'uploaded') {
             uploadedCount++;
           } else if (syncResult && syncResult.status === 'skipped') {
             skippedCount++;
+          } else if (syncResult && syncResult.status === 'error') {
+            errorCount++;
+            if (syncResult.error) errorMessages.push(syncResult.error);
           }
 
           await new Promise(r => setTimeout(r, 100));
         }
 
-        showLoader(false);
-        if (uploadedCount > 0 && skippedCount > 0) {
+        if (progressBar) progressBar.style.width = '100%';
+        if (percentLabel) percentLabel.innerText = '100%';
+
+        if (errorCount > 0 && uploadedCount === 0) {
+          showToast(`⚠️ Không thể tải lên: ${errorMessages[0] || 'Vui lòng kiểm tra lại quyền Drive!'}`);
+        } else if (uploadedCount > 0 && errorCount > 0) {
+          showToast(`⚠️ Đã tải ${uploadedCount} sách, ${errorCount} sách bị lỗi!`);
+        } else if (uploadedCount > 0 && skippedCount > 0) {
           showToast(`🎉 Đã tải lên ${uploadedCount} sách mới (Bỏ qua ${skippedCount} sách đã có sẵn trên Drive)!`);
         } else if (uploadedCount > 0) {
-          showToast(`🎉 Đã sao lưu thành công ${uploadedCount} sách lên Google Drive!`);
+          showToast(`🎉 Đã sao lưu thành công toàn bộ ${uploadedCount} cuốn sách lên Google Drive!`);
+        } else if (skippedCount > 0) {
+          showToast(`✅ Tất cả ${skippedCount} cuốn sách đã có sẵn trên Google Drive, không cần tải lại!`);
         } else {
-          showToast(`✅ Toàn bộ ${skippedCount} cuốn sách đã có sẵn trên Google Drive, không cần tải thêm!`);
+          showToast(`ℹ️ Không có thay đổi nào cần đồng bộ!`);
         }
         closeGoogleDriveModal();
       } catch (err) {
         console.error(err);
+        showToast('⚠️ Lỗi khi đồng bộ Google Drive. Vui lòng thử lại sau!');
+      } finally {
         showLoader(false);
-        showToast('⚠️ Lỗi khi đồng bộ. Vui lòng thử lại sau!');
       }
     }
 
@@ -3255,6 +3500,12 @@
           showLoader(false);
           handleDriveAuthExpired();
           return;
+        }
+
+        if (res.status === 403) {
+          showLoader(false);
+          const errText = await res.text();
+          if (checkAndHandleDriveApiDisabled(errText)) return;
         }
 
         const data = await res.json();
