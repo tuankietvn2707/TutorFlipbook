@@ -257,6 +257,15 @@
       box-shadow: none !important;
       z-index: 40 !important;
     }
+    body.reader-fullscreen-active #flipbook-viewport {
+      max-width: 100vw !important;
+      max-height: 100vh !important;
+      width: 100% !important;
+      height: 100% !important;
+    }
+    body.reader-fullscreen-active #fullscreen-top-hud {
+      display: flex !important;
+    }
     
     /* Smooth Zoom & Pan Stage Layer */
     #flipbook-zoom-stage {
@@ -544,6 +553,30 @@
             <!-- Flipbook Viewport -->
             <div id="flipbook-viewport" class="flex items-center justify-center w-full h-full max-w-5xl max-h-[88vh]">
               <div id="flipbook-container" class="flip-book"></div>
+            </div>
+          </div>
+
+          <!-- Top Floating HUD for Fullscreen & Teaching -->
+          <div id="fullscreen-top-hud" class="hidden absolute top-3 sm:top-4 left-3 sm:left-6 right-3 sm:right-6 z-30 flex items-center justify-between pointer-events-none">
+            <div class="flex items-center gap-2 pointer-events-auto bg-slate-900/85 backdrop-blur-md px-3 py-1.5 rounded-2xl border border-slate-700/80 shadow-2xl text-white">
+              <span class="w-2.5 h-2.5 rounded-full bg-emerald-400"></span>
+              <span id="fullscreen-hud-title" class="text-xs font-black truncate max-w-[140px] sm:max-w-xs">Tên Sách</span>
+              <span class="text-slate-500">|</span>
+              <span id="fullscreen-hud-page" class="text-xs font-extrabold text-amber-400">Trang 1/1</span>
+            </div>
+
+            <div class="flex items-center gap-2 pointer-events-auto">
+              <!-- Quick Zoom Badge -->
+              <div id="fullscreen-hud-zoom-badge" class="hidden bg-slate-900/85 backdrop-blur-md px-3 py-1.5 rounded-2xl border border-sky-400/50 shadow-2xl text-sky-300 font-extrabold text-xs flex items-center gap-1.5">
+                <i data-lucide="zoom-in" class="w-3.5 h-3.5"></i>
+                <span id="fullscreen-hud-zoom-text">100%</span>
+              </div>
+
+              <!-- Quick Exit Fullscreen Button -->
+              <button onclick="exitFullscreenReader()" class="btn-3d btn-red text-white px-3 py-1.5 rounded-2xl text-xs font-black flex items-center gap-1.5 shadow-2xl" title="Thu nhỏ / Thoát toàn màn hình (Esc)">
+                <i data-lucide="minimize-2" class="w-4 h-4"></i>
+                <span class="hidden sm:inline">Thu Nhỏ (Esc)</span>
+              </button>
             </div>
           </div>
 
@@ -2547,14 +2580,18 @@
     }
 
     async function initFlipbook(book, initialPageIndex = 0) {
-      const container = document.getElementById('flipbook-container');
-      if (!container) return;
-      container.innerHTML = '';
+      const viewport = document.getElementById('flipbook-viewport');
+      if (!viewport) return;
 
       if (pageFlipInstance) {
         try { pageFlipInstance.destroy(); } catch (e) {}
         pageFlipInstance = null;
       }
+
+      // Recreate clean container to eliminate any stale canvas / PageFlip wrapper artifacts
+      viewport.innerHTML = '<div id="flipbook-container" class="flip-book mx-auto"></div>';
+      const container = document.getElementById('flipbook-container');
+      if (!container) return;
 
       const pages = book.pages || [];
       if (pages.length === 0) return;
@@ -2585,22 +2622,32 @@
 
       const isFullscreen = document.body.classList.contains('reader-fullscreen-active');
       const isMobile = window.innerWidth < 768;
+
+      // Available stage bounds
       const stageWidth = isFullscreen ? window.innerWidth : (document.getElementById('flipbook-wrapper')?.clientWidth || window.innerWidth);
       const stageHeight = isFullscreen ? window.innerHeight : (document.getElementById('flipbook-wrapper')?.clientHeight || 600);
 
-      let containerWidth = isFullscreen
-        ? Math.min(stageWidth - (isMobile ? 16 : 80), 1400)
-        : Math.min(stageWidth - (isMobile ? 12 : 40), 980);
+      // Usable bounds reserving space for navigation arrows and floating controls
+      const usableWidth = Math.max(280, stageWidth - (isMobile ? 20 : 100));
+      const usableHeight = Math.max(260, stageHeight - (isFullscreen ? (isMobile ? 80 : 110) : (isMobile ? 36 : 64)));
+      const pageAspectRatio = 1.414; // Book page ratio (height / width)
 
-      let pageWidth = isMobile ? Math.min(containerWidth, 480) : Math.floor(containerWidth / 2);
-      let pageHeight = Math.floor(pageWidth * 1.414);
-
-      // Scale down if page height would overflow the screen
-      const maxAvailableHeight = isFullscreen ? stageHeight - (isMobile ? 60 : 70) : Math.min(stageHeight - 40, 750);
-      if (pageHeight > maxAvailableHeight && maxAvailableHeight > 200) {
-        pageHeight = maxAvailableHeight;
-        pageWidth = Math.floor(pageHeight / 1.414);
+      let pageWidth, pageHeight;
+      if (isMobile) {
+        // Single page portrait
+        const widthFromHeight = Math.floor(usableHeight / pageAspectRatio);
+        pageWidth = Math.min(usableWidth, widthFromHeight, 600);
+        pageHeight = Math.floor(pageWidth * pageAspectRatio);
+      } else {
+        // 2-page spread landscape: total width is 2 * pageWidth
+        const maxPageWidthFromSpread = Math.floor(usableWidth / 2);
+        const maxPageWidthFromHeight = Math.floor(usableHeight / pageAspectRatio);
+        pageWidth = Math.min(maxPageWidthFromSpread, maxPageWidthFromHeight, 850);
+        pageHeight = Math.floor(pageWidth * pageAspectRatio);
       }
+
+      pageWidth = Math.max(160, Math.min(pageWidth, 900));
+      pageHeight = Math.max(220, Math.min(pageHeight, 1300));
 
       if (window.St && window.St.PageFlip) {
         pageFlipInstance = new St.PageFlip(container, {
@@ -2610,7 +2657,7 @@
           minWidth: 160,
           maxWidth: 900,
           minHeight: 220,
-          maxHeight: 1200,
+          maxHeight: 1300,
           drawShadow: true,
           flippingTime: 480,
           usePortrait: isMobile,
@@ -2621,7 +2668,8 @@
           mobileScrollSupport: false
         });
 
-        pageFlipInstance.loadFromHTML(document.querySelectorAll('.page'));
+        // Use scoped querySelector on the fresh container
+        pageFlipInstance.loadFromHTML(container.querySelectorAll('.page'));
 
         pageFlipInstance.on('flip', (e) => {
           playFlipSound();
@@ -2654,15 +2702,22 @@
     }
 
     function updatePageIndicator(pageNum) {
+      const total = currentBook && currentBook.pages ? currentBook.pages.length : 1;
+
       const pageInput = document.getElementById('input-page-number');
       if (pageInput) pageInput.value = pageNum;
       
       const toolbarInput = document.getElementById('toolbar-page-input');
       if (toolbarInput) toolbarInput.value = pageNum;
 
-      const total = currentBook && currentBook.pages ? currentBook.pages.length : 1;
       const headerBadge = document.getElementById('header-page-badge');
       if (headerBadge) headerBadge.innerText = `Trang ${pageNum}/${total}`;
+
+      const hudPage = document.getElementById('fullscreen-hud-page');
+      if (hudPage) hudPage.innerText = `Trang ${pageNum}/${total}`;
+
+      const hudTitle = document.getElementById('fullscreen-hud-title');
+      if (hudTitle && currentBook) hudTitle.innerText = currentBook.title;
     }
 
     function flipNext() {
@@ -3305,6 +3360,15 @@
         btnFit.innerHTML = '<i data-lucide="minimize" class="w-4 h-4 text-amber-300"></i><span class="hidden sm:inline">Thu nhỏ</span>';
       }
 
+      // Always show floating toolbar in fullscreen
+      const toolbar = document.getElementById('teaching-toolbar');
+      if (toolbar) toolbar.classList.remove('hidden');
+
+      if (currentBook) {
+        const hudTitle = document.getElementById('fullscreen-hud-title');
+        if (hudTitle) hudTitle.innerText = currentBook.title;
+      }
+
       if (document.documentElement && document.documentElement.requestFullscreen && !document.fullscreenElement) {
         document.documentElement.requestFullscreen().catch(() => {});
       }
@@ -3329,6 +3393,11 @@
 
       if (document.fullscreenElement && document.exitFullscreen) {
         document.exitFullscreen().catch(() => {});
+      }
+
+      if (!isTeachingMode) {
+        const toolbar = document.getElementById('teaching-toolbar');
+        if (toolbar) toolbar.classList.add('hidden');
       }
 
       // Reset zoom to 100% when exiting fullscreen
@@ -3488,17 +3557,37 @@
     function updateZoomUI() {
       const percentage = Math.round(zoomLevel * 100) + '%';
       
-      // Update badge
-      const badge = document.getElementById('zoom-level-badge');
+      // Update floating zoom indicator badge in stage
+      const badge = document.getElementById('zoom-badge-indicator');
       const badgeText = document.getElementById('zoom-badge-text');
       if (badge && badgeText) {
-        badgeText.innerText = percentage;
+        badgeText.innerText = `🔍 Zoom: ${percentage}`;
         if (zoomLevel > 1.0) {
           badge.classList.remove('hidden');
         } else {
           badge.classList.add('hidden');
         }
       }
+
+      // Update fullscreen top HUD zoom badge
+      const hudZoom = document.getElementById('fullscreen-hud-zoom-badge');
+      const hudZoomText = document.getElementById('fullscreen-hud-zoom-text');
+      if (hudZoom && hudZoomText) {
+        hudZoomText.innerText = percentage;
+        if (zoomLevel > 1.0) {
+          hudZoom.classList.remove('hidden');
+        } else {
+          hudZoom.classList.add('hidden');
+        }
+      }
+
+      // Update bottom bar label
+      const bottomZoomLabel = document.getElementById('bottom-zoom-label');
+      if (bottomZoomLabel) bottomZoomLabel.innerText = percentage;
+
+      // Update toolbar label
+      const toolbarZoomLabel = document.getElementById('toolbar-zoom-label');
+      if (toolbarZoomLabel) toolbarZoomLabel.innerText = percentage;
 
       // Update preset buttons in teaching toolbar
       const presetBtns = [
