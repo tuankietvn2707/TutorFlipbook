@@ -1338,9 +1338,12 @@
       <span class="leading-none">Audio</span>
     </button>
     
-    <button onclick="openInstallPwaModal()" id="mob-nav-pwa" class="flex-1 flex flex-col items-center justify-center py-1 rounded-xl text-amber-600 font-extrabold text-[10px] gap-0.5 active:scale-95 transition-all">
-      <i data-lucide="smartphone" class="w-5 h-5"></i>
-      <span class="leading-none">Ghim App</span>
+    <button onclick="openGoogleDriveModal()" id="mob-nav-gdrive" class="flex-1 flex flex-col items-center justify-center py-1 rounded-xl text-slate-500 font-extrabold text-[10px] gap-0.5 active:scale-95 transition-all relative" title="Đồng bộ Google Drive">
+      <div class="relative">
+        <i data-lucide="cloud" class="w-5 h-5"></i>
+        <span id="mob-gdrive-dot" class="w-2 h-2 rounded-full bg-amber-400 absolute -top-0.5 -right-0.5 border border-white"></span>
+      </div>
+      <span class="leading-none" id="mob-nav-gdrive-text">Đồng Bộ</span>
     </button>
   </nav>
 
@@ -3397,6 +3400,8 @@
       const sidebarPill = document.getElementById('sidebar-gdrive-pill');
       const headerStatusText = document.getElementById('header-gdrive-status-text');
       const emailElem = document.getElementById('gdrive-user-email');
+      const mobDot = document.getElementById('mob-gdrive-dot');
+      const mobNavGdrive = document.getElementById('mob-nav-gdrive');
 
       if (emailElem && gdriveUserEmail) {
         emailElem.innerText = gdriveUserEmail;
@@ -3405,6 +3410,8 @@
       if (isGoogleDriveConnected) {
         if (statusBadge) statusBadge.innerHTML = `<span class="w-2 h-2 rounded-full bg-emerald-500 inline-block"></span> Đã kết nối Google Drive`;
         if (headerDot) headerDot.className = 'w-2 h-2 rounded-full bg-emerald-500';
+        if (mobDot) mobDot.className = 'w-2 h-2 rounded-full bg-emerald-500 absolute -top-0.5 -right-0.5 border border-white';
+        if (mobNavGdrive) mobNavGdrive.classList.add('text-emerald-600');
         if (sidebarPill) {
           sidebarPill.className = 'text-[9px] font-black px-1.5 py-0.5 rounded-full bg-emerald-100 text-emerald-700';
           sidebarPill.innerText = 'Đã nối';
@@ -3413,6 +3420,8 @@
       } else {
         if (statusBadge) statusBadge.innerHTML = `<span class="w-2 h-2 rounded-full bg-amber-500 inline-block"></span> Sẵn sàng kết nối`;
         if (headerDot) headerDot.className = 'w-2 h-2 rounded-full bg-amber-400';
+        if (mobDot) mobDot.className = 'w-2 h-2 rounded-full bg-amber-400 absolute -top-0.5 -right-0.5 border border-white';
+        if (mobNavGdrive) mobNavGdrive.classList.remove('text-emerald-600');
         if (sidebarPill) {
           sidebarPill.className = 'text-[9px] font-black px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700';
           sidebarPill.innerText = 'Kết nối';
