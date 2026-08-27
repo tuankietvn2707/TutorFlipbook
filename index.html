@@ -218,6 +218,57 @@
     .touch-manipulation {
       touch-action: manipulation;
     }
+
+    /* Fullscreen Reader & Teaching Studio Canvas */
+    body.reader-fullscreen-active {
+      overflow: hidden !important;
+      background-color: #090d16 !important;
+    }
+    body.reader-fullscreen-active #main-sidebar,
+    body.reader-fullscreen-active header,
+    body.reader-fullscreen-active #reader-top-bar,
+    body.reader-fullscreen-active #reader-bottom-bar,
+    body.reader-fullscreen-active #mobile-bottom-nav {
+      display: none !important;
+    }
+    body.reader-fullscreen-active #view-reader {
+      max-width: 100vw !important;
+      width: 100vw !important;
+      height: 100vh !important;
+      max-height: 100vh !important;
+      padding: 0 !important;
+      margin: 0 !important;
+      position: fixed !important;
+      inset: 0 !important;
+      z-index: 40 !important;
+      background: #090d16 !important;
+    }
+    body.reader-fullscreen-active #flipbook-wrapper {
+      position: fixed !important;
+      inset: 0 !important;
+      width: 100vw !important;
+      height: 100vh !important;
+      max-height: 100vh !important;
+      border-radius: 0 !important;
+      border: none !important;
+      background: #090d16 !important;
+      padding: 0 !important;
+      margin: 0 !important;
+      box-shadow: none !important;
+      z-index: 40 !important;
+    }
+    
+    /* Smooth Zoom & Pan Stage Layer */
+    #flipbook-zoom-stage {
+      transform-origin: center center;
+      transition: transform 0.2s cubic-bezier(0.25, 1, 0.5, 1);
+    }
+    .cursor-grab {
+      cursor: grab !important;
+    }
+    .cursor-grabbing {
+      cursor: grabbing !important;
+    }
   </style>
 </head>
 <body class="h-full flex overflow-hidden bg-[#F7F9FC]">
@@ -442,7 +493,7 @@
       <div id="view-reader" class="hidden flex flex-col h-full space-y-4 max-w-7xl mx-auto relative">
         
         <!-- Top Reader Bar -->
-        <div class="flex items-center justify-between bg-white border-2 border-b-4 border-duoGray rounded-2xl px-2.5 sm:px-4 py-2 shadow-sm gap-2">
+        <div id="reader-top-bar" class="flex items-center justify-between bg-white border-2 border-b-4 border-duoGray rounded-2xl px-2.5 sm:px-4 py-2 shadow-sm gap-2">
           
           <!-- Left: Back & Title -->
           <div class="flex items-center gap-2 sm:gap-3 min-w-0">
@@ -474,7 +525,7 @@
               <i data-lucide="volume-2" id="icon-sound" class="w-4 h-4 text-duoGreen"></i>
             </button>
 
-            <button onclick="openTeachingMode()" class="btn-3d btn-amber text-slate-900 font-black px-2.5 sm:px-4 py-1.5 rounded-xl text-xs flex items-center gap-1.5 sm:gap-2">
+            <button onclick="fitScreenToggle()" class="btn-3d btn-amber text-slate-900 font-black px-2.5 sm:px-4 py-1.5 rounded-xl text-xs flex items-center gap-1.5 sm:gap-2" title="Mở toàn màn hình & giảng dạy">
               <i data-lucide="presentation" class="w-4 h-4 text-slate-900"></i>
               <span class="hidden sm:inline">Giảng Dạy Meet</span>
               <span class="sm:hidden text-[11px]">Dạy</span>
@@ -483,39 +534,67 @@
         </div>
 
         <!-- MAIN FLIPBOOK STAGE -->
-        <div id="flipbook-wrapper" class="flex-1 min-h-[480px] sm:min-h-[560px] bg-slate-900 rounded-3xl p-4 sm:p-6 flex items-center justify-center relative overflow-hidden shadow-2xl border-4 border-slate-800">
+        <div id="flipbook-wrapper" class="flex-1 min-h-[480px] sm:min-h-[560px] bg-slate-900 rounded-3xl p-4 sm:p-6 flex items-center justify-center relative overflow-hidden shadow-2xl border-4 border-slate-800 select-none">
           
-          <!-- Annotation Canvas -->
-          <canvas id="annotation-canvas" class="absolute inset-0 z-20 pointer-events-none w-full h-full"></canvas>
+          <!-- Zoom & Pan Stage Layer -->
+          <div id="flipbook-zoom-stage" class="relative flex items-center justify-center w-full h-full will-change-transform">
+            <!-- Annotation Canvas -->
+            <canvas id="annotation-canvas" class="absolute inset-0 z-20 pointer-events-none w-full h-full"></canvas>
 
-          <!-- Flipbook Viewport -->
-          <div id="flipbook-viewport" class="flex items-center justify-center w-full h-full max-w-4xl max-h-[82vh]">
-            <div id="flipbook-container" class="flip-book"></div>
+            <!-- Flipbook Viewport -->
+            <div id="flipbook-viewport" class="flex items-center justify-center w-full h-full max-w-5xl max-h-[88vh]">
+              <div id="flipbook-container" class="flip-book"></div>
+            </div>
           </div>
 
           <!-- Left / Right Navigation Float Arrows -->
-          <button onclick="flipPrev()" class="btn-3d btn-white absolute left-3 top-1/2 -translate-y-1/2 z-20 w-11 h-11 rounded-2xl flex items-center justify-center text-slate-800 shadow-xl" title="Trang trước (Mũi tên Trái)">
-            <i data-lucide="chevron-left" class="w-6 h-6"></i>
+          <button id="btn-float-prev" onclick="flipPrev()" class="btn-3d btn-white absolute left-3 sm:left-5 top-1/2 -translate-y-1/2 z-30 w-11 h-11 sm:w-13 sm:h-13 rounded-2xl flex items-center justify-center text-slate-800 shadow-2xl transition-transform hover:scale-110 active:scale-95" title="Trang trước (Mũi tên Trái)">
+            <i data-lucide="chevron-left" class="w-6 h-6 sm:w-7 sm:h-7"></i>
           </button>
-          <button onclick="flipNext()" class="btn-3d btn-white absolute right-3 top-1/2 -translate-y-1/2 z-20 w-11 h-11 rounded-2xl flex items-center justify-center text-slate-800 shadow-xl" title="Trang sau (Mũi tên Phải)">
-            <i data-lucide="chevron-right" class="w-6 h-6"></i>
+          <button id="btn-float-next" onclick="flipNext()" class="btn-3d btn-white absolute right-3 sm:right-5 top-1/2 -translate-y-1/2 z-30 w-11 h-11 sm:w-13 sm:h-13 rounded-2xl flex items-center justify-center text-slate-800 shadow-2xl transition-transform hover:scale-110 active:scale-95" title="Trang sau (Mũi tên Phải)">
+            <i data-lucide="chevron-right" class="w-6 h-6 sm:w-7 sm:h-7"></i>
           </button>
+
+          <!-- Floating Zoom Level Badge Indicator -->
+          <div id="zoom-badge-indicator" class="hidden absolute top-4 left-1/2 -translate-x-1/2 z-30 bg-slate-900/90 text-white font-extrabold text-xs px-4 py-1.5 rounded-full border border-sky-400/50 shadow-2xl backdrop-blur-md pointer-events-none transition-all flex items-center gap-2">
+            <span class="w-2 h-2 rounded-full bg-sky-400 animate-ping"></span>
+            <span id="zoom-badge-text">🔍 Zoom: 100%</span>
+          </div>
 
         </div>
 
         <!-- BOTTOM CONTROL BAR -->
-        <div class="bg-white border-2 border-b-4 border-duoGray rounded-2xl p-2.5 flex flex-wrap items-center justify-between gap-3 shadow-sm">
+        <div id="reader-bottom-bar" class="bg-white border-2 border-b-4 border-duoGray rounded-2xl p-2.5 flex flex-wrap items-center justify-between gap-3 shadow-sm">
           
-          <!-- Left Controls -->
-          <div class="flex items-center gap-2">
-            <button onclick="toggleThumbnailsModal()" class="btn-3d btn-white text-slate-700 font-bold px-3 py-1.5 rounded-xl text-xs flex items-center gap-1.5">
+          <!-- Left Controls: Thumbnails, Fullscreen, and Zoom Controls -->
+          <div class="flex items-center gap-2 flex-wrap">
+            <button onclick="toggleThumbnailsModal()" class="btn-3d btn-white text-slate-700 font-bold px-3 py-1.5 rounded-xl text-xs flex items-center gap-1.5" title="Xem danh sách trang">
               <i data-lucide="layout-grid" class="w-4 h-4 text-duoBlue"></i>
               <span>Mục Lục Trang</span>
             </button>
             
-            <button onclick="fitScreenToggle()" class="btn-3d btn-white text-slate-700 font-bold px-3 py-1.5 rounded-xl text-xs flex items-center gap-1.5">
+            <button onclick="fitScreenToggle()" class="btn-3d btn-white text-slate-700 font-bold px-3 py-1.5 rounded-xl text-xs flex items-center gap-1.5" title="Toàn màn hình giảng dạy (F)">
               <i data-lucide="maximize" class="w-4 h-4 text-slate-600"></i>
               <span class="hidden sm:inline">Toàn Màn Hình</span>
+            </button>
+
+            <!-- Bottom Zoom Controller (100% - 400%) -->
+            <div class="flex items-center bg-slate-100 p-0.5 rounded-xl border border-slate-200">
+              <button onclick="zoomOut()" class="p-1.5 hover:bg-white rounded-lg text-slate-600 font-black text-xs transition" title="Thu nhỏ (-)">
+                <i data-lucide="minus" class="w-3.5 h-3.5"></i>
+              </button>
+              <button onclick="resetZoom()" id="bottom-zoom-label" class="px-2 py-0.5 font-black text-[11px] text-duoBlue hover:underline" title="Khôi phục 100%">
+                100%
+              </button>
+              <button onclick="zoomIn()" class="p-1.5 hover:bg-white rounded-lg text-slate-600 font-black text-xs transition" title="Phóng to đến 400% (+)">
+                <i data-lucide="plus" class="w-3.5 h-3.5"></i>
+              </button>
+            </div>
+
+            <!-- Hand/Pan Tool Button -->
+            <button id="btn-pan-tool-bottom" onclick="togglePanTool()" class="btn-3d btn-white text-slate-700 font-bold px-2.5 py-1.5 rounded-xl text-xs flex items-center gap-1" title="Kéo lôi khung hình khi phóng to (H)">
+              <i data-lucide="hand" class="w-4 h-4 text-amber-600"></i>
+              <span class="hidden md:inline">Lôi Trang</span>
             </button>
           </div>
 
@@ -524,7 +603,7 @@
             <button onclick="flipFirst()" class="p-1.5 rounded-lg hover:bg-slate-100 text-slate-600" title="Về trang đầu">
               <i data-lucide="chevrons-left" class="w-4 h-4"></i>
             </button>
-            <button onclick="flipPrev()" class="p-1.5 rounded-lg hover:bg-slate-100 text-slate-600" title="Trang trước">
+            <button onclick="flipPrev()" class="p-1.5 rounded-lg hover:bg-slate-100 text-slate-600" title="Trang trước (Mũi tên Trái)">
               <i data-lucide="chevron-left" class="w-4 h-4"></i>
             </button>
 
@@ -542,7 +621,7 @@
               <span class="text-xs font-bold text-slate-500">/ <span id="total-pages-label">1</span></span>
             </div>
 
-            <button onclick="flipNext()" class="p-1.5 rounded-lg hover:bg-slate-100 text-slate-600" title="Trang sau">
+            <button onclick="flipNext()" class="p-1.5 rounded-lg hover:bg-slate-100 text-slate-600" title="Trang sau (Mũi tên Phải)">
               <i data-lucide="chevron-right" class="w-4 h-4"></i>
             </button>
             <button onclick="flipLast()" class="p-1.5 rounded-lg hover:bg-slate-100 text-slate-600" title="Đến trang cuối">
@@ -693,58 +772,140 @@
   </div>
 
   <!-- ========================================================================= -->
-  <!-- TEACHING STUDIO FLOATING TOOLBAR (MEET / ZOOM MODE) -->
+  <!-- TEACHING STUDIO FLOATING TOOLBAR (FULLSCREEN & MEET / ZOOM MODE) -->
   <!-- ========================================================================= -->
-  <div id="teaching-toolbar" class="hidden fixed bottom-6 right-6 z-50 p-4 bg-white border-2 border-b-4 border-[#E5E5E5] rounded-2xl shadow-2xl w-[320px] select-none">
+  <div id="teaching-toolbar" class="hidden fixed bottom-5 left-1/2 -translate-x-1/2 z-50 p-2.5 sm:p-3 bg-slate-900/95 backdrop-blur-md border-2 border-slate-700/80 rounded-2xl sm:rounded-3xl shadow-2xl max-w-[95vw] sm:max-w-2xl select-none text-white animate-in fade-in slide-in-from-bottom-4 duration-200">
     
-    <div class="flex items-center justify-between mb-3">
+    <!-- Top Drag Handle & Title Row -->
+    <div id="teaching-toolbar-handle" class="flex items-center justify-between gap-2 pb-2 mb-2 border-b border-slate-700/80 cursor-move">
       <div class="flex items-center gap-2">
-        <span class="w-2.5 h-2.5 bg-red-500 rounded-full animate-pulse"></span>
-        <h4 class="font-black text-xs text-[#1CB0F6] uppercase tracking-wider">CHẾ ĐỘ GIẢNG DẠY MEET</h4>
+        <div class="flex items-center gap-1 text-slate-400">
+          <i data-lucide="grip-horizontal" class="w-4 h-4"></i>
+        </div>
+        <span class="w-2 h-2 bg-red-500 rounded-full animate-pulse"></span>
+        <h4 class="font-black text-[11px] sm:text-xs text-sky-400 uppercase tracking-wider">GIẢNG DẠY & TOÀN MÀN HÌNH</h4>
       </div>
-      <button onclick="exitTeachingMode()" class="text-slate-400 hover:text-red-500 font-black text-xs">
-        THOÁT ✕
-      </button>
+      
+      <div class="flex items-center gap-2">
+        <!-- Quick page jump in toolbar -->
+        <div class="flex items-center gap-1 bg-slate-800 px-2 py-0.5 rounded-lg border border-slate-700 text-xs">
+          <span class="text-slate-400 font-bold text-[10px]">Trang</span>
+          <input 
+            type="number" 
+            id="toolbar-page-input" 
+            value="1" 
+            min="1" 
+            max="1" 
+            onchange="jumpToPageInput(this.value)"
+            class="w-8 text-center bg-slate-900 border border-slate-600 rounded text-[11px] font-black text-amber-400 focus:outline-none"
+          />
+          <span class="text-slate-400 font-bold text-[10px]">/ <span id="toolbar-total-pages">1</span></span>
+        </div>
+
+        <button onclick="exitFullscreenReader()" class="btn-3d btn-red text-white px-2.5 py-1 rounded-xl text-xs font-black flex items-center gap-1 shadow" title="Thoát toàn màn hình (Esc)">
+          <i data-lucide="minimize-2" class="w-3.5 h-3.5"></i>
+          <span class="hidden xs:inline">Thu Nhỏ</span>
+        </button>
+      </div>
     </div>
 
-    <!-- Quick Action 3D Tools -->
-    <div class="grid grid-cols-4 gap-2 mb-3">
-      <button id="btn-laser" onclick="toggleLaserMode()" class="btn-3d btn-white text-slate-700 p-2 rounded-xl flex items-center justify-center" title="Con trỏ Laser (L)">
-        <i data-lucide="disc" class="w-5 h-5"></i>
-      </button>
+    <!-- Main Floating Controls Flex Container -->
+    <div class="flex flex-wrap items-center justify-between gap-1.5 sm:gap-2">
+      
+      <!-- Section 1: Zoom & Pan Tool Group (100% to 400%) -->
+      <div class="flex items-center gap-1 bg-slate-800/90 p-1 rounded-xl border border-slate-700">
+        <button onclick="zoomOut()" class="p-1.5 hover:bg-slate-700 rounded-lg text-slate-300 hover:text-white font-bold transition" title="Thu nhỏ (-)">
+          <i data-lucide="minus" class="w-4 h-4"></i>
+        </button>
 
-      <button id="btn-tool-highlighter" onclick="selectAnnotationTool('highlighter')" class="btn-3d btn-amber text-slate-900 p-2 rounded-xl flex items-center justify-center" title="Bút dạ quang (P)">
-        <i data-lucide="highlighter" class="w-5 h-5"></i>
-      </button>
+        <div class="relative group">
+          <button onclick="resetZoom()" id="toolbar-zoom-label" class="px-2 py-0.5 font-black text-xs text-sky-400 hover:underline min-w-[42px] text-center" title="Khôi phục 100%">
+            100%
+          </button>
+          <!-- Quick Zoom Preset Picker -->
+          <div class="hidden group-hover:flex absolute bottom-full left-1/2 -translate-x-1/2 mb-2 flex-col bg-slate-900 border border-slate-700 rounded-xl p-1 shadow-2xl text-[11px] font-bold z-50 min-w-[70px]">
+            <button onclick="setZoomLevel(1.0)" class="px-2 py-1 hover:bg-slate-800 rounded text-left hover:text-sky-400">100%</button>
+            <button onclick="setZoomLevel(1.5)" class="px-2 py-1 hover:bg-slate-800 rounded text-left hover:text-sky-400">150%</button>
+            <button onclick="setZoomLevel(2.0)" class="px-2 py-1 hover:bg-slate-800 rounded text-left hover:text-sky-400">200%</button>
+            <button onclick="setZoomLevel(3.0)" class="px-2 py-1 hover:bg-slate-800 rounded text-left hover:text-sky-400">300%</button>
+            <button onclick="setZoomLevel(4.0)" class="px-2 py-1 hover:bg-slate-800 rounded text-left text-amber-400 hover:text-amber-300">400% (Max)</button>
+          </div>
+        </div>
 
-      <button id="btn-tool-pen-red" onclick="selectAnnotationTool('pen-red')" class="btn-3d btn-white text-red-500 p-2 rounded-xl flex items-center justify-center" title="Bút vẽ đỏ">
-        <i data-lucide="pencil" class="w-5 h-5"></i>
-      </button>
+        <button onclick="zoomIn()" class="p-1.5 hover:bg-slate-700 rounded-lg text-slate-300 hover:text-white font-bold transition" title="Phóng to đến 400% (+)">
+          <i data-lucide="plus" class="w-4 h-4"></i>
+        </button>
 
-      <button id="btn-tool-eraser" onclick="selectAnnotationTool('eraser')" class="btn-3d btn-white text-slate-700 p-2 rounded-xl flex items-center justify-center" title="Tẩy nét vẽ">
-        <i data-lucide="eraser" class="w-5 h-5"></i>
-      </button>
-    </div>
+        <!-- Hand Tool (Lôi trang) -->
+        <button id="toolbar-btn-pan" onclick="togglePanTool()" class="btn-3d btn-white text-slate-700 font-bold p-1.5 sm:px-2 sm:py-1 rounded-xl flex items-center gap-1" title="Kéo lôi khung hình (H)">
+          <i data-lucide="hand" class="w-4 h-4 text-amber-600"></i>
+          <span class="hidden sm:inline text-xs">Lôi</span>
+        </button>
 
-    <!-- Utilities Row -->
-    <div class="flex items-center justify-between pt-2 border-t border-slate-100 gap-1.5">
-      <button id="btn-spotlight" onclick="toggleSpotlightMode()" class="btn-3d btn-white text-xs font-bold p-1.5 rounded-lg flex-1 flex items-center justify-center gap-1" title="Đèn rọi hội tụ">
-        <i data-lucide="sun-medium" class="w-3.5 h-3.5 text-amber-500"></i>
-        <span>Đèn Rọi</span>
-      </button>
+        <!-- Reset 100% -->
+        <button onclick="resetZoom()" class="p-1.5 hover:bg-slate-700 rounded-lg text-slate-400 hover:text-white" title="Đặt lại 100%">
+          <i data-lucide="rotate-ccw" class="w-3.5 h-3.5"></i>
+        </button>
+      </div>
 
-      <button onclick="toggleMediaDock()" class="btn-3d btn-purple text-white text-xs font-bold p-1.5 rounded-lg flex-1 flex items-center justify-center gap-1" title="Bật bài nghe">
-        <i data-lucide="headphones" class="w-3.5 h-3.5"></i>
-        <span>Audio</span>
-      </button>
+      <!-- Section 2: Teaching & Annotation Tools -->
+      <div class="flex items-center gap-1 bg-slate-800/90 p-1 rounded-xl border border-slate-700">
+        <button id="btn-laser" onclick="toggleLaserMode()" class="btn-3d btn-white text-slate-700 p-1.5 sm:p-2 rounded-xl flex items-center justify-center" title="Con trỏ Laser đỏ (L)">
+          <i data-lucide="disc" class="w-4 h-4 text-red-500"></i>
+        </button>
 
-      <button onclick="clearAnnotations()" class="btn-3d btn-white text-xs font-bold p-1.5 rounded-lg text-slate-500 hover:text-red-500 flex items-center justify-center" title="Xóa toàn bộ nét vẽ">
-        <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
-      </button>
+        <button id="btn-spotlight" onclick="toggleSpotlightMode()" class="btn-3d btn-white text-slate-700 p-1.5 sm:p-2 rounded-xl flex items-center justify-center" title="Đèn rọi điểm nhấn (S)">
+          <i data-lucide="sun-medium" class="w-4 h-4 text-amber-500"></i>
+        </button>
 
-      <button onclick="triggerConfettiReward()" class="btn-3d btn-purple text-white text-xs font-bold p-1.5 rounded-lg flex items-center justify-center" title="Khen thưởng">
-        <i data-lucide="party-popper" class="w-3.5 h-3.5"></i>
-      </button>
+        <button id="btn-tool-highlighter" onclick="selectAnnotationTool('highlighter')" class="btn-3d btn-amber text-slate-900 p-1.5 sm:p-2 rounded-xl flex items-center justify-center" title="Bút dạ quang vàng (P)">
+          <i data-lucide="highlighter" class="w-4 h-4"></i>
+        </button>
+
+        <button id="btn-tool-pen-red" onclick="selectAnnotationTool('pen-red')" class="btn-3d btn-white text-red-500 p-1.5 sm:p-2 rounded-xl flex items-center justify-center" title="Bút vẽ đỏ (D)">
+          <i data-lucide="pencil" class="w-4 h-4 text-red-500"></i>
+        </button>
+
+        <button id="btn-tool-pen-blue" onclick="selectAnnotationTool('pen-blue')" class="btn-3d btn-white text-sky-500 p-1.5 sm:p-2 rounded-xl flex items-center justify-center" title="Bút vẽ xanh">
+          <i data-lucide="pencil" class="w-4 h-4 text-sky-500"></i>
+        </button>
+
+        <button id="btn-tool-eraser" onclick="selectAnnotationTool('eraser')" class="btn-3d btn-white text-slate-700 p-1.5 sm:p-2 rounded-xl flex items-center justify-center" title="Tẩy nét vẽ (E)">
+          <i data-lucide="eraser" class="w-4 h-4"></i>
+        </button>
+
+        <button onclick="clearAnnotations()" class="p-1.5 hover:bg-slate-700 rounded-lg text-slate-400 hover:text-red-400 transition" title="Xóa tất cả nét vẽ">
+          <i data-lucide="trash-2" class="w-4 h-4"></i>
+        </button>
+      </div>
+
+      <!-- Section 3: Navigation, Audio & Utilities -->
+      <div class="flex items-center gap-1 bg-slate-800/90 p-1 rounded-xl border border-slate-700">
+        <button onclick="flipPrev()" class="p-1.5 hover:bg-slate-700 rounded-lg text-slate-300 hover:text-white" title="Trang trước (←)">
+          <i data-lucide="chevron-left" class="w-4 h-4"></i>
+        </button>
+        <button onclick="flipNext()" class="p-1.5 hover:bg-slate-700 rounded-lg text-slate-300 hover:text-white" title="Trang sau (→)">
+          <i data-lucide="chevron-right" class="w-4 h-4"></i>
+        </button>
+        
+        <button onclick="toggleThumbnailsModal()" class="p-1.5 hover:bg-slate-700 rounded-lg text-slate-300 hover:text-sky-400" title="Mục lục trang">
+          <i data-lucide="layout-grid" class="w-4 h-4"></i>
+        </button>
+
+        <button onclick="toggleMediaDock()" class="btn-3d btn-purple text-white p-1.5 sm:px-2 sm:py-1 rounded-xl text-xs font-bold flex items-center gap-1" title="Bật/Tắt Audio bài nghe">
+          <i data-lucide="headphones" class="w-3.5 h-3.5"></i>
+          <span class="hidden sm:inline">Audio</span>
+        </button>
+
+        <button onclick="startTeachingTimer(5)" class="p-1.5 hover:bg-slate-700 rounded-lg text-amber-400" title="Đếm giờ 5 phút">
+          <i data-lucide="clock" class="w-4 h-4"></i>
+        </button>
+
+        <button onclick="triggerConfettiReward()" class="btn-3d btn-purple text-white p-1.5 rounded-xl flex items-center justify-center" title="Bắn pháo hoa khen ngợi">
+          <i data-lucide="party-popper" class="w-4 h-4"></i>
+        </button>
+      </div>
+
     </div>
 
   </div>
@@ -1646,13 +1807,20 @@
     let selectedUploadFile = null;
     let uploadAudioTracks = [];
 
-    // Teaching Mode States
+    // Teaching & Fullscreen & Zoom (100% to 400%) States
+    let isReaderFullscreen = false;
     let isTeachingMode = false;
     let isLaserActive = false;
     let isSpotlightActive = false;
     let currentDrawingTool = 'none';
     let isDrawing = false;
     let timerInterval = null;
+    let zoomLevel = 1.0; // 1.0 (100%) to 4.0 (400%)
+    let panOffset = { x: 0, y: 0 };
+    let isDraggingPan = false;
+    let panStartX = 0;
+    let panStartY = 0;
+    let isPanToolActive = false;
 
     // Media Player State
     let currentAudioTrackIndex = -1;
@@ -2378,7 +2546,7 @@
       }
     }
 
-    async function initFlipbook(book) {
+    async function initFlipbook(book, initialPageIndex = 0) {
       const container = document.getElementById('flipbook-container');
       if (!container) return;
       container.innerHTML = '';
@@ -2389,10 +2557,17 @@
       }
 
       const pages = book.pages || [];
+      if (pages.length === 0) return;
+
       const totalPagesLabel = document.getElementById('total-pages-label');
       const inputPageNumber = document.getElementById('input-page-number');
+      const toolbarTotalPages = document.getElementById('toolbar-total-pages');
+      const toolbarPageInput = document.getElementById('toolbar-page-input');
+
       if (totalPagesLabel) totalPagesLabel.innerText = pages.length;
       if (inputPageNumber) inputPageNumber.max = pages.length;
+      if (toolbarTotalPages) toolbarTotalPages.innerText = pages.length;
+      if (toolbarPageInput) toolbarPageInput.max = pages.length;
 
       pages.forEach((pageSrc, index) => {
         const pageDiv = document.createElement('div');
@@ -2408,23 +2583,34 @@
         container.appendChild(pageDiv);
       });
 
-      const viewport = document.getElementById('flipbook-viewport');
+      const isFullscreen = document.body.classList.contains('reader-fullscreen-active');
       const isMobile = window.innerWidth < 768;
-      const availableWidth = viewport ? viewport.clientWidth : window.innerWidth;
-      const containerWidth = Math.min(availableWidth - (isMobile ? 12 : 40), 960);
-      
-      const pageWidth = isMobile ? Math.min(containerWidth, 460) : Math.floor(containerWidth / 2);
-      const pageHeight = Math.floor(pageWidth * 1.414);
+      const stageWidth = isFullscreen ? window.innerWidth : (document.getElementById('flipbook-wrapper')?.clientWidth || window.innerWidth);
+      const stageHeight = isFullscreen ? window.innerHeight : (document.getElementById('flipbook-wrapper')?.clientHeight || 600);
+
+      let containerWidth = isFullscreen
+        ? Math.min(stageWidth - (isMobile ? 16 : 80), 1400)
+        : Math.min(stageWidth - (isMobile ? 12 : 40), 980);
+
+      let pageWidth = isMobile ? Math.min(containerWidth, 480) : Math.floor(containerWidth / 2);
+      let pageHeight = Math.floor(pageWidth * 1.414);
+
+      // Scale down if page height would overflow the screen
+      const maxAvailableHeight = isFullscreen ? stageHeight - (isMobile ? 60 : 70) : Math.min(stageHeight - 40, 750);
+      if (pageHeight > maxAvailableHeight && maxAvailableHeight > 200) {
+        pageHeight = maxAvailableHeight;
+        pageWidth = Math.floor(pageHeight / 1.414);
+      }
 
       if (window.St && window.St.PageFlip) {
         pageFlipInstance = new St.PageFlip(container, {
           width: pageWidth,
           height: pageHeight,
           size: 'fixed',
-          minWidth: 180,
-          maxWidth: 700,
-          minHeight: 250,
-          maxHeight: 950,
+          minWidth: 160,
+          maxWidth: 900,
+          minHeight: 220,
+          maxHeight: 1200,
           drawShadow: true,
           flippingTime: 480,
           usePortrait: isMobile,
@@ -2448,14 +2634,32 @@
           }
         });
 
-        updatePageIndicator(1);
+        if (initialPageIndex > 0 && initialPageIndex < pages.length) {
+          try {
+            pageFlipInstance.turnToPage(initialPageIndex);
+            updatePageIndicator(initialPageIndex + 1);
+          } catch (err) {
+            updatePageIndicator(1);
+          }
+        } else {
+          updatePageIndicator(1);
+        }
+
         setupMobileSwipe();
       }
+
+      setupZoomAndPanListeners();
+      setupToolbarDraggable();
+      resizeAnnotationCanvas();
     }
 
     function updatePageIndicator(pageNum) {
       const pageInput = document.getElementById('input-page-number');
       if (pageInput) pageInput.value = pageNum;
+      
+      const toolbarInput = document.getElementById('toolbar-page-input');
+      if (toolbarInput) toolbarInput.value = pageNum;
+
       const total = currentBook && currentBook.pages ? currentBook.pages.length : 1;
       const headerBadge = document.getElementById('header-page-badge');
       if (headerBadge) headerBadge.innerText = `Trang ${pageNum}/${total}`;
@@ -2479,13 +2683,6 @@
       const page = parseInt(val, 10);
       if (pageFlipInstance && currentBook && currentBook.pages && page >= 1 && page <= currentBook.pages.length) {
         pageFlipInstance.flip(page - 1);
-      }
-    }
-    function fitScreenToggle() {
-      if (!document.fullscreenElement) {
-        document.documentElement.requestFullscreen().catch(() => {});
-      } else {
-        document.exitFullscreen().catch(() => {});
       }
     }
 
@@ -3089,19 +3286,79 @@
     }
 
     // ==========================================
-    // TEACHING STUDIO (LASER, SPOTLIGHT, PENS)
+    // FULLSCREEN & TEACHING STUDIO
     // ==========================================
-    function openTeachingMode() {
-      isTeachingMode = true;
-      const toolbar = document.getElementById('teaching-toolbar');
-      if (toolbar) toolbar.classList.remove('hidden');
+    function fitScreenToggle() {
+      if (document.body.classList.contains('reader-fullscreen-active')) {
+        exitFullscreenReader();
+      } else {
+        enterFullscreenReader();
+      }
+    }
+
+    function enterFullscreenReader() {
+      isReaderFullscreen = true;
+      document.body.classList.add('reader-fullscreen-active');
       
-      if (document.documentElement && document.documentElement.requestFullscreen) {
+      const btnFit = document.getElementById('btn-fitscreen');
+      if (btnFit) {
+        btnFit.innerHTML = '<i data-lucide="minimize" class="w-4 h-4 text-amber-300"></i><span class="hidden sm:inline">Thu nhỏ</span>';
+      }
+
+      if (document.documentElement && document.documentElement.requestFullscreen && !document.fullscreenElement) {
         document.documentElement.requestFullscreen().catch(() => {});
       }
 
+      setTimeout(() => {
+        if (currentBook) {
+          const currentPage = pageFlipInstance ? (pageFlipInstance.getCurrentPageIndex() || 0) : 0;
+          initFlipbook(currentBook, currentPage);
+        }
+        if (window.lucide) lucide.createIcons();
+      }, 100);
+    }
+
+    function exitFullscreenReader() {
+      isReaderFullscreen = false;
+      document.body.classList.remove('reader-fullscreen-active');
+      
+      const btnFit = document.getElementById('btn-fitscreen');
+      if (btnFit) {
+        btnFit.innerHTML = '<i data-lucide="maximize" class="w-4 h-4 text-slate-700"></i><span class="hidden sm:inline">Toàn màn hình</span>';
+      }
+
+      if (document.fullscreenElement && document.exitFullscreen) {
+        document.exitFullscreen().catch(() => {});
+      }
+
+      // Reset zoom to 100% when exiting fullscreen
+      resetZoom();
+
+      setTimeout(() => {
+        if (currentBook) {
+          const currentPage = pageFlipInstance ? (pageFlipInstance.getCurrentPageIndex() || 0) : 0;
+          initFlipbook(currentBook, currentPage);
+        }
+        if (window.lucide) lucide.createIcons();
+      }, 100);
+    }
+
+    // Sync fullscreen state if user presses native Escape or browser UI
+    document.addEventListener('fullscreenchange', () => {
+      if (!document.fullscreenElement && document.body.classList.contains('reader-fullscreen-active') && !isTeachingMode) {
+        exitFullscreenReader();
+      }
+    });
+
+    function openTeachingMode() {
+      isTeachingMode = true;
+      enterFullscreenReader();
+      
+      const toolbar = document.getElementById('teaching-toolbar');
+      if (toolbar) toolbar.classList.remove('hidden');
+      
       resizeAnnotationCanvas();
-      showToast('Đã vào Chế Độ Giảng Dạy Trực Tuyến Meet');
+      showToast('Đã vào Chế Độ Giảng Dạy Trực Tuyến & Toàn Màn Hình');
     }
 
     function openTeachingModeFromNav() {
@@ -3116,20 +3373,279 @@
       setLaserState(false);
       setSpotlightState(false);
       selectAnnotationTool('none');
+      if (isPanToolActive) togglePanTool();
+      
       const toolbar = document.getElementById('teaching-toolbar');
       if (toolbar) toolbar.classList.add('hidden');
       
-      if (document.fullscreenElement && document.exitFullscreen) {
-        document.exitFullscreen().catch(() => {});
-      }
+      exitFullscreenReader();
       showToast('Đã thoát chế độ giảng dạy');
     }
 
+    // ==========================================
+    // ZOOM & PANNING ENGINE (100% TO 400%)
+    // ==========================================
+    const ZOOM_PRESETS = [1.0, 1.25, 1.5, 2.0, 2.5, 3.0, 4.0];
+
+    function setZoomLevel(level, originX = null, originY = null) {
+      const oldZoom = zoomLevel;
+      // Clamp zoom between 1.0 (100%) and 4.0 (400%)
+      zoomLevel = Math.max(1.0, Math.min(4.0, Math.round(level * 100) / 100));
+
+      if (zoomLevel === 1.0) {
+        panOffset = { x: 0, y: 0 };
+      } else if (originX !== null && originY !== null && oldZoom !== zoomLevel) {
+        // Zoom towards mouse pointer
+        const ratio = zoomLevel / oldZoom;
+        panOffset.x = originX - (originX - panOffset.x) * ratio;
+        panOffset.y = originY - (originY - panOffset.y) * ratio;
+      }
+
+      clampPanOffset();
+      applyZoomTransform();
+      updateZoomUI();
+    }
+
+    function zoomIn() {
+      const nextZoom = ZOOM_PRESETS.find(z => z > zoomLevel + 0.05) || 4.0;
+      setZoomLevel(nextZoom);
+    }
+
+    function zoomOut() {
+      const prevZoom = [...ZOOM_PRESETS].reverse().find(z => z < zoomLevel - 0.05) || 1.0;
+      setZoomLevel(prevZoom);
+    }
+
+    function resetZoom() {
+      zoomLevel = 1.0;
+      panOffset = { x: 0, y: 0 };
+      applyZoomTransform();
+      updateZoomUI();
+    }
+
+    function togglePanTool() {
+      isPanToolActive = !isPanToolActive;
+      if (isPanToolActive) {
+        selectAnnotationTool('none');
+        setLaserState(false);
+      }
+      updatePanToolUI();
+    }
+
+    function updatePanToolUI() {
+      const btnPan = document.getElementById('btn-pan-tool');
+      const stage = document.getElementById('flipbook-zoom-stage');
+      
+      if (btnPan) {
+        btnPan.className = isPanToolActive
+          ? 'btn-3d btn-duoBlue text-white p-2 rounded-xl flex items-center justify-center ring-2 ring-sky-300'
+          : 'btn-3d btn-white text-slate-700 p-2 rounded-xl flex items-center justify-center';
+      }
+
+      if (stage) {
+        if (isPanToolActive || zoomLevel > 1.0) {
+          stage.classList.add('cursor-grab');
+        } else {
+          stage.classList.remove('cursor-grab', 'cursor-grabbing');
+        }
+      }
+    }
+
+    function clampPanOffset() {
+      const stage = document.getElementById('flipbook-zoom-stage');
+      const viewport = document.getElementById('flipbook-viewport');
+      if (!stage || !viewport) return;
+
+      if (zoomLevel <= 1.0) {
+        panOffset = { x: 0, y: 0 };
+        return;
+      }
+
+      const viewportWidth = viewport.clientWidth;
+      const viewportHeight = viewport.clientHeight;
+      
+      // Maximum allowed translation in px
+      const maxPanX = (viewportWidth * (zoomLevel - 1)) / 2 + (viewportWidth * 0.4);
+      const maxPanY = (viewportHeight * (zoomLevel - 1)) / 2 + (viewportHeight * 0.4);
+
+      panOffset.x = Math.max(-maxPanX, Math.min(maxPanX, panOffset.x));
+      panOffset.y = Math.max(-maxPanY, Math.min(maxPanY, panOffset.y));
+    }
+
+    function applyZoomTransform(immediate = false) {
+      const stage = document.getElementById('flipbook-zoom-stage');
+      if (!stage) return;
+
+      if (immediate) {
+        stage.style.transition = 'none';
+      } else {
+        stage.style.transition = 'transform 0.18s cubic-bezier(0.2, 0, 0, 1)';
+      }
+
+      stage.style.transform = `translate3d(${panOffset.x}px, ${panOffset.y}px, 0) scale(${zoomLevel})`;
+    }
+
+    function updateZoomUI() {
+      const percentage = Math.round(zoomLevel * 100) + '%';
+      
+      // Update badge
+      const badge = document.getElementById('zoom-level-badge');
+      const badgeText = document.getElementById('zoom-badge-text');
+      if (badge && badgeText) {
+        badgeText.innerText = percentage;
+        if (zoomLevel > 1.0) {
+          badge.classList.remove('hidden');
+        } else {
+          badge.classList.add('hidden');
+        }
+      }
+
+      // Update preset buttons in teaching toolbar
+      const presetBtns = [
+        { id: 'btn-zoom-100', val: 1.0 },
+        { id: 'btn-zoom-150', val: 1.5 },
+        { id: 'btn-zoom-200', val: 2.0 },
+        { id: 'btn-zoom-300', val: 3.0 },
+        { id: 'btn-zoom-400', val: 4.0 }
+      ];
+
+      presetBtns.forEach(p => {
+        const btn = document.getElementById(p.id);
+        if (btn) {
+          if (Math.abs(zoomLevel - p.val) < 0.1) {
+            btn.className = 'px-2 py-1 text-xs font-black rounded-lg bg-sky-500 text-white shadow-sm';
+          } else {
+            btn.className = 'px-2 py-1 text-xs font-black rounded-lg bg-slate-100 text-slate-700 hover:bg-slate-200';
+          }
+        }
+      });
+
+      updatePanToolUI();
+    }
+
+    function setupZoomAndPanListeners() {
+      const viewport = document.getElementById('flipbook-viewport');
+      const stage = document.getElementById('flipbook-zoom-stage');
+      if (!viewport || !stage || viewport._zoomAttached) return;
+      viewport._zoomAttached = true;
+
+      // Mouse Wheel Zoom
+      viewport.addEventListener('wheel', (e) => {
+        if (e.ctrlKey || e.metaKey || isPanToolActive) {
+          e.preventDefault();
+          const rect = viewport.getBoundingClientRect();
+          const originX = e.clientX - rect.left - rect.width / 2;
+          const originY = e.clientY - rect.top - rect.height / 2;
+          
+          const delta = e.deltaY < 0 ? 0.2 : -0.2;
+          setZoomLevel(zoomLevel + delta, originX, originY);
+        }
+      }, { passive: false });
+
+      // Double Click to toggle 100% <-> 200%
+      viewport.addEventListener('dblclick', (e) => {
+        if (currentDrawingTool !== 'none') return;
+        const rect = viewport.getBoundingClientRect();
+        const originX = e.clientX - rect.left - rect.width / 2;
+        const originY = e.clientY - rect.top - rect.height / 2;
+        
+        if (zoomLevel > 1.0) {
+          resetZoom();
+        } else {
+          setZoomLevel(2.0, originX, originY);
+        }
+      });
+
+      // Mouse Pan Dragging
+      viewport.addEventListener('mousedown', (e) => {
+        // Only start drag pan if pan tool is active or zoom > 100% and not drawing
+        if ((isPanToolActive || zoomLevel > 1.0) && currentDrawingTool === 'none' && !isLaserActive) {
+          isDraggingPan = true;
+          panStartX = e.clientX - panOffset.x;
+          panStartY = e.clientY - panOffset.y;
+          stage.classList.add('cursor-grabbing');
+          stage.classList.remove('cursor-grab');
+          e.preventDefault();
+        }
+      });
+
+      window.addEventListener('mousemove', (e) => {
+        if (!isDraggingPan) return;
+        panOffset.x = e.clientX - panStartX;
+        panOffset.y = e.clientY - panStartY;
+        clampPanOffset();
+        applyZoomTransform(true);
+      });
+
+      window.addEventListener('mouseup', () => {
+        if (isDraggingPan) {
+          isDraggingPan = false;
+          if (stage) {
+            stage.classList.remove('cursor-grabbing');
+            if (isPanToolActive || zoomLevel > 1.0) {
+              stage.classList.add('cursor-grab');
+            }
+          }
+        }
+      });
+
+      // Touch Pinch-to-Zoom & Touch Pan
+      let initialPinchDistance = 0;
+      let initialZoom = 1.0;
+      let touchPanStartX = 0;
+      let touchPanStartY = 0;
+
+      viewport.addEventListener('touchstart', (e) => {
+        if (e.touches.length === 2) {
+          // Pinch Zoom
+          initialPinchDistance = Math.hypot(
+            e.touches[0].clientX - e.touches[1].clientX,
+            e.touches[0].clientY - e.touches[1].clientY
+          );
+          initialZoom = zoomLevel;
+        } else if (e.touches.length === 1 && (isPanToolActive || zoomLevel > 1.0) && currentDrawingTool === 'none') {
+          // Touch Pan
+          isDraggingPan = true;
+          touchPanStartX = e.touches[0].clientX - panOffset.x;
+          touchPanStartY = e.touches[0].clientY - panOffset.y;
+        }
+      }, { passive: true });
+
+      viewport.addEventListener('touchmove', (e) => {
+        if (e.touches.length === 2 && initialPinchDistance > 0) {
+          const currentDistance = Math.hypot(
+            e.touches[0].clientX - e.touches[1].clientX,
+            e.touches[0].clientY - e.touches[1].clientY
+          );
+          const factor = currentDistance / initialPinchDistance;
+          setZoomLevel(initialZoom * factor);
+        } else if (e.touches.length === 1 && isDraggingPan) {
+          panOffset.x = e.touches[0].clientX - touchPanStartX;
+          panOffset.y = e.touches[0].clientY - touchPanStartY;
+          clampPanOffset();
+          applyZoomTransform(true);
+        }
+      }, { passive: true });
+
+      viewport.addEventListener('touchend', (e) => {
+        if (e.touches.length < 2) {
+          initialPinchDistance = 0;
+        }
+        if (e.touches.length === 0) {
+          isDraggingPan = false;
+        }
+      });
+    }
+
+    // ==========================================
+    // TEACHING STUDIO (LASER, SPOTLIGHT, PENS)
+    // ==========================================
     function toggleLaserMode() {
       setLaserState(!isLaserActive);
       if (isLaserActive) {
         selectAnnotationTool('none');
         setSpotlightState(false);
+        if (isPanToolActive) togglePanTool();
         showToast('Con trỏ Laser đỏ đang BẬT');
       }
     }
@@ -3142,7 +3658,7 @@
       if (laserElem) laserElem.style.display = active ? 'block' : 'none';
       if (btn) {
         btn.className = active 
-          ? 'btn-3d btn-red text-white p-2 rounded-xl flex items-center justify-center'
+          ? 'btn-3d btn-red text-white p-2 rounded-xl flex items-center justify-center ring-2 ring-red-400'
           : 'btn-3d btn-white text-slate-700 p-2 rounded-xl flex items-center justify-center';
       }
     }
@@ -3170,6 +3686,7 @@
       currentDrawingTool = tool;
       if (tool !== 'none') {
         setLaserState(false);
+        if (isPanToolActive) togglePanTool();
       }
 
       const canvas = document.getElementById('annotation-canvas');
@@ -3183,13 +3700,13 @@
           : 'btn-3d btn-white text-amber-600 p-2 rounded-xl flex items-center justify-center';
       }
       if (redPenBtn) {
-        redPenBtn.className = tool === 'pen-red'
-          ? 'btn-3d btn-red text-white p-2 rounded-xl flex items-center justify-center ring-2 ring-red-400'
+        redPenBtn.className = tool === 'pen-red' 
+          ? 'btn-3d btn-red text-white p-2 rounded-xl flex items-center justify-center ring-2 ring-red-400' 
           : 'btn-3d btn-white text-red-500 p-2 rounded-xl flex items-center justify-center';
       }
       if (eraserBtn) {
-        eraserBtn.className = tool === 'eraser'
-          ? 'btn-3d btn-blue text-white p-2 rounded-xl flex items-center justify-center ring-2 ring-sky-400'
+        eraserBtn.className = tool === 'eraser' 
+          ? 'btn-3d btn-blue text-white p-2 rounded-xl flex items-center justify-center ring-2 ring-sky-400' 
           : 'btn-3d btn-white text-slate-700 p-2 rounded-xl flex items-center justify-center';
       }
 
@@ -3200,10 +3717,10 @@
 
     function resizeAnnotationCanvas() {
       const canvas = document.getElementById('annotation-canvas');
-      const wrapper = document.getElementById('flipbook-wrapper');
-      if (canvas && wrapper) {
-        canvas.width = wrapper.clientWidth;
-        canvas.height = wrapper.clientHeight;
+      const stage = document.getElementById('flipbook-zoom-stage') || document.getElementById('flipbook-wrapper');
+      if (canvas && stage) {
+        canvas.width = stage.clientWidth || 1000;
+        canvas.height = stage.clientHeight || 700;
       }
     }
 
@@ -3227,22 +3744,34 @@
         }
       });
 
-      // Drawing Events
+      // Drawing Events with accurate canvas coordinate mapping
       let lastX = 0;
       let lastY = 0;
 
-      function startDraw(x, y) {
-        isDrawing = true;
-        lastX = x;
-        lastY = y;
+      function getCanvasCoords(clientX, clientY) {
+        const rect = canvas.getBoundingClientRect();
+        const scaleX = canvas.width / rect.width;
+        const scaleY = canvas.height / rect.height;
+        return {
+          x: (clientX - rect.left) * scaleX,
+          y: (clientY - rect.top) * scaleY
+        };
       }
 
-      function draw(x, y) {
+      function startDraw(clientX, clientY) {
+        isDrawing = true;
+        const coords = getCanvasCoords(clientX, clientY);
+        lastX = coords.x;
+        lastY = coords.y;
+      }
+
+      function draw(clientX, clientY) {
         if (!isDrawing || currentDrawingTool === 'none' || !ctx) return;
+        const coords = getCanvasCoords(clientX, clientY);
 
         ctx.beginPath();
         ctx.moveTo(lastX, lastY);
-        ctx.lineTo(x, y);
+        ctx.lineTo(coords.x, coords.y);
         ctx.lineCap = 'round';
         ctx.lineJoin = 'round';
 
@@ -3261,23 +3790,46 @@
         }
 
         ctx.stroke();
-        lastX = x;
-        lastY = y;
+        lastX = coords.x;
+        lastY = coords.y;
       }
 
       function stopDraw() {
         isDrawing = false;
       }
 
+      // Mouse Drawing
       canvas.addEventListener('mousedown', (e) => {
-        const rect = canvas.getBoundingClientRect();
-        startDraw(e.clientX - rect.left, e.clientY - rect.top);
+        if (currentDrawingTool !== 'none') {
+          startDraw(e.clientX, e.clientY);
+          e.preventDefault();
+        }
       });
+
       canvas.addEventListener('mousemove', (e) => {
-        const rect = canvas.getBoundingClientRect();
-        draw(e.clientX - rect.left, e.clientY - rect.top);
+        if (isDrawing) {
+          draw(e.clientX, e.clientY);
+        }
       });
+
       window.addEventListener('mouseup', stopDraw);
+
+      // Touch Drawing
+      canvas.addEventListener('touchstart', (e) => {
+        if (currentDrawingTool !== 'none' && e.touches.length === 1) {
+          startDraw(e.touches[0].clientX, e.touches[0].clientY);
+          e.preventDefault();
+        }
+      }, { passive: false });
+
+      canvas.addEventListener('touchmove', (e) => {
+        if (isDrawing && e.touches.length === 1) {
+          draw(e.touches[0].clientX, e.touches[0].clientY);
+          e.preventDefault();
+        }
+      }, { passive: false });
+
+      window.addEventListener('touchend', stopDraw);
     }
 
     function clearAnnotations() {
@@ -3291,23 +3843,116 @@
       }
     }
 
+    // Draggable Floating Teaching Toolbar
+    function setupToolbarDraggable() {
+      const toolbar = document.getElementById('teaching-toolbar');
+      const handle = document.getElementById('teaching-toolbar-handle');
+      if (!toolbar || !handle || toolbar._dragAttached) return;
+      toolbar._dragAttached = true;
+
+      let isDraggingToolbar = false;
+      let startX = 0;
+      let startY = 0;
+      let initLeft = 0;
+      let initTop = 0;
+
+      handle.addEventListener('mousedown', (e) => {
+        if (e.target.closest('button') || e.target.closest('input')) return;
+        isDraggingToolbar = true;
+        const rect = toolbar.getBoundingClientRect();
+        toolbar.style.left = `${rect.left}px`;
+        toolbar.style.top = `${rect.top}px`;
+        toolbar.style.bottom = 'auto';
+        toolbar.style.transform = 'none';
+
+        startX = e.clientX;
+        startY = e.clientY;
+        initLeft = rect.left;
+        initTop = rect.top;
+        e.preventDefault();
+      });
+
+      window.addEventListener('mousemove', (e) => {
+        if (!isDraggingToolbar) return;
+        const dx = e.clientX - startX;
+        const dy = e.clientY - startY;
+        const maxLeft = window.innerWidth - toolbar.offsetWidth - 10;
+        const maxTop = window.innerHeight - toolbar.offsetHeight - 10;
+
+        toolbar.style.left = `${Math.max(10, Math.min(maxLeft, initLeft + dx))}px`;
+        toolbar.style.top = `${Math.max(10, Math.min(maxTop, initTop + dy))}px`;
+      });
+
+      window.addEventListener('mouseup', () => {
+        isDraggingToolbar = false;
+      });
+
+      // Touch dragging for toolbar
+      handle.addEventListener('touchstart', (e) => {
+        if (e.target.closest('button') || e.target.closest('input')) return;
+        isDraggingToolbar = true;
+        const rect = toolbar.getBoundingClientRect();
+        toolbar.style.left = `${rect.left}px`;
+        toolbar.style.top = `${rect.top}px`;
+        toolbar.style.bottom = 'auto';
+        toolbar.style.transform = 'none';
+
+        startX = e.touches[0].clientX;
+        startY = e.touches[0].clientY;
+        initLeft = rect.left;
+        initTop = rect.top;
+      }, { passive: true });
+
+      window.addEventListener('touchmove', (e) => {
+        if (!isDraggingToolbar || e.touches.length !== 1) return;
+        const dx = e.touches[0].clientX - startX;
+        const dy = e.touches[0].clientY - startY;
+        const maxLeft = window.innerWidth - toolbar.offsetWidth - 10;
+        const maxTop = window.innerHeight - toolbar.offsetHeight - 10;
+
+        toolbar.style.left = `${Math.max(10, Math.min(maxLeft, initLeft + dx))}px`;
+        toolbar.style.top = `${Math.max(10, Math.min(maxTop, initTop + dy))}px`;
+      }, { passive: true });
+
+      window.addEventListener('touchend', () => {
+        isDraggingToolbar = false;
+      });
+    }
+
     // Keyboard Shortcuts
     function setupKeyboardShortcuts() {
       window.addEventListener('keydown', (e) => {
         if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.tagName === 'SELECT') return;
 
-        if (e.key === 'ArrowRight' || e.key === ' ') {
+        if (e.key === 'ArrowRight' || e.key === 'PageDown') {
           flipNext();
-        } else if (e.key === 'ArrowLeft') {
+        } else if (e.key === 'ArrowLeft' || e.key === 'PageUp') {
           flipPrev();
+        } else if (e.key === '+' || e.key === '=') {
+          zoomIn();
+        } else if (e.key === '-' || e.key === '_') {
+          zoomOut();
+        } else if (e.key === '0') {
+          resetZoom();
+        } else if (e.key.toLowerCase() === 'h') {
+          togglePanTool();
         } else if (e.key.toLowerCase() === 'l') {
           toggleLaserMode();
+        } else if (e.key.toLowerCase() === 's') {
+          toggleSpotlightMode();
         } else if (e.key.toLowerCase() === 'p') {
-          selectAnnotationTool(currentDrawingTool === 'pen-red' ? 'none' : 'pen-red');
-        } else if (e.key.toLowerCase() === 'h') {
           selectAnnotationTool(currentDrawingTool === 'highlighter' ? 'none' : 'highlighter');
+        } else if (e.key.toLowerCase() === 'd') {
+          selectAnnotationTool(currentDrawingTool === 'pen-red' ? 'none' : 'pen-red');
+        } else if (e.key.toLowerCase() === 'e') {
+          selectAnnotationTool(currentDrawingTool === 'eraser' ? 'none' : 'eraser');
+        } else if (e.key.toLowerCase() === 'f' || e.key === 'F11') {
+          e.preventDefault();
+          fitScreenToggle();
         } else if (e.key === 'Escape') {
-          if (isTeachingMode) exitTeachingMode();
+          if (isReaderFullscreen || isTeachingMode) {
+            exitFullscreenReader();
+          }
         }
       });
     }
