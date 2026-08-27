@@ -1379,8 +1379,8 @@
     </div>
     <p id="loader-percent" class="text-sm text-duoAmber font-black mt-2">0%</p>
     <!-- Dismiss button if taking too long -->
-    <button type="button" onclick="showLoader(false)" class="mt-6 px-4 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-bold text-slate-300 border border-slate-700 transition cursor-pointer">
-      ✕ Đóng thông báo
+    <button type="button" onclick="cancelCurrentLoadingOperation()" class="mt-6 px-5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 active:scale-95 text-xs font-black text-slate-200 border border-slate-700 transition cursor-pointer shadow-lg">
+      ✕ Hủy / Đóng tiến trình
     </button>
   </div>
 
@@ -3239,11 +3239,25 @@
       showToast('🎉 Khen ngợi học sinh hoàn thành xuất sắc!');
     }
 
-    // Loader Helper
+    // Loader & Background Operation Manager
+    let isOperationCancelled = false;
+    let currentAbortHandler = null;
+
+    function cancelCurrentLoadingOperation() {
+      isOperationCancelled = true;
+      if (typeof currentAbortHandler === 'function') {
+        try { currentAbortHandler(); } catch (e) {}
+        currentAbortHandler = null;
+      }
+      showLoader(false);
+      showToast('⏹️ Đã dừng thao tác hiện tại!');
+    }
+
     function showLoader(show, text = 'Đang xử lý...') {
       const loader = document.getElementById('flipbook-loader');
       if (!loader) return;
       if (show) {
+        isOperationCancelled = false;
         loader.classList.remove('hidden');
         const status = document.getElementById('loader-status');
         if (status) status.innerText = text;
@@ -3255,6 +3269,7 @@
         if (percent) percent.innerText = '0%';
       } else {
         loader.classList.add('hidden');
+        currentAbortHandler = null;
       }
     }
 
@@ -3648,12 +3663,23 @@
 
       // Step 2: Upload Binary Data via PUT with Real-time Progress Tracking
       return new Promise((resolve, reject) => {
+        if (isOperationCancelled) return reject(new Error('CANCELLED'));
+
         const xhr = new XMLHttpRequest();
         xhr.open('PUT', sessionUri, true);
         xhr.setRequestHeader('Content-Type', mimeType);
+        xhr.timeout = 180000; // 3 minutes timeout for huge books
+
+        currentAbortHandler = () => {
+          try { xhr.abort(); } catch (e) {}
+        };
 
         if (xhr.upload && onProgress) {
           xhr.upload.onprogress = (e) => {
+            if (isOperationCancelled) {
+              try { xhr.abort(); } catch (err) {}
+              return;
+            }
             if (e.lengthComputable) {
               onProgress(e.loaded, e.total);
             }
@@ -3661,6 +3687,7 @@
         }
 
         xhr.onload = () => {
+          if (isOperationCancelled) return reject(new Error('CANCELLED'));
           if (xhr.status >= 200 && xhr.status < 300) {
             try {
               const resData = JSON.parse(xhr.responseText || '{}');
@@ -3673,9 +3700,82 @@
           }
         };
 
-        xhr.onerror = () => reject(new Error('Lỗi kết nối mạng khi tải lên Google Drive'));
-        xhr.ontimeout = () => reject(new Error('Quá thời gian chờ khi gửi tệp lên Google Drive'));
+        xhr.onerror = () => {
+          if (isOperationCancelled) return reject(new Error('CANCELLED'));
+          reject(new Error('Lỗi kết nối mạng khi tải lên Google Drive'));
+        };
+        xhr.ontimeout = () => {
+          if (isOperationCancelled) return reject(new Error('CANCELLED'));
+          reject(new Error('Quá thời gian chờ khi gửi tệp lên Google Drive'));
+        };
+        xhr.onabort = () => reject(new Error('CANCELLED'));
+
         xhr.send(fileBlob);
+      });
+    }
+
+    // High-Performance Streaming Downloader for Google Drive
+    function downloadFromGoogleDriveWithProgress(fileId, fileName, accessToken, onProgress, timeoutMs = 120000) {
+      return new Promise((resolve, reject) => {
+        if (isOperationCancelled) {
+          return reject(new Error('CANCELLED'));
+        }
+
+        const xhr = new XMLHttpRequest();
+        xhr.open('GET', `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`, true);
+        xhr.setRequestHeader('Authorization', `Bearer ${accessToken}`);
+        xhr.responseType = 'text';
+        xhr.timeout = timeoutMs;
+
+        currentAbortHandler = () => {
+          try { xhr.abort(); } catch (e) {}
+        };
+
+        if (onProgress) {
+          xhr.onprogress = (e) => {
+            if (isOperationCancelled) {
+              try { xhr.abort(); } catch (err) {}
+              return;
+            }
+            if (e.lengthComputable && e.total > 0) {
+              onProgress(e.loaded, e.total);
+            } else {
+              onProgress(e.loaded, null);
+            }
+          };
+        }
+
+        xhr.onload = () => {
+          if (isOperationCancelled) return reject(new Error('CANCELLED'));
+          if (xhr.status === 401) {
+            return reject(new Error('AUTH_EXPIRED'));
+          } else if (xhr.status === 403) {
+            return reject(new Error('FORBIDDEN'));
+          } else if (xhr.status >= 200 && xhr.status < 300) {
+            try {
+              const parsed = JSON.parse(xhr.responseText);
+              resolve(parsed);
+            } catch (err) {
+              reject(new Error(`Tệp "${fileName}" không phải là định dạng JSON hợp lệ`));
+            }
+          } else {
+            reject(new Error(`Tải tệp thất bại (HTTP ${xhr.status})`));
+          }
+        };
+
+        xhr.onerror = () => {
+          if (isOperationCancelled) return reject(new Error('CANCELLED'));
+          reject(new Error('Lỗi kết nối mạng khi tải tệp từ Google Drive'));
+        };
+
+        xhr.ontimeout = () => {
+          if (isOperationCancelled) return reject(new Error('CANCELLED'));
+          reject(new Error('Quá thời gian tải (Timeout). Vui lòng thử lại với mạng ổn định hơn.'));
+        };
+
+        xhr.onabort = () => reject(new Error('CANCELLED'));
+
+        xhr.send();
       });
     }
 
@@ -3823,6 +3923,11 @@
         const subStatus = document.getElementById('loader-substatus');
 
         for (let i = 0; i < booksToSync.length; i++) {
+          if (isOperationCancelled) {
+            console.log('Quá trình sao lưu đã bị hủy');
+            break;
+          }
+
           const book = booksToSync[i];
           const overallPercent = Math.round(((i) / booksToSync.length) * 100);
 
@@ -3833,6 +3938,7 @@
 
           // Single book progress callback
           const onProgress = (loadedBytes, totalBytes) => {
+            if (isOperationCancelled) return;
             const loadedMB = (loadedBytes / (1024 * 1024)).toFixed(1);
             const totalMB = (totalBytes / (1024 * 1024)).toFixed(1);
             const bookPercent = Math.round((loadedBytes / totalBytes) * 100);
@@ -3853,13 +3959,15 @@
             if (syncResult.error) errorMessages.push(syncResult.error);
           }
 
-          await new Promise(r => setTimeout(r, 100));
+          await new Promise(r => setTimeout(r, 60));
         }
 
         if (progressBar) progressBar.style.width = '100%';
         if (percentLabel) percentLabel.innerText = '100%';
 
-        if (errorCount > 0 && uploadedCount === 0) {
+        if (isOperationCancelled) {
+          showToast(`⏹️ Đã dừng đồng bộ! Đã tải lên ${uploadedCount} sách.`);
+        } else if (errorCount > 0 && uploadedCount === 0) {
           showToast(`⚠️ Không thể tải lên: ${errorMessages[0] || 'Vui lòng kiểm tra lại quyền Drive!'}`);
         } else if (uploadedCount > 0 && errorCount > 0) {
           showToast(`⚠️ Đã tải ${uploadedCount} sách, ${errorCount} sách bị lỗi!`);
@@ -3875,7 +3983,9 @@
         closeGoogleDriveModal();
       } catch (err) {
         console.error(err);
-        showToast('⚠️ Lỗi khi đồng bộ Google Drive. Vui lòng thử lại sau!');
+        if (!isOperationCancelled) {
+          showToast('⚠️ Lỗi khi đồng bộ Google Drive. Vui lòng thử lại sau!');
+        }
       } finally {
         showLoader(false);
       }
@@ -3916,64 +4026,124 @@
         }
 
         const data = await res.json();
-        if (data.files && data.files.length > 0) {
-          let restoredCount = 0;
-          const validFiles = data.files.filter(f => f.name.endsWith('.json') || f.name.startsWith('Biblio3D_'));
-          
-          for (let i = 0; i < validFiles.length; i++) {
-            const file = validFiles[i];
-            const percent = Math.round(((i + 1) / validFiles.length) * 100);
-            
-            const progressBar = document.getElementById('loader-progress-bar');
-            const percentLabel = document.getElementById('loader-percent');
-            const subStatus = document.getElementById('loader-substatus');
-            
-            if (progressBar) progressBar.style.width = percent + '%';
-            if (percentLabel) percentLabel.innerText = `${percent}%`;
-            if (subStatus) subStatus.innerText = `Đang tải sách "${file.name}" về máy (${i + 1}/${validFiles.length})`;
+        const validFiles = (data.files || []).filter(f => f.name.endsWith('.json') || f.name.startsWith('Biblio3D_'));
 
-            const getRes = await fetch(`https://www.googleapis.com/drive/v3/files/${file.id}?alt=media`, {
-              headers: { Authorization: `Bearer ${gdriveAccessToken}` }
-            });
-            if (getRes.status === 401) {
+        if (!validFiles || validFiles.length === 0) {
+          showLoader(false);
+          showToast('⚠️ Không tìm thấy file sách (.json) nào trong thư mục Google Drive!');
+          closeGoogleDriveModal();
+          return;
+        }
+
+        let restoredCount = 0;
+        let failedCount = 0;
+        const failedBookNames = [];
+
+        const progressBar = document.getElementById('loader-progress-bar');
+        const percentLabel = document.getElementById('loader-percent');
+        const statusLabel = document.getElementById('loader-status');
+        const subStatus = document.getElementById('loader-substatus');
+
+        for (let i = 0; i < validFiles.length; i++) {
+          if (isOperationCancelled) {
+            console.log('Quá trình khôi phục đã bị hủy bởi người dùng');
+            break;
+          }
+
+          const file = validFiles[i];
+          const displayFileName = file.name.replace(/^Biblio3D_/, '').replace(/_book_.*\.json$/, '').replace(/\.json$/, '').replace(/_/g, ' ');
+          const basePercent = Math.round((i / validFiles.length) * 100);
+
+          if (statusLabel) statusLabel.innerText = `Đang tải sách (${i + 1}/${validFiles.length})`;
+          if (subStatus) subStatus.innerText = `Đang tải "${displayFileName}"...`;
+          if (progressBar) progressBar.style.width = basePercent + '%';
+          if (percentLabel) percentLabel.innerText = `${basePercent}%`;
+
+          const onBookDownloadProgress = (loadedBytes, totalBytes) => {
+            if (isOperationCancelled) return;
+            const loadedMB = (loadedBytes / (1024 * 1024)).toFixed(1);
+            let bookRatio = 0;
+            let progressText = `${loadedMB} MB`;
+            if (totalBytes && totalBytes > 0) {
+              const totalMB = (totalBytes / (1024 * 1024)).toFixed(1);
+              bookRatio = loadedBytes / totalBytes;
+              const bookPct = Math.round(bookRatio * 100);
+              progressText = `${loadedMB} MB / ${totalMB} MB (${bookPct}%)`;
+            }
+            const overallPct = Math.min(99, Math.round(((i + bookRatio) / validFiles.length) * 100));
+            if (subStatus) subStatus.innerText = `Đang tải "${displayFileName}": ${progressText}`;
+            if (progressBar) progressBar.style.width = overallPct + '%';
+            if (percentLabel) percentLabel.innerText = `${overallPct}%`;
+          };
+
+          try {
+            const bookData = await downloadFromGoogleDriveWithProgress(file.id, file.name, gdriveAccessToken, onBookDownloadProgress);
+            
+            if (isOperationCancelled) break;
+
+            if (bookData && (bookData.id || bookData.title)) {
+              if (subStatus) subStatus.innerText = `Đang lưu "${bookData.title || displayFileName}" vào bộ nhớ máy...`;
+              
+              if (!bookData.id) bookData.id = 'book_' + Date.now() + '_' + i;
+              await dbSaveBook(bookData);
+              
+              const existingIdx = allBooks.findIndex(b => b.id === bookData.id);
+              if (existingIdx >= 0) allBooks[existingIdx] = bookData;
+              else allBooks.unshift(bookData);
+              
+              restoredCount++;
+            } else {
+              console.warn('Tệp không đúng cấu trúc sách:', file.name);
+              failedCount++;
+              failedBookNames.push(displayFileName);
+            }
+          } catch (itemError) {
+            if (itemError.message === 'CANCELLED' || isOperationCancelled) {
+              break;
+            }
+            if (itemError.message === 'AUTH_EXPIRED') {
               showLoader(false);
               handleDriveAuthExpired();
               return;
             }
-            if (getRes.ok) {
-              const bookData = await getRes.json();
-              if (bookData && bookData.id) {
-                await dbSaveBook(bookData);
-                const existingIdx = allBooks.findIndex(b => b.id === bookData.id);
-                if (existingIdx >= 0) allBooks[existingIdx] = bookData;
-                else allBooks.unshift(bookData);
-                restoredCount++;
-              }
-            }
+            console.warn(`Lỗi khi tải sách "${file.name}":`, itemError);
+            failedCount++;
+            failedBookNames.push(displayFileName);
           }
-          updateBooksCountSidebar();
-          renderBooksGrid();
-          showLoader(false);
-          if (restoredCount > 0) {
-            showToast(`✅ Đã khôi phục thành công ${restoredCount} sách từ Google Drive!`);
-          } else {
-            showToast(`⚠️ Không tìm thấy tệp sách JSON hợp lệ trong thư mục!`);
-          }
-          closeGoogleDriveModal();
-          return;
-        } else {
-          showLoader(false);
-          showToast(`⚠️ Không tìm thấy file sách nào trên Google Drive!`);
-          closeGoogleDriveModal();
-          return;
+
+          // Yield execution to allow mobile browser UI repaints and garbage collection
+          await new Promise(r => setTimeout(r, 60));
         }
+
+        if (progressBar) progressBar.style.width = '100%';
+        if (percentLabel) percentLabel.innerText = '100%';
+
+        updateBooksCountSidebar();
+        renderBooksGrid();
+        showLoader(false);
+
+        if (isOperationCancelled) {
+          showToast(`⏹️ Đã dừng khôi phục! Đã lưu được ${restoredCount} sách.`);
+        } else if (restoredCount > 0 && failedCount === 0) {
+          showToast(`🎉 Khôi phục hoàn tất ${restoredCount} cuốn sách từ Google Drive!`);
+        } else if (restoredCount > 0 && failedCount > 0) {
+          showToast(`⚠️ Đã khôi phục ${restoredCount} sách (${failedCount} tệp không đọc được).`);
+        } else if (failedCount > 0) {
+          showToast(`⚠️ Không thể khôi phục sách từ các tệp này trên Google Drive!`);
+        } else {
+          showToast(`ℹ️ Không có sách mới nào được khôi phục.`);
+        }
+        
+        closeGoogleDriveModal();
+        return;
       } catch (e) {
         console.warn('Drive restore fetch error:', e);
+        showLoader(false);
+        if (!isOperationCancelled) {
+          showToast(`⚠️ Lỗi kết nối Google Drive! Hãy kiểm tra mạng và thử lại.`);
+        }
+        closeGoogleDriveModal();
       }
-
-      showLoader(false);
-      showToast(`⚠️ Lỗi kết nối Google Drive! Hãy thử lại sau.`);
-      closeGoogleDriveModal();
     }
     function exportLibraryBackupJSON() {
       try {
