@@ -7,10 +7,10 @@
   
   <!-- PWA & Mobile Web App Meta Tags -->
   <link rel="manifest" href="/manifest.webmanifest" />
-  <meta name="theme-color" content="#58CC02" />
+  <meta name="theme-color" content="#ffffff" />
   <meta name="mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
   <meta name="apple-mobile-web-app-title" content="BIBLIO 3D" />
   <link rel="icon" type="image/svg+xml" href="/icon.svg" />
   <link rel="apple-touch-icon" href="/icon.svg" />
@@ -178,10 +178,13 @@
 
     /* Mobile Safe Area & Utilities */
     .safe-area-pb {
-      padding-bottom: max(0.75rem, env(safe-area-inset-bottom));
+      padding-bottom: max(0.75rem, env(safe-area-inset-bottom, 0px));
     }
     .safe-area-pt {
-      padding-top: max(0.5rem, env(safe-area-inset-top));
+      padding-top: max(0.75rem, env(safe-area-inset-top, 0px));
+    }
+    .safe-top-header {
+      padding-top: env(safe-area-inset-top, 0px);
     }
     .no-scrollbar::-webkit-scrollbar {
       display: none;
@@ -197,7 +200,7 @@
     }
   </style>
 </head>
-<body class="h-full flex overflow-hidden">
+<body class="h-full flex overflow-hidden bg-[#F7F9FC]">
 
   <!-- Laser Pointer Element -->
   <div id="laser-pointer"></div>
@@ -208,7 +211,7 @@
   <!-- ========================================================================= -->
   <!-- SIDEBAR NAVIGATION (Duolingo 3D High Density) -->
   <!-- ========================================================================= -->
-  <aside id="main-sidebar" class="w-64 flex-shrink-0 bg-white border-r-2 border-[#E5E5E5] hidden md:flex flex-col p-5 gap-4 z-30 select-none">
+  <aside id="main-sidebar" class="w-64 flex-shrink-0 bg-white border-r-2 border-[#E5E5E5] hidden md:flex flex-col p-5 pt-[max(1.25rem,env(safe-area-inset-top,0px))] gap-4 z-30 select-none">
     
     <!-- Brand Logo -->
     <div class="flex items-center gap-3 cursor-pointer group select-none" onclick="showLibraryView()">
@@ -297,76 +300,77 @@
   <div class="flex-1 flex flex-col min-w-0 h-screen overflow-hidden bg-[#F7F9FC]">
     
     <!-- TOP HEADER -->
-    <header class="h-16 flex-shrink-0 flex items-center justify-between px-3 sm:px-8 bg-white border-b-2 border-[#E5E5E5] z-20">
-      
-      <!-- Left: Search & Mobile Logo -->
-      <div class="flex items-center gap-2 sm:gap-3 flex-1 max-w-xl">
-        <button onclick="showLibraryView()" class="md:hidden w-10 h-10 rounded-2xl bg-gradient-to-br from-[#58CC02] via-[#48B801] to-[#399300] border-b-4 border-[#2F7B00] shadow-sm flex items-center justify-center text-white flex-shrink-0" title="BIBLIO 3D">
-          <svg class="w-6 h-6" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path d="M6 36C11 34 20 34 24 37C28 34 37 34 42 36V9C37 7 28 7 24 10C20 7 11 7 6 9V36Z" fill="#FFFFFF"/>
-            <path d="M28 20L36 16V30L28 26V20Z" fill="#1CB0F6"/>
-            <path d="M24 10V37" stroke="#58CC02" stroke-width="3"/>
-          </svg>
-        </button>
+    <header class="flex-shrink-0 bg-white border-b-2 border-[#E5E5E5] z-20 safe-top-header">
+      <div class="h-14 sm:h-16 flex items-center justify-between px-3 sm:px-8 gap-2 sm:gap-3">
+        <!-- Left: Search & Mobile Logo -->
+        <div class="flex items-center gap-2 sm:gap-3 flex-1 max-w-xl">
+          <button onclick="showLibraryView()" class="md:hidden w-10 h-10 rounded-2xl bg-gradient-to-br from-[#58CC02] via-[#48B801] to-[#399300] border-b-4 border-[#2F7B00] shadow-sm flex items-center justify-center text-white flex-shrink-0 active:scale-95 transition-transform" title="BIBLIO 3D">
+            <svg class="w-6 h-6" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M6 36C11 34 20 34 24 37C28 34 37 34 42 36V9C37 7 28 7 24 10C20 7 11 7 6 9V36Z" fill="#FFFFFF"/>
+              <path d="M28 20L36 16V30L28 26V20Z" fill="#1CB0F6"/>
+              <path d="M24 10V37" stroke="#58CC02" stroke-width="3"/>
+            </svg>
+          </button>
 
-        <div class="relative w-full">
-          <input 
-            type="text" 
-            id="search-input" 
-            placeholder="Tìm kiếm sách, bài nghe..." 
-            oninput="renderBooksGrid()"
-            class="w-full bg-[#F0F0F0] border-2 border-b-4 border-[#E5E5E5] rounded-xl py-1.5 sm:py-2 pl-8 sm:pl-10 pr-3 font-bold text-xs sm:text-sm text-slate-800 focus:outline-none focus:border-[#1CB0F6] focus:bg-white transition"
-          />
-          <i data-lucide="search" class="w-4 h-4 text-[#AFAFAF] absolute left-2.5 sm:left-3 top-1/2 -translate-y-1/2"></i>
-        </div>
-      </div>
-
-      <!-- Right Header Actions -->
-      <div class="flex items-center gap-1.5 sm:gap-3 pl-2 sm:pl-3">
-        <!-- Active Book Badge -->
-        <div id="header-book-info" class="hidden lg:flex items-center gap-2 bg-[#F0F0F0] border-2 border-b-4 border-[#E5E5E5] px-3 py-1.5 rounded-xl">
-          <i data-lucide="book" class="w-4 h-4 text-duoBlue"></i>
-          <span id="header-book-title" class="font-black text-xs text-slate-700 truncate max-w-xs">Tên Sách</span>
-          <span id="header-page-badge" class="bg-duoBlue text-white text-[10px] font-black px-1.5 py-0.5 rounded-md">Trang 1/1</span>
+          <div class="relative w-full">
+            <input 
+              type="text" 
+              id="search-input" 
+              placeholder="Tìm kiếm sách, bài nghe..." 
+              oninput="renderBooksGrid()"
+              class="w-full bg-[#F0F0F0] border-2 border-b-4 border-[#E5E5E5] rounded-xl py-1.5 sm:py-2 pl-8 sm:pl-10 pr-3 font-bold text-xs sm:text-sm text-slate-800 focus:outline-none focus:border-[#1CB0F6] focus:bg-white transition"
+            />
+            <i data-lucide="search" class="w-4 h-4 text-[#AFAFAF] absolute left-2.5 sm:left-3 top-1/2 -translate-y-1/2"></i>
+          </div>
         </div>
 
-        <!-- PWA Install Button (Header) -->
-        <button onclick="openInstallPwaModal()" id="header-pwa-btn" class="btn-3d bg-amber-400 border-b-4 border-amber-600 text-amber-950 px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-xl font-extrabold text-xs sm:text-sm flex items-center gap-1.5 shadow-sm" title="Cài đặt hoặc ghim ứng dụng ra màn hình chính">
-          <i data-lucide="smartphone" class="w-4 h-4 text-amber-900"></i>
-          <span class="hidden sm:inline">GHIM APP</span>
-          <span class="sm:hidden font-black">APP</span>
-        </button>
+        <!-- Right Header Actions -->
+        <div class="flex items-center gap-1.5 sm:gap-3 pl-2 sm:pl-3">
+          <!-- Active Book Badge -->
+          <div id="header-book-info" class="hidden lg:flex items-center gap-2 bg-[#F0F0F0] border-2 border-b-4 border-[#E5E5E5] px-3 py-1.5 rounded-xl">
+            <i data-lucide="book" class="w-4 h-4 text-duoBlue"></i>
+            <span id="header-book-title" class="font-black text-xs text-slate-700 truncate max-w-xs">Tên Sách</span>
+            <span id="header-page-badge" class="bg-duoBlue text-white text-[10px] font-black px-1.5 py-0.5 rounded-md">Trang 1/1</span>
+          </div>
 
-        <!-- Google Drive Quick Status Badge -->
-        <button onclick="openGoogleDriveModal()" id="header-gdrive-btn" class="hidden sm:flex btn-3d btn-white items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-black text-slate-700 hover:border-emerald-500" title="Quản lý đồng bộ Google Drive">
-          <i data-lucide="hard-drive" class="w-4 h-4 text-emerald-500"></i>
-          <span id="header-gdrive-status-text">Google Drive</span>
-          <span id="header-gdrive-dot" class="w-2 h-2 rounded-full bg-slate-300"></span>
-        </button>
+          <!-- PWA Install Button (Header) -->
+          <button onclick="openInstallPwaModal()" id="header-pwa-btn" class="btn-3d bg-amber-400 border-b-4 border-amber-600 text-amber-950 px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-xl font-extrabold text-xs sm:text-sm flex items-center gap-1.5 shadow-sm" title="Cài đặt hoặc ghim ứng dụng ra màn hình chính">
+            <i data-lucide="smartphone" class="w-4 h-4 text-amber-900"></i>
+            <span class="hidden sm:inline">GHIM APP</span>
+            <span class="sm:hidden font-black">APP</span>
+          </button>
 
-        <!-- Batch Media Upload Quick Button -->
-        <button onclick="openBatchUploadModal()" class="hidden sm:flex btn-3d btn-purple text-white px-3 sm:px-4 py-1.5 sm:py-2 rounded-xl font-extrabold text-xs sm:text-sm items-center gap-1.5 shadow-sm" title="Tải nhanh hàng loạt bài nghe / media">
-          <i data-lucide="layers" class="w-4 h-4"></i>
-          <span class="hidden md:inline">TẢI MEDIA HÀNG LOẠT</span>
-          <span class="md:hidden">MEDIA</span>
-        </button>
+          <!-- Google Drive Quick Status Badge -->
+          <button onclick="openGoogleDriveModal()" id="header-gdrive-btn" class="hidden sm:flex btn-3d btn-white items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-black text-slate-700 hover:border-emerald-500" title="Quản lý đồng bộ Google Drive">
+            <i data-lucide="hard-drive" class="w-4 h-4 text-emerald-500"></i>
+            <span id="header-gdrive-status-text">Google Drive</span>
+            <span id="header-gdrive-dot" class="w-2 h-2 rounded-full bg-slate-300"></span>
+          </button>
 
-        <!-- Add Book Button -->
-        <button id="btn-open-upload" onclick="openUploadModal()" class="btn-3d bg-[#58CC02] border-[#46A302] text-white px-2.5 sm:px-5 py-1.5 sm:py-2 rounded-xl font-extrabold text-xs sm:text-sm flex items-center gap-1 sm:gap-1.5 shadow-sm">
-          <i data-lucide="plus" class="w-4 h-4"></i>
-          <span class="hidden sm:inline">TẢI SÁCH PDF</span>
-          <span class="sm:hidden font-black">TẢI PDF</span>
-        </button>
+          <!-- Batch Media Upload Quick Button -->
+          <button onclick="openBatchUploadModal()" class="hidden sm:flex btn-3d btn-purple text-white px-3 sm:px-4 py-1.5 sm:py-2 rounded-xl font-extrabold text-xs sm:text-sm items-center gap-1.5 shadow-sm" title="Tải nhanh hàng loạt bài nghe / media">
+            <i data-lucide="layers" class="w-4 h-4"></i>
+            <span class="hidden md:inline">TẢI MEDIA HÀNG LOẠT</span>
+            <span class="md:hidden">MEDIA</span>
+          </button>
 
-        <div class="w-8 h-8 sm:w-10 sm:h-10 bg-[#CE82FF] border-b-4 border-[#A560D0] rounded-xl flex items-center justify-center text-white font-black text-xs sm:text-sm shadow-sm flex-shrink-0" title="Giáo Viên / Tutor">
-          GV
+          <!-- Add Book Button -->
+          <button id="btn-open-upload" onclick="openUploadModal()" class="btn-3d bg-[#58CC02] border-[#46A302] text-white px-2.5 sm:px-5 py-1.5 sm:py-2 rounded-xl font-extrabold text-xs sm:text-sm flex items-center gap-1 sm:gap-1.5 shadow-sm">
+            <i data-lucide="plus" class="w-4 h-4"></i>
+            <span class="hidden sm:inline">TẢI SÁCH PDF</span>
+            <span class="sm:hidden font-black">TẢI PDF</span>
+          </button>
+
+          <div class="w-8 h-8 sm:w-10 sm:h-10 bg-[#CE82FF] border-b-4 border-[#A560D0] rounded-xl flex items-center justify-center text-white font-black text-xs sm:text-sm shadow-sm flex-shrink-0" title="Giáo Viên / Tutor">
+            GV
+          </div>
         </div>
       </div>
 
     </header>
 
     <!-- CONTENT AREA (with mobile safe area padding for bottom nav) -->
-    <div class="flex-1 overflow-y-auto p-3.5 sm:p-6 lg:p-8 pb-24 md:pb-8">
+    <div class="flex-1 overflow-y-auto p-3.5 sm:p-6 lg:p-8 pb-28 md:pb-8">
       
       <!-- ========================================================================= -->
       <!-- VIEW 1: THƯ VIỆN SÁCH PDF (LIBRARY VIEW) -->
@@ -1378,8 +1382,8 @@
   </div>
 
   <!-- TOAST NOTIFICATION -->
-  <div id="toast" class="fixed top-5 right-5 z-50 bg-slate-900 text-white font-bold px-4 py-2.5 rounded-2xl shadow-2xl border-2 border-slate-700 transform translate-y-[-100px] opacity-0 transition-all flex items-center gap-2 pointer-events-none">
-    <i data-lucide="info" id="toast-icon" class="w-4 h-4 text-duoGreen"></i>
+  <div id="toast" class="fixed top-[max(1rem,calc(env(safe-area-inset-top,0px)+0.75rem))] left-1/2 -translate-x-1/2 sm:left-auto sm:translate-x-0 sm:right-5 z-50 bg-slate-900 text-white font-bold px-4 py-2.5 rounded-2xl shadow-2xl border-2 border-slate-700 transform translate-y-[-100px] opacity-0 transition-all flex items-center gap-2 pointer-events-none max-w-[92vw]">
+    <i data-lucide="info" id="toast-icon" class="w-4 h-4 text-duoGreen flex-shrink-0"></i>
     <span id="toast-message" class="text-xs">Thông báo!</span>
   </div>
 
