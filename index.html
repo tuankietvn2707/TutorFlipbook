@@ -2,9 +2,19 @@
 <html lang="vi" class="h-full">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Biblio 3D / TutorFlow - Flipbook & Teaching Studio</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <title>BIBLIO 3D - Sách PDF Flipbook & Giảng Dạy Online</title>
   
+  <!-- PWA & Mobile Web App Meta Tags -->
+  <link rel="manifest" href="/manifest.webmanifest" />
+  <meta name="theme-color" content="#58CC02" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="BIBLIO 3D" />
+  <link rel="icon" type="image/svg+xml" href="/icon.svg" />
+  <link rel="apple-touch-icon" href="/icon.svg" />
+
   <!-- Google Fonts: Nunito -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -165,6 +175,26 @@
     ::-webkit-scrollbar-track { background: #F1F5F9; }
     ::-webkit-scrollbar-thumb { background: #CBD5E1; border-radius: 3px; }
     ::-webkit-scrollbar-thumb:hover { background: #94A3B8; }
+
+    /* Mobile Safe Area & Utilities */
+    .safe-area-pb {
+      padding-bottom: max(0.75rem, env(safe-area-inset-bottom));
+    }
+    .safe-area-pt {
+      padding-top: max(0.5rem, env(safe-area-inset-top));
+    }
+    .no-scrollbar::-webkit-scrollbar {
+      display: none;
+    }
+    .no-scrollbar {
+      -ms-overflow-style: none;
+      scrollbar-width: none;
+    }
+    
+    /* Touch Optimizations */
+    .touch-manipulation {
+      touch-action: manipulation;
+    }
   </style>
 </head>
 <body class="h-full flex overflow-hidden">
@@ -230,6 +260,14 @@
         </div>
         <span id="sidebar-gdrive-pill" class="text-[9px] font-black px-1.5 py-0.5 rounded-full bg-slate-100 text-slate-500">Chưa nối</span>
       </button>
+
+      <button id="nav-btn-install-pwa" onclick="openInstallPwaModal()" class="btn-3d btn-white flex items-center justify-between p-3 rounded-2xl font-extrabold text-sm w-full text-left group border-amber-300 bg-amber-50/70 hover:bg-amber-100/70 transition-colors">
+        <div class="flex items-center gap-3 truncate">
+          <i data-lucide="smartphone" class="w-5 h-5 text-amber-600 flex-shrink-0 group-hover:scale-110 transition-transform"></i>
+          <span class="truncate text-amber-950 font-black">Ghim Vào MH Chính</span>
+        </div>
+        <span class="text-[9px] font-black px-1.5 py-0.5 rounded-full bg-amber-200 text-amber-900 shadow-xs">APP</span>
+      </button>
     </nav>
 
     <!-- Storage Status -->
@@ -259,10 +297,10 @@
   <div class="flex-1 flex flex-col min-w-0 h-screen overflow-hidden bg-[#F7F9FC]">
     
     <!-- TOP HEADER -->
-    <header class="h-16 flex-shrink-0 flex items-center justify-between px-4 sm:px-8 bg-white border-b-2 border-[#E5E5E5] z-20">
+    <header class="h-16 flex-shrink-0 flex items-center justify-between px-3 sm:px-8 bg-white border-b-2 border-[#E5E5E5] z-20">
       
       <!-- Left: Search & Mobile Logo -->
-      <div class="flex items-center gap-3 flex-1 max-w-xl">
+      <div class="flex items-center gap-2 sm:gap-3 flex-1 max-w-xl">
         <button onclick="showLibraryView()" class="md:hidden w-10 h-10 rounded-2xl bg-gradient-to-br from-[#58CC02] via-[#48B801] to-[#399300] border-b-4 border-[#2F7B00] shadow-sm flex items-center justify-center text-white flex-shrink-0" title="BIBLIO 3D">
           <svg class="w-6 h-6" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
             <path d="M6 36C11 34 20 34 24 37C28 34 37 34 42 36V9C37 7 28 7 24 10C20 7 11 7 6 9V36Z" fill="#FFFFFF"/>
@@ -275,22 +313,29 @@
           <input 
             type="text" 
             id="search-input" 
-            placeholder="Tìm kiếm sách, bài nghe, tác giả..." 
+            placeholder="Tìm kiếm sách, bài nghe..." 
             oninput="renderBooksGrid()"
-            class="w-full bg-[#F0F0F0] border-2 border-b-4 border-[#E5E5E5] rounded-xl py-1.5 sm:py-2 pl-9 sm:pl-10 pr-4 font-bold text-xs sm:text-sm text-slate-800 focus:outline-none focus:border-[#1CB0F6] focus:bg-white transition"
+            class="w-full bg-[#F0F0F0] border-2 border-b-4 border-[#E5E5E5] rounded-xl py-1.5 sm:py-2 pl-8 sm:pl-10 pr-3 font-bold text-xs sm:text-sm text-slate-800 focus:outline-none focus:border-[#1CB0F6] focus:bg-white transition"
           />
-          <i data-lucide="search" class="w-4 h-4 text-[#AFAFAF] absolute left-3 top-1/2 -translate-y-1/2"></i>
+          <i data-lucide="search" class="w-4 h-4 text-[#AFAFAF] absolute left-2.5 sm:left-3 top-1/2 -translate-y-1/2"></i>
         </div>
       </div>
 
       <!-- Right Header Actions -->
-      <div class="flex items-center gap-2 sm:gap-3 pl-3">
+      <div class="flex items-center gap-1.5 sm:gap-3 pl-2 sm:pl-3">
         <!-- Active Book Badge -->
         <div id="header-book-info" class="hidden lg:flex items-center gap-2 bg-[#F0F0F0] border-2 border-b-4 border-[#E5E5E5] px-3 py-1.5 rounded-xl">
           <i data-lucide="book" class="w-4 h-4 text-duoBlue"></i>
           <span id="header-book-title" class="font-black text-xs text-slate-700 truncate max-w-xs">Tên Sách</span>
           <span id="header-page-badge" class="bg-duoBlue text-white text-[10px] font-black px-1.5 py-0.5 rounded-md">Trang 1/1</span>
         </div>
+
+        <!-- PWA Install Button (Header) -->
+        <button onclick="openInstallPwaModal()" id="header-pwa-btn" class="btn-3d bg-amber-400 border-b-4 border-amber-600 text-amber-950 px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-xl font-extrabold text-xs sm:text-sm flex items-center gap-1.5 shadow-sm" title="Cài đặt hoặc ghim ứng dụng ra màn hình chính">
+          <i data-lucide="smartphone" class="w-4 h-4 text-amber-900"></i>
+          <span class="hidden sm:inline">GHIM APP</span>
+          <span class="sm:hidden font-black">APP</span>
+        </button>
 
         <!-- Google Drive Quick Status Badge -->
         <button onclick="openGoogleDriveModal()" id="header-gdrive-btn" class="hidden sm:flex btn-3d btn-white items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-black text-slate-700 hover:border-emerald-500" title="Quản lý đồng bộ Google Drive">
@@ -300,47 +345,48 @@
         </button>
 
         <!-- Batch Media Upload Quick Button -->
-        <button onclick="openBatchUploadModal()" class="btn-3d btn-purple text-white px-3 sm:px-4 py-1.5 sm:py-2 rounded-xl font-extrabold text-xs sm:text-sm flex items-center gap-1.5 shadow-sm" title="Tải nhanh hàng loạt bài nghe / media">
+        <button onclick="openBatchUploadModal()" class="hidden sm:flex btn-3d btn-purple text-white px-3 sm:px-4 py-1.5 sm:py-2 rounded-xl font-extrabold text-xs sm:text-sm items-center gap-1.5 shadow-sm" title="Tải nhanh hàng loạt bài nghe / media">
           <i data-lucide="layers" class="w-4 h-4"></i>
           <span class="hidden md:inline">TẢI MEDIA HÀNG LOẠT</span>
           <span class="md:hidden">MEDIA</span>
         </button>
 
         <!-- Add Book Button -->
-        <button id="btn-open-upload" onclick="openUploadModal()" class="btn-3d bg-[#58CC02] border-[#46A302] text-white px-3 sm:px-5 py-1.5 sm:py-2 rounded-xl font-extrabold text-xs sm:text-sm flex items-center gap-1.5 shadow-sm">
+        <button id="btn-open-upload" onclick="openUploadModal()" class="btn-3d bg-[#58CC02] border-[#46A302] text-white px-2.5 sm:px-5 py-1.5 sm:py-2 rounded-xl font-extrabold text-xs sm:text-sm flex items-center gap-1 sm:gap-1.5 shadow-sm">
           <i data-lucide="plus" class="w-4 h-4"></i>
-          <span>TẢI SÁCH PDF</span>
+          <span class="hidden sm:inline">TẢI SÁCH PDF</span>
+          <span class="sm:hidden font-black">TẢI PDF</span>
         </button>
 
-        <div class="w-9 h-9 sm:w-10 sm:h-10 bg-[#CE82FF] border-b-4 border-[#A560D0] rounded-xl flex items-center justify-center text-white font-black text-xs sm:text-sm shadow-sm" title="Giáo Viên / Tutor">
+        <div class="w-8 h-8 sm:w-10 sm:h-10 bg-[#CE82FF] border-b-4 border-[#A560D0] rounded-xl flex items-center justify-center text-white font-black text-xs sm:text-sm shadow-sm flex-shrink-0" title="Giáo Viên / Tutor">
           GV
         </div>
       </div>
 
     </header>
 
-    <!-- CONTENT AREA -->
-    <div class="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8">
+    <!-- CONTENT AREA (with mobile safe area padding for bottom nav) -->
+    <div class="flex-1 overflow-y-auto p-3.5 sm:p-6 lg:p-8 pb-24 md:pb-8">
       
       <!-- ========================================================================= -->
       <!-- VIEW 1: THƯ VIỆN SÁCH PDF (LIBRARY VIEW) -->
       <!-- ========================================================================= -->
-      <div id="view-library" class="space-y-6 max-w-7xl mx-auto">
+      <div id="view-library" class="space-y-4 sm:space-y-6 max-w-7xl mx-auto">
         
         <!-- Category Filters -->
-        <div class="flex items-center justify-between flex-wrap gap-3 pb-1 border-b-2 border-slate-200">
-          <div class="flex items-center gap-2 overflow-x-auto pb-1 w-full sm:w-auto">
-            <button onclick="setCategoryFilter('all', this)" class="category-filter-btn btn-3d btn-nav-active font-extrabold px-4 py-1.5 rounded-xl text-xs whitespace-nowrap">
+        <div class="flex items-center justify-between flex-wrap gap-2.5 pb-1 border-b-2 border-slate-200">
+          <div class="flex items-center gap-2 overflow-x-auto pb-1.5 w-full sm:w-auto no-scrollbar">
+            <button onclick="setCategoryFilter('all', this)" class="category-filter-btn btn-3d btn-nav-active font-extrabold px-3.5 sm:px-4 py-1.5 rounded-xl text-xs whitespace-nowrap">
               Tất Cả (<span id="count-all">0</span>)
             </button>
-            <button onclick="setCategoryFilter('textbook', this)" class="category-filter-btn btn-3d btn-white font-extrabold px-4 py-1.5 rounded-xl text-xs whitespace-nowrap">
-              📖 Giáo Trình Ngoại Ngữ & SGK
+            <button onclick="setCategoryFilter('textbook', this)" class="category-filter-btn btn-3d btn-white font-extrabold px-3.5 sm:px-4 py-1.5 rounded-xl text-xs whitespace-nowrap">
+              📖 Giáo Trình & SGK
             </button>
-            <button onclick="setCategoryFilter('exercise', this)" class="category-filter-btn btn-3d btn-white font-extrabold px-4 py-1.5 rounded-xl text-xs whitespace-nowrap">
+            <button onclick="setCategoryFilter('exercise', this)" class="category-filter-btn btn-3d btn-white font-extrabold px-3.5 sm:px-4 py-1.5 rounded-xl text-xs whitespace-nowrap">
               ✏️ Bài Tập & Đề Thi
             </button>
-            <button onclick="setCategoryFilter('reference', this)" class="category-filter-btn btn-3d btn-white font-extrabold px-4 py-1.5 rounded-xl text-xs whitespace-nowrap">
-              🔬 Tài Liệu & Khoa Học
+            <button onclick="setCategoryFilter('reference', this)" class="category-filter-btn btn-3d btn-white font-extrabold px-3.5 sm:px-4 py-1.5 rounded-xl text-xs whitespace-nowrap">
+              🔬 Tài Liệu
             </button>
           </div>
 
@@ -1148,6 +1194,173 @@
     </div>
   </div>
 
+  <!-- ========================================================================= -->
+  <!-- MODAL 6: PWA INSTALL / GHIM VÀO MÀN HÌNH CHÍNH (INSTALL APP MODAL) -->
+  <!-- ========================================================================= -->
+  <div id="modal-install-pwa" class="hidden fixed inset-0 z-50 bg-slate-900/70 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
+    <div class="card-3d w-full max-w-lg p-5 sm:p-6 shadow-2xl space-y-4 bg-white my-auto animate-in fade-in zoom-in duration-200">
+      
+      <!-- Modal Header -->
+      <div class="flex items-center justify-between pb-3 border-b-2 border-slate-100">
+        <div class="flex items-center gap-3">
+          <div class="w-11 h-11 rounded-2xl bg-gradient-to-br from-[#58CC02] via-[#48B801] to-[#399300] border-b-4 border-[#2F7B00] flex items-center justify-center text-white shadow-md flex-shrink-0">
+            <svg class="w-7 h-7" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M6 36C11 34 20 34 24 37C28 34 37 34 42 36V9C37 7 28 7 24 10C20 7 11 7 6 9V36Z" fill="#FFFFFF"/>
+              <path d="M28 20L36 16V30L28 26V20Z" fill="#1CB0F6"/>
+              <path d="M24 10V37" stroke="#58CC02" stroke-width="3"/>
+            </svg>
+          </div>
+          <div>
+            <h3 class="font-black text-base sm:text-lg text-slate-800 leading-tight">Cài Đặt / Ghim BIBLIO 3D</h3>
+            <p class="text-xs font-bold text-slate-500">Trải nghiệm đọc sách & nghe audio như ứng dụng native</p>
+          </div>
+        </div>
+        <button type="button" onclick="closeInstallPwaModal()" class="w-8 h-8 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-500 flex items-center justify-center transition">
+          <i data-lucide="x" class="w-4 h-4"></i>
+        </button>
+      </div>
+
+      <!-- Android / Chrome / Desktop One-Tap Install Action -->
+      <div id="pwa-native-install-section" class="space-y-3">
+        <div class="p-3.5 bg-emerald-50 border-2 border-emerald-200 rounded-2xl flex items-start gap-3">
+          <div class="w-9 h-9 rounded-xl bg-emerald-500 text-white flex items-center justify-center flex-shrink-0 mt-0.5 shadow-sm">
+            <i data-lucide="sparkles" class="w-5 h-5"></i>
+          </div>
+          <div class="text-xs text-emerald-950 leading-relaxed font-bold">
+            <p class="font-black text-sm text-emerald-900 mb-0.5">Cài Đặt 1-Chạm Siêu Nhanh</p>
+            Ứng dụng sẽ được thêm trực tiếp vào màn hình chính điện thoại, mở toàn màn hình tức thì và hoạt động mượt mà.
+          </div>
+        </div>
+
+        <button type="button" id="btn-trigger-pwa-install" onclick="triggerPwaInstallPrompt()" class="btn-3d btn-green w-full py-3 px-4 rounded-2xl font-black text-sm text-white flex items-center justify-center gap-2 shadow-lg cursor-pointer">
+          <i data-lucide="download" class="w-5 h-5"></i>
+          <span>📲 CÀI ĐẶT / GHIM VÀO MÀN HÌNH CHÍNH</span>
+        </button>
+      </div>
+
+      <!-- iOS (iPhone / iPad Safari) Illustrated Step Guide -->
+      <div id="pwa-ios-guide-section" class="space-y-3">
+        <div class="p-3 bg-amber-50 border-2 border-amber-200 rounded-2xl">
+          <div class="flex items-center gap-2 text-amber-900 font-black text-xs mb-1">
+            <i data-lucide="apple" class="w-4 h-4 text-amber-700"></i>
+            <span>Hướng Dẫn Cho iPhone / iPad (Safari)</span>
+          </div>
+          <p class="text-[11px] text-amber-800 font-bold">
+            Trên trình duyệt Safari, bạn chỉ cần thực hiện 3 thao tác đơn giản sau:
+          </p>
+        </div>
+
+        <div class="space-y-2 text-xs font-bold text-slate-700">
+          <div class="p-3 bg-slate-50 border border-slate-200 rounded-xl flex items-center gap-3">
+            <div class="w-7 h-7 rounded-lg bg-blue-500 text-white font-black flex items-center justify-center text-xs flex-shrink-0">
+              1
+            </div>
+            <div class="flex-1">
+              Nhấn vào biểu tượng <span class="inline-flex items-center px-1.5 py-0.5 rounded bg-white border border-slate-300 text-blue-600 font-black"><i data-lucide="share" class="w-3.5 h-3.5 inline mr-1"></i> Chia Sẻ</span> ở thanh công cụ dưới cùng của Safari.
+            </div>
+          </div>
+
+          <div class="p-3 bg-slate-50 border border-slate-200 rounded-xl flex items-center gap-3">
+            <div class="w-7 h-7 rounded-lg bg-duoGreen text-white font-black flex items-center justify-center text-xs flex-shrink-0">
+              2
+            </div>
+            <div class="flex-1">
+              Cuộn xuống trong danh sách menu và chọn <span class="inline-flex items-center px-1.5 py-0.5 rounded bg-white border border-slate-300 text-slate-900 font-black"><i data-lucide="plus-square" class="w-3.5 h-3.5 inline mr-1 text-duoGreen"></i> Thêm vào MH chính</span> (Add to Home Screen).
+            </div>
+          </div>
+
+          <div class="p-3 bg-slate-50 border border-slate-200 rounded-xl flex items-center gap-3">
+            <div class="w-7 h-7 rounded-lg bg-duoPurple text-white font-black flex items-center justify-center text-xs flex-shrink-0">
+              3
+            </div>
+            <div class="flex-1">
+              Nhấn nút <span class="font-black text-blue-600">"Thêm" (Add)</span> ở góc trên bên phải màn hình. Biểu tượng <b class="text-duoGreenDark">BIBLIO 3D</b> sẽ xuất hiện trên màn hình chính của bạn!
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Feature Badges Grid -->
+      <div class="grid grid-cols-2 gap-2 pt-1 border-t border-slate-100">
+        <div class="p-2.5 bg-slate-50 rounded-xl flex items-center gap-2 text-[11px] font-bold text-slate-700">
+          <i data-lucide="zap" class="w-4 h-4 text-amber-500 flex-shrink-0"></i>
+          <span>Mở tức thì, không giật lag</span>
+        </div>
+        <div class="p-2.5 bg-slate-50 rounded-xl flex items-center gap-2 text-[11px] font-bold text-slate-700">
+          <i data-lucide="maximize" class="w-4 h-4 text-duoBlue flex-shrink-0"></i>
+          <span>Toàn màn hình không che URL</span>
+        </div>
+        <div class="p-2.5 bg-slate-50 rounded-xl flex items-center gap-2 text-[11px] font-bold text-slate-700">
+          <i data-lucide="headphones" class="w-4 h-4 text-duoPurple flex-shrink-0"></i>
+          <span>Audio phát nền ổn định</span>
+        </div>
+        <div class="p-2.5 bg-slate-50 rounded-xl flex items-center gap-2 text-[11px] font-bold text-slate-700">
+          <i data-lucide="cloud-check" class="w-4 h-4 text-emerald-500 flex-shrink-0"></i>
+          <span>Đồng bộ Google Drive</span>
+        </div>
+      </div>
+
+      <!-- Modal Footer Action -->
+      <div class="pt-2">
+        <button type="button" onclick="closeInstallPwaModal()" class="btn-3d btn-white w-full py-2.5 rounded-xl font-bold text-xs text-slate-700">
+          Đã hiểu & Đóng lại
+        </button>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ========================================================================= -->
+  <!-- MOBILE BOTTOM FLOATING NAVIGATION BAR (Appears only on mobile md:hidden) -->
+  <!-- ========================================================================= -->
+  <nav id="mobile-bottom-nav" class="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-md border-t-2 border-slate-200 px-2 py-1.5 flex items-center justify-around shadow-2xl safe-area-pb select-none">
+    <button onclick="showLibraryView()" id="mob-nav-library" class="flex-1 flex flex-col items-center justify-center py-1 rounded-xl text-[#1CB0F6] font-extrabold text-[10px] gap-0.5 active:scale-95 transition-all">
+      <i data-lucide="layout-grid" class="w-5 h-5"></i>
+      <span class="leading-none">Thư Viện</span>
+    </button>
+    
+    <button onclick="resumeCurrentBook()" id="mob-nav-reader" class="flex-1 flex flex-col items-center justify-center py-1 rounded-xl text-slate-500 font-extrabold text-[10px] gap-0.5 active:scale-95 transition-all">
+      <i data-lucide="book-open" class="w-5 h-5"></i>
+      <span class="leading-none">Đọc 3D</span>
+    </button>
+    
+    <button onclick="openUploadModal()" class="flex-shrink-0 flex flex-col items-center justify-center w-12 h-12 rounded-2xl bg-[#58CC02] text-white font-black text-[9px] shadow-lg border-b-4 border-[#399300] active:scale-90 active:border-b-0 transition-all -mt-4 mx-1" title="Tải Sách PDF">
+      <i data-lucide="plus" class="w-6 h-6"></i>
+      <span class="leading-none">Tải PDF</span>
+    </button>
+    
+    <button onclick="toggleMediaDock()" id="mob-nav-audio" class="flex-1 flex flex-col items-center justify-center py-1 rounded-xl text-slate-500 font-extrabold text-[10px] gap-0.5 active:scale-95 transition-all">
+      <i data-lucide="headphones" class="w-5 h-5"></i>
+      <span class="leading-none">Audio</span>
+    </button>
+    
+    <button onclick="openInstallPwaModal()" id="mob-nav-pwa" class="flex-1 flex flex-col items-center justify-center py-1 rounded-xl text-amber-600 font-extrabold text-[10px] gap-0.5 active:scale-95 transition-all">
+      <i data-lucide="smartphone" class="w-5 h-5"></i>
+      <span class="leading-none">Ghim App</span>
+    </button>
+  </nav>
+
+  <!-- MOBILE PROMO PIN BANNER (Discreet floating pill for mobile users) -->
+  <div id="mobile-pwa-banner" class="hidden md:hidden fixed bottom-16 left-3 right-3 z-30 bg-gradient-to-r from-amber-500 to-amber-600 text-white p-3 rounded-2xl shadow-2xl border-2 border-amber-300 flex items-center justify-between gap-2">
+    <div class="flex items-center gap-2.5 min-w-0" onclick="openInstallPwaModal()">
+      <div class="w-8 h-8 rounded-xl bg-white text-amber-600 flex items-center justify-center flex-shrink-0 shadow-sm font-black text-xs">
+        <i data-lucide="smartphone" class="w-5 h-5"></i>
+      </div>
+      <div class="min-w-0">
+        <p class="font-black text-xs leading-tight truncate">Ghim App Ra Màn Hình Chính</p>
+        <p class="text-[10px] font-bold text-amber-100 leading-tight">Đọc toàn màn hình mượt mà không vướng URL</p>
+      </div>
+    </div>
+    <div class="flex items-center gap-1.5 flex-shrink-0">
+      <button onclick="openInstallPwaModal()" class="btn-3d bg-white text-amber-900 px-2.5 py-1 rounded-xl font-black text-[11px] border-b-2 border-amber-200">
+        Cài Ngay
+      </button>
+      <button onclick="dismissMobilePwaBanner()" class="p-1 text-amber-100 hover:text-white rounded-lg">
+        <i data-lucide="x" class="w-4 h-4"></i>
+      </button>
+    </div>
+  </div>
+
   <!-- GLOBAL PROGRESS LOADER -->
   <div id="flipbook-loader" class="hidden fixed inset-0 bg-slate-900/95 backdrop-blur-sm z-[9999] flex flex-col items-center justify-center text-white p-6">
     <div class="w-16 h-16 border-4 border-duoGreen border-t-transparent rounded-full animate-spin mb-4"></div>
@@ -1367,6 +1580,18 @@
         });
       setupLaserAndDrawingListeners();
       setupKeyboardShortcuts();
+      initPwaLifecycle();
+
+      // Handle orientation change & mobile resize cleanly
+      let resizeTimeout = null;
+      window.addEventListener('resize', () => {
+        if (resizeTimeout) clearTimeout(resizeTimeout);
+        resizeTimeout = setTimeout(() => {
+          if (currentBook && document.getElementById('view-reader') && !document.getElementById('view-reader').classList.contains('hidden')) {
+            initFlipbook(currentBook);
+          }
+        }, 300);
+      });
     }
 
     if (document.readyState === 'loading') {
@@ -1922,6 +2147,73 @@
       }
     }
 
+    // Mobile Bottom Nav Active Tab Manager
+    function updateMobileNavActive(activeTab) {
+      const libraryBtn = document.getElementById('mob-nav-library');
+      const readerBtn = document.getElementById('mob-nav-reader');
+      const audioBtn = document.getElementById('mob-nav-audio');
+      
+      if (libraryBtn) {
+        libraryBtn.className = activeTab === 'library' 
+          ? 'flex-1 flex flex-col items-center justify-center py-1 rounded-xl text-[#1CB0F6] font-black text-[10px] gap-0.5 active:scale-95 transition-all'
+          : 'flex-1 flex flex-col items-center justify-center py-1 rounded-xl text-slate-500 font-extrabold text-[10px] gap-0.5 active:scale-95 transition-all';
+      }
+      if (readerBtn) {
+        readerBtn.className = activeTab === 'reader'
+          ? 'flex-1 flex flex-col items-center justify-center py-1 rounded-xl text-[#1CB0F6] font-black text-[10px] gap-0.5 active:scale-95 transition-all'
+          : 'flex-1 flex flex-col items-center justify-center py-1 rounded-xl text-slate-500 font-extrabold text-[10px] gap-0.5 active:scale-95 transition-all';
+      }
+      if (audioBtn) {
+        audioBtn.className = activeTab === 'audio'
+          ? 'flex-1 flex flex-col items-center justify-center py-1 rounded-xl text-[#CE82FF] font-black text-[10px] gap-0.5 active:scale-95 transition-all'
+          : 'flex-1 flex flex-col items-center justify-center py-1 rounded-xl text-slate-500 font-extrabold text-[10px] gap-0.5 active:scale-95 transition-all';
+      }
+    }
+
+    // Touch Swipe Gesture Navigation on Mobile for Flipbook
+    let touchStartX = 0;
+    let touchStartY = 0;
+    let touchEndX = 0;
+    let touchEndY = 0;
+
+    function setupMobileSwipe() {
+      const flipWrapper = document.getElementById('flipbook-wrapper');
+      if (!flipWrapper || flipWrapper._swipeAttached) return;
+
+      flipWrapper.addEventListener('touchstart', (e) => {
+        if (e.touches && e.touches.length === 1) {
+          touchStartX = e.touches[0].clientX;
+          touchStartY = e.touches[0].clientY;
+        }
+      }, { passive: true });
+
+      flipWrapper.addEventListener('touchend', (e) => {
+        if (e.changedTouches && e.changedTouches.length === 1) {
+          touchEndX = e.changedTouches[0].clientX;
+          touchEndY = e.changedTouches[0].clientY;
+          handleSwipeGesture();
+        }
+      }, { passive: true });
+
+      flipWrapper._swipeAttached = true;
+    }
+
+    function handleSwipeGesture() {
+      const diffX = touchEndX - touchStartX;
+      const diffY = touchEndY - touchStartY;
+      
+      // Horizontal swipe threshold: at least 40px and more horizontal than vertical
+      if (Math.abs(diffX) > 40 && Math.abs(diffX) > Math.abs(diffY) * 1.2) {
+        if (diffX < 0) {
+          // Swipe Left -> Next Page
+          flipNext();
+        } else {
+          // Swipe Right -> Previous Page
+          flipPrev();
+        }
+      }
+    }
+
     // ==========================================
     // FLIPBOOK 3D INITIALIZATION & NAVIGATION
     // ==========================================
@@ -1939,6 +2231,8 @@
       const navReader = document.getElementById('nav-btn-reader');
       if (navLibrary) navLibrary.className = 'btn-3d btn-white flex items-center gap-3 p-3 rounded-2xl font-extrabold text-sm w-full text-left';
       if (navReader) navReader.className = 'btn-3d btn-nav-active flex items-center gap-3 p-3 rounded-2xl font-extrabold text-sm w-full text-left';
+
+      updateMobileNavActive('reader');
 
       const headerBookInfo = document.getElementById('header-book-info');
       const headerBookTitle = document.getElementById('header-book-title');
@@ -1984,6 +2278,8 @@
       if (navLibrary) navLibrary.className = 'btn-3d btn-nav-active flex items-center gap-3 p-3 rounded-2xl font-extrabold text-sm w-full text-left';
       if (navReader) navReader.className = 'btn-3d btn-white flex items-center gap-3 p-3 rounded-2xl font-extrabold text-sm w-full text-left';
 
+      updateMobileNavActive('library');
+
       if (pageFlipInstance) {
         try { pageFlipInstance.destroy(); } catch (e) {}
         pageFlipInstance = null;
@@ -2021,10 +2317,11 @@
       });
 
       const viewport = document.getElementById('flipbook-viewport');
-      const containerWidth = Math.min(viewport ? viewport.clientWidth : 800, 920);
       const isMobile = window.innerWidth < 768;
+      const availableWidth = viewport ? viewport.clientWidth : window.innerWidth;
+      const containerWidth = Math.min(availableWidth - (isMobile ? 12 : 40), 960);
       
-      const pageWidth = isMobile ? Math.min(containerWidth - 20, 420) : Math.floor(containerWidth / 2);
+      const pageWidth = isMobile ? Math.min(containerWidth, 460) : Math.floor(containerWidth / 2);
       const pageHeight = Math.floor(pageWidth * 1.414);
 
       if (window.St && window.St.PageFlip) {
@@ -2032,12 +2329,12 @@
           width: pageWidth,
           height: pageHeight,
           size: 'fixed',
-          minWidth: 260,
-          maxWidth: 600,
-          minHeight: 380,
-          maxHeight: 850,
+          minWidth: 180,
+          maxWidth: 700,
+          minHeight: 250,
+          maxHeight: 950,
           drawShadow: true,
-          flippingTime: 550,
+          flippingTime: 480,
           usePortrait: isMobile,
           startZIndex: 10,
           autoSize: true,
@@ -2060,6 +2357,7 @@
         });
 
         updatePageIndicator(1);
+        setupMobileSwipe();
       }
     }
 
@@ -3677,6 +3975,123 @@
       } catch (err) {
         showToast('Lỗi khi xuất file dự phòng');
       }
+    }
+
+    // =========================================================================
+    // PWA & MOBILE HOMESCREEN INSTALLATION ENGINE
+    // =========================================================================
+    let deferredPwaPrompt = null;
+    let isPwaStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+
+    function isIOSDevice() {
+      return /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+    }
+
+    function initPwaLifecycle() {
+      // Auto unregister SW inside preview iframe to avoid Cloud Run proxy conflicts
+      if ('serviceWorker' in navigator) {
+        if (window.self !== window.top) {
+          navigator.serviceWorker.getRegistrations().then(registrations => {
+            for (let registration of registrations) {
+              registration.unregister();
+            }
+          }).catch(() => {});
+        } else {
+          navigator.serviceWorker.register('/sw.js').catch(err => {
+            console.log('SW registration note:', err);
+          });
+        }
+      }
+
+      // Intercept browser install prompt
+      window.addEventListener('beforeinstallprompt', (e) => {
+        e.preventDefault();
+        deferredPwaPrompt = e;
+        console.log('📲 PWA install prompt available');
+        updatePwaInstallUI();
+        
+        // Show subtle bottom banner for mobile if not dismissed
+        if (window.innerWidth < 768 && !isPwaStandalone && !sessionStorage.getItem('biblio_pwa_banner_dismissed')) {
+          setTimeout(() => {
+            const banner = document.getElementById('mobile-pwa-banner');
+            if (banner) banner.classList.remove('hidden');
+          }, 2000);
+        }
+      });
+
+      // App installation complete
+      window.addEventListener('appinstalled', () => {
+        deferredPwaPrompt = null;
+        isPwaStandalone = true;
+        updatePwaInstallUI();
+        showToast('🎉 BIBLIO 3D đã được ghim vào màn hình chính thành công!');
+        const banner = document.getElementById('mobile-pwa-banner');
+        if (banner) banner.classList.add('hidden');
+      });
+
+      // Display banner on iOS Safari if not already standalone
+      if (isIOSDevice() && !isPwaStandalone && !sessionStorage.getItem('biblio_pwa_banner_dismissed')) {
+        setTimeout(() => {
+          const banner = document.getElementById('mobile-pwa-banner');
+          if (banner) banner.classList.remove('hidden');
+        }, 2500);
+      }
+    }
+
+    function updatePwaInstallUI() {
+      const nativeSection = document.getElementById('pwa-native-install-section');
+      const iosSection = document.getElementById('pwa-ios-guide-section');
+      const isIOS = isIOSDevice();
+
+      if (nativeSection && iosSection) {
+        if (isIOS) {
+          nativeSection.classList.add('hidden');
+          iosSection.classList.remove('hidden');
+        } else {
+          nativeSection.classList.remove('hidden');
+          iosSection.classList.add('hidden');
+        }
+      }
+    }
+
+    function openInstallPwaModal() {
+      updatePwaInstallUI();
+      const modal = document.getElementById('modal-install-pwa');
+      if (modal) modal.classList.remove('hidden');
+      if (window.lucide && typeof lucide.createIcons === 'function') {
+        lucide.createIcons();
+      }
+    }
+
+    function closeInstallPwaModal() {
+      const modal = document.getElementById('modal-install-pwa');
+      if (modal) modal.classList.add('hidden');
+    }
+
+    async function triggerPwaInstallPrompt() {
+      if (deferredPwaPrompt) {
+        try {
+          deferredPwaPrompt.prompt();
+          const choiceResult = await deferredPwaPrompt.userChoice;
+          if (choiceResult && choiceResult.outcome === 'accepted') {
+            showToast('🚀 Đang ghim BIBLIO 3D vào màn hình chính...');
+          }
+        } catch (e) {
+          console.warn('Install prompt error:', e);
+        }
+        deferredPwaPrompt = null;
+        closeInstallPwaModal();
+      } else if (isIOSDevice()) {
+        showToast('👉 Thực hiện theo 3 bước hướng dẫn bên dưới trên Safari!');
+      } else {
+        showToast('💡 Mở Menu ⋮ của trình duyệt rồi chọn "Cài đặt ứng dụng" hoặc "Thêm vào màn hình chính"');
+      }
+    }
+
+    function dismissMobilePwaBanner() {
+      const banner = document.getElementById('mobile-pwa-banner');
+      if (banner) banner.classList.add('hidden');
+      sessionStorage.setItem('biblio_pwa_banner_dismissed', 'true');
     }
 
     // Auto initialize Drive status & GSI client

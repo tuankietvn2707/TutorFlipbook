@@ -1,0 +1,20 @@
+{
+  "name": "BIBLIO 3D - Thư Viện Sách & Audio",
+  "short_name": "BIBLIO 3D",
+  "description": "Ứng dụng thư viện sách PDF 3D Flipbook, đính kèm bài nghe Audio / Video và trình chiếu giảng dạy tương tác.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#F7F9FC",
+  "theme_color": "#58CC02",
+  "orientation": "any",
+  "categories": ["education", "books", "utilities"],
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "192x192 512x512",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
