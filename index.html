@@ -1085,10 +1085,18 @@
           </button>
         </div>
 
-        <button onclick="exportLibraryBackupJSON()" class="btn-3d btn-white w-full p-2.5 rounded-xl font-bold text-xs text-slate-700 flex items-center justify-center gap-1.5 hover:border-duoPurple">
-          <i data-lucide="download" class="w-4 h-4 text-duoPurple"></i>
-          <span>Xuất file dự phòng máy tính (.JSON)</span>
-        </button>
+        <div class="grid grid-cols-2 gap-2">
+          <button onclick="exportLibraryBackupJSON()" class="btn-3d btn-white p-2.5 rounded-xl font-bold text-xs text-slate-700 flex items-center justify-center gap-1.5 hover:border-duoPurple">
+            <i data-lucide="download" class="w-4 h-4 text-duoPurple"></i>
+            <span>Xuất file (.JSON)</span>
+          </button>
+
+          <button onclick="document.getElementById('input-import-json-backup').click()" class="btn-3d btn-white p-2.5 rounded-xl font-bold text-xs text-slate-700 flex items-center justify-center gap-1.5 hover:border-duoGreen">
+            <i data-lucide="upload" class="w-4 h-4 text-duoGreen"></i>
+            <span>Nhập file (.JSON)</span>
+          </button>
+          <input type="file" id="input-import-json-backup" accept=".json,application/json" class="hidden" onchange="handleImportBackupJSON(event)" />
+        </div>
       </div>
 
       <!-- Info Note -->
@@ -1468,62 +1476,117 @@
 
     function initDB() {
       return new Promise((resolve, reject) => {
-        const req = indexedDB.open(DB_NAME, 2);
-        req.onupgradeneeded = (e) => {
-          const dbInstance = e.target.result;
-          if (!dbInstance.objectStoreNames.contains(DB_STORE)) {
-            dbInstance.createObjectStore(DB_STORE, { keyPath: 'id' });
-          }
-        };
-        req.onsuccess = (e) => {
-          db = e.target.result;
-          resolve(db);
-        };
-        req.onerror = (e) => reject(e);
+        if (db) {
+          return resolve(db);
+        }
+        try {
+          const req = indexedDB.open(DB_NAME, 2);
+          req.onupgradeneeded = (e) => {
+            const dbInstance = e.target.result;
+            if (!dbInstance.objectStoreNames.contains(DB_STORE)) {
+              dbInstance.createObjectStore(DB_STORE, { keyPath: 'id' });
+            }
+          };
+          req.onsuccess = (e) => {
+            db = e.target.result;
+            db.onversionchange = () => {
+              try { db.close(); } catch(err){}
+              db = null;
+            };
+            db.onclose = () => {
+              db = null;
+            };
+            resolve(db);
+          };
+          req.onerror = (e) => {
+            console.error('IndexedDB open error:', e);
+            reject(e);
+          };
+          req.onblocked = () => {
+            console.warn('IndexedDB version upgrade blocked by another tab');
+          };
+        } catch (e) {
+          console.error('IndexedDB init fatal:', e);
+          reject(e);
+        }
       });
     }
 
     async function dbSaveBook(book) {
-      if (!db) await initDB();
+      if (!book) return false;
+      const dbInstance = await initDB();
       return new Promise((resolve, reject) => {
-        const tx = db.transaction(DB_STORE, 'readwrite');
-        const store = tx.objectStore(DB_STORE);
-        store.put(book);
-        tx.oncomplete = () => resolve(true);
-        tx.onerror = (e) => reject(e);
+        try {
+          const tx = dbInstance.transaction(DB_STORE, 'readwrite');
+          const store = tx.objectStore(DB_STORE);
+          const req = store.put(book);
+          req.onsuccess = () => resolve(true);
+          req.onerror = (e) => {
+            console.warn('IDB put error, attempting retry:', e);
+            reject(e);
+          };
+          tx.oncomplete = () => resolve(true);
+          tx.onerror = (e) => reject(e);
+          tx.onabort = (e) => reject(e);
+        } catch (txErr) {
+          console.warn('IDB transaction creation failed, re-opening DB...', txErr);
+          db = null;
+          initDB().then(freshDb => {
+            const tx2 = freshDb.transaction(DB_STORE, 'readwrite');
+            const store2 = tx2.objectStore(DB_STORE);
+            store2.put(book);
+            tx2.oncomplete = () => resolve(true);
+            tx2.onerror = (e) => reject(e);
+          }).catch(reject);
+        }
       });
     }
 
     async function dbGetBook(id) {
-      if (!db) await initDB();
+      const dbInstance = await initDB();
       return new Promise((resolve, reject) => {
-        const tx = db.transaction(DB_STORE, 'readonly');
-        const store = tx.objectStore(DB_STORE);
-        const req = store.get(id);
-        req.onsuccess = () => resolve(req.result || null);
-        req.onerror = (e) => reject(e);
+        try {
+          const tx = dbInstance.transaction(DB_STORE, 'readonly');
+          const store = tx.objectStore(DB_STORE);
+          const req = store.get(id);
+          req.onsuccess = () => resolve(req.result || null);
+          req.onerror = (e) => reject(e);
+        } catch (e) {
+          db = null;
+          reject(e);
+        }
       });
     }
 
     async function dbGetAllBooks() {
-      if (!db) await initDB();
+      const dbInstance = await initDB();
       return new Promise((resolve, reject) => {
-        const tx = db.transaction(DB_STORE, 'readonly');
-        const store = tx.objectStore(DB_STORE);
-        const req = store.getAll();
-        req.onsuccess = () => resolve(req.result || []);
-        req.onerror = (e) => reject(e);
+        try {
+          const tx = dbInstance.transaction(DB_STORE, 'readonly');
+          const store = tx.objectStore(DB_STORE);
+          const req = store.getAll();
+          req.onsuccess = () => resolve(req.result || []);
+          req.onerror = (e) => reject(e);
+        } catch (e) {
+          db = null;
+          reject(e);
+        }
       });
     }
 
     async function dbDeleteBook(id) {
-      if (!db) await initDB();
+      const dbInstance = await initDB();
       return new Promise((resolve, reject) => {
-        const tx = db.transaction(DB_STORE, 'readwrite');
-        const store = tx.objectStore(DB_STORE);
-        store.delete(id);
-        tx.oncomplete = () => resolve(true);
-        tx.onerror = (e) => reject(e);
+        try {
+          const tx = dbInstance.transaction(DB_STORE, 'readwrite');
+          const store = tx.objectStore(DB_STORE);
+          store.delete(id);
+          tx.oncomplete = () => resolve(true);
+          tx.onerror = (e) => reject(e);
+        } catch (e) {
+          db = null;
+          reject(e);
+        }
       });
     }
 
@@ -4027,32 +4090,68 @@
       
       try {
         const folderId = gdriveFolderId || await ensureDriveRootFolder();
-        const query = folderId && folderId !== 'root'
-          ? `'${folderId}' in parents and trashed=false and (name contains 'Biblio3D_' or mimeType='application/json')`
-          : `name contains 'Biblio3D_' and trashed=false`;
+        let validFiles = [];
+        const seenFileIds = new Set();
 
-        const res = await fetch(`https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(query)}&fields=files(id,name,mimeType)`, {
-          headers: { Authorization: `Bearer ${gdriveAccessToken}` }
-        });
-
-        if (res.status === 401) {
-          showLoader(false);
-          handleDriveAuthExpired();
-          return;
+        // Tier 1: Search inside the designated folder
+        if (folderId && folderId !== 'root') {
+          try {
+            const queryFolder = `'${folderId}' in parents and trashed=false`;
+            const resFolder = await fetch(`https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(queryFolder)}&fields=files(id,name,mimeType)&pageSize=100`, {
+              headers: { Authorization: `Bearer ${gdriveAccessToken}` }
+            });
+            if (resFolder.status === 401) {
+              showLoader(false);
+              handleDriveAuthExpired();
+              return;
+            }
+            if (resFolder.ok) {
+              const dataFolder = await resFolder.json();
+              (dataFolder.files || []).forEach(f => {
+                if (f.name.endsWith('.json') || f.name.includes('Biblio3D') || f.mimeType === 'application/json') {
+                  if (!seenFileIds.has(f.id)) {
+                    seenFileIds.add(f.id);
+                    validFiles.push(f);
+                  }
+                }
+              });
+            }
+          } catch (folderErr) {
+            console.warn('Tier 1 folder search failed, falling back to global search:', folderErr);
+          }
         }
 
-        if (res.status === 403) {
-          showLoader(false);
-          const errText = await res.text();
-          if (checkAndHandleDriveApiDisabled(errText)) return;
+        // Tier 2: If no files found in folder or folder is root, search globally across Google Drive for all Biblio3D books
+        if (validFiles.length === 0) {
+          try {
+            const queryGlobal = `trashed=false and (name contains 'Biblio3D_' or name contains 'Biblio3D' or mimeType='application/json')`;
+            const resGlobal = await fetch(`https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(queryGlobal)}&fields=files(id,name,mimeType)&pageSize=100`, {
+              headers: { Authorization: `Bearer ${gdriveAccessToken}` }
+            });
+            if (resGlobal.status === 401) {
+              showLoader(false);
+              handleDriveAuthExpired();
+              return;
+            }
+            if (resGlobal.ok) {
+              const dataGlobal = await resGlobal.json();
+              (dataGlobal.files || []).forEach(f => {
+                if (f.name.endsWith('.json') || f.name.includes('Biblio3D')) {
+                  if (!seenFileIds.has(f.id)) {
+                    seenFileIds.add(f.id);
+                    validFiles.push(f);
+                  }
+                }
+              });
+            }
+          } catch (globalErr) {
+            console.warn('Tier 2 global search error:', globalErr);
+          }
         }
-
-        const data = await res.json();
-        const validFiles = (data.files || []).filter(f => f.name.endsWith('.json') || f.name.startsWith('Biblio3D_'));
 
         if (!validFiles || validFiles.length === 0) {
           showLoader(false);
-          showToast('⚠️ Không tìm thấy file sách (.json) nào trong thư mục Google Drive!');
+          showToast('⚠️ Không tìm thấy file sách (.json) nào của Biblio 3D trên Google Drive!');
           closeGoogleDriveModal();
           return;
         }
@@ -4099,23 +4198,64 @@
           };
 
           try {
-            const bookData = await downloadFromGoogleDriveWithProgress(file.id, file.name, gdriveAccessToken, onBookDownloadProgress);
+            const rawPayload = await downloadFromGoogleDriveWithProgress(file.id, file.name, gdriveAccessToken, onBookDownloadProgress);
             
             if (isOperationCancelled) break;
 
-            if (bookData && (bookData.id || bookData.title)) {
-              if (subStatus) subStatus.innerText = `Đang lưu "${bookData.title || displayFileName}" vào bộ nhớ máy...`;
-              
-              if (!bookData.id) bookData.id = 'book_' + Date.now() + '_' + i;
-              await dbSaveBook(bookData);
-              
-              const existingIdx = allBooks.findIndex(b => b.id === bookData.id);
-              if (existingIdx >= 0) allBooks[existingIdx] = bookData;
-              else allBooks.unshift(bookData);
-              
-              restoredCount++;
+            if (rawPayload) {
+              // Extract array of books or single book
+              let booksToSave = [];
+              if (Array.isArray(rawPayload)) {
+                booksToSave = rawPayload;
+              } else if (rawPayload.books && Array.isArray(rawPayload.books)) {
+                booksToSave = rawPayload.books;
+              } else if (rawPayload.allBooks && Array.isArray(rawPayload.allBooks)) {
+                booksToSave = rawPayload.allBooks;
+              } else if (rawPayload.data && Array.isArray(rawPayload.data)) {
+                booksToSave = rawPayload.data;
+              } else if (rawPayload.book && typeof rawPayload.book === 'object') {
+                booksToSave = [rawPayload.book];
+              } else if (typeof rawPayload === 'object' && (rawPayload.id || rawPayload.title || rawPayload.pages)) {
+                booksToSave = [rawPayload];
+              }
+
+              if (booksToSave.length > 0) {
+                for (let bIdx = 0; bIdx < booksToSave.length; bIdx++) {
+                  const b = booksToSave[bIdx];
+                  if (!b || typeof b !== 'object') continue;
+
+                  // Normalize book properties
+                  delete b.isSample; // Ensure not treated as sample to prevent pruning
+                  b.isSample = false;
+                  b.id = b.id || ('book_' + Date.now() + '_' + i + '_' + bIdx);
+                  b.title = b.title || displayFileName || 'Sách khôi phục';
+                  b.category = b.category || 'textbook';
+                  b.color = b.color || 'sky';
+                  b.pages = Array.isArray(b.pages) ? b.pages : [];
+                  b.totalPages = (b.pages && b.pages.length) || b.totalPages || 0;
+                  b.audioTracks = Array.isArray(b.audioTracks) ? b.audioTracks : [];
+                  b.lastModified = b.lastModified || Date.now();
+
+                  if (subStatus) subStatus.innerText = `Đang lưu "${b.title}" vào máy...`;
+                  
+                  // Save to IndexedDB
+                  await dbSaveBook(b);
+
+                  // Update memory array
+                  const existingIdx = allBooks.findIndex(item => item.id === b.id);
+                  if (existingIdx >= 0) {
+                    allBooks[existingIdx] = b;
+                  } else {
+                    allBooks.unshift(b);
+                  }
+                  restoredCount++;
+                }
+              } else {
+                console.warn('Tệp không đúng cấu trúc sách:', file.name);
+                failedCount++;
+                failedBookNames.push(displayFileName);
+              }
             } else {
-              console.warn('Tệp không đúng cấu trúc sách:', file.name);
               failedCount++;
               failedBookNames.push(displayFileName);
             }
@@ -4140,16 +4280,29 @@
         if (progressBar) progressBar.style.width = '100%';
         if (percentLabel) percentLabel.innerText = '100%';
 
-        updateBooksCountSidebar();
-        renderBooksGrid();
+        // Reset category and filters so all restored books are immediately visible
+        activeCategory = 'all';
+        const searchInput = document.getElementById('search-input');
+        if (searchInput) searchInput.value = '';
+        document.querySelectorAll('.category-filter-btn').forEach(btn => {
+          btn.className = 'category-filter-btn btn-3d btn-white font-extrabold px-4 py-1.5 rounded-xl text-xs whitespace-nowrap';
+        });
+        const allCatBtn = document.querySelector('.category-filter-btn');
+        if (allCatBtn) {
+          allCatBtn.className = 'category-filter-btn btn-3d btn-nav-active font-extrabold px-4 py-1.5 rounded-xl text-xs whitespace-nowrap';
+        }
+
+        // Re-read directly from IndexedDB to guarantee state consistency
+        await loadBooks();
+        showLibraryView();
         showLoader(false);
 
         if (isOperationCancelled) {
           showToast(`⏹️ Đã dừng khôi phục! Đã lưu được ${restoredCount} sách.`);
         } else if (restoredCount > 0 && failedCount === 0) {
-          showToast(`🎉 Khôi phục hoàn tất ${restoredCount} cuốn sách từ Google Drive!`);
+          showToast(`🎉 Khôi phục hoàn tất ${restoredCount} cuốn sách vào thiết bị!`);
         } else if (restoredCount > 0 && failedCount > 0) {
-          showToast(`⚠️ Đã khôi phục ${restoredCount} sách (${failedCount} tệp không đọc được).`);
+          showToast(`⚠️ Đã khôi phục ${restoredCount} sách (${failedCount} tệp không hợp lệ).`);
         } else if (failedCount > 0) {
           showToast(`⚠️ Không thể khôi phục sách từ các tệp này trên Google Drive!`);
         } else {
@@ -4179,6 +4332,98 @@
         showToast('💾 Đã xuất file dự phòng toàn bộ thư viện (.json) thành công!');
       } catch (err) {
         showToast('Lỗi khi xuất file dự phòng');
+      }
+    }
+
+    async function handleImportBackupJSON(event) {
+      const file = event.target.files && event.target.files[0];
+      if (!file) return;
+
+      showLoader(true, `Đang đọc file "${file.name}"...`);
+      try {
+        const reader = new FileReader();
+        reader.onload = async (e) => {
+          try {
+            const rawPayload = JSON.parse(e.target.result);
+            let booksToSave = [];
+
+            if (Array.isArray(rawPayload)) {
+              booksToSave = rawPayload;
+            } else if (rawPayload.books && Array.isArray(rawPayload.books)) {
+              booksToSave = rawPayload.books;
+            } else if (rawPayload.allBooks && Array.isArray(rawPayload.allBooks)) {
+              booksToSave = rawPayload.allBooks;
+            } else if (rawPayload.data && Array.isArray(rawPayload.data)) {
+              booksToSave = rawPayload.data;
+            } else if (rawPayload.book && typeof rawPayload.book === 'object') {
+              booksToSave = [rawPayload.book];
+            } else if (typeof rawPayload === 'object' && (rawPayload.id || rawPayload.title || rawPayload.pages)) {
+              booksToSave = [rawPayload];
+            }
+
+            if (booksToSave.length === 0) {
+              showLoader(false);
+              showToast('⚠️ Tệp không chứa cấu trúc sách hợp lệ!');
+              return;
+            }
+
+            let savedCount = 0;
+            for (let i = 0; i < booksToSave.length; i++) {
+              const b = booksToSave[i];
+              if (!b || typeof b !== 'object') continue;
+
+              delete b.isSample;
+              b.isSample = false;
+              b.id = b.id || ('book_' + Date.now() + '_' + i);
+              b.title = b.title || `Sách nhập ${i + 1}`;
+              b.category = b.category || 'textbook';
+              b.color = b.color || 'sky';
+              b.pages = Array.isArray(b.pages) ? b.pages : [];
+              b.totalPages = (b.pages && b.pages.length) || b.totalPages || 0;
+              b.audioTracks = Array.isArray(b.audioTracks) ? b.audioTracks : [];
+              b.lastModified = b.lastModified || Date.now();
+
+              await dbSaveBook(b);
+              
+              const existingIdx = allBooks.findIndex(item => item.id === b.id);
+              if (existingIdx >= 0) allBooks[existingIdx] = b;
+              else allBooks.unshift(b);
+              savedCount++;
+            }
+
+            activeCategory = 'all';
+            const searchInput = document.getElementById('search-input');
+            if (searchInput) searchInput.value = '';
+            document.querySelectorAll('.category-filter-btn').forEach(btn => {
+              btn.className = 'category-filter-btn btn-3d btn-white font-extrabold px-4 py-1.5 rounded-xl text-xs whitespace-nowrap';
+            });
+            const allCatBtn = document.querySelector('.category-filter-btn');
+            if (allCatBtn) {
+              allCatBtn.className = 'category-filter-btn btn-3d btn-nav-active font-extrabold px-4 py-1.5 rounded-xl text-xs whitespace-nowrap';
+            }
+
+            await loadBooks();
+            showLibraryView();
+            showLoader(false);
+            closeGoogleDriveModal();
+            showToast(`🎉 Đã nhập thành công ${savedCount} cuốn sách vào thư viện!`);
+          } catch (parseErr) {
+            console.error('JSON parse error:', parseErr);
+            showLoader(false);
+            showToast('⚠️ Lỗi: Tệp JSON bị hỏng hoặc không đúng định dạng!');
+          }
+        };
+        reader.onerror = () => {
+          showLoader(false);
+          showToast('⚠️ Không thể đọc tệp từ thiết bị!');
+        };
+        reader.readAsText(file);
+      } catch (err) {
+        console.error('File import error:', err);
+        showLoader(false);
+        showToast('⚠️ Có lỗi xảy ra khi nhập file dự phòng.');
+      } finally {
+        event.target.value = '';
       }
     }
 
