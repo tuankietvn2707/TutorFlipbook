@@ -1,32 +1,43 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
   <defs>
+    <!-- Vibrant Multi-Tone App Gradient -->
     <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#58CC02" />
-      <stop offset="60%" stop-color="#48B801" />
-      <stop offset="100%" stop-color="#328500" />
+      <stop offset="0%" stop-color="#58CC02"/>
+      <stop offset="35%" stop-color="#0EA5E9"/>
+      <stop offset="70%" stop-color="#8B5CF6"/>
+      <stop offset="100%" stop-color="#EC4899"/>
     </linearGradient>
+
+    <!-- Book Page Gradient -->
     <linearGradient id="bookGrad" x1="0%" y1="0%" x2="100%" y2="100%">
       <stop offset="0%" stop-color="#FFFFFF" />
-      <stop offset="100%" stop-color="#E2E8F0" />
+      <stop offset="100%" stop-color="#F1F5F9" />
     </linearGradient>
+
+    <!-- Gold Badge Gradient -->
     <linearGradient id="goldGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#FFD900" />
-      <stop offset="100%" stop-color="#FF9600" />
+      <stop offset="0%" stop-color="#FDE047" />
+      <stop offset="50%" stop-color="#F59E0B" />
+      <stop offset="100%" stop-color="#D97706" />
     </linearGradient>
+
     <filter id="shadow" x="-10%" y="-10%" width="130%" height="130%">
-      <feDropShadow dx="0" dy="16" stdDeviation="20" flood-color="#1B4D00" flood-opacity="0.35"/>
+      <feDropShadow dx="0" dy="16" stdDeviation="20" flood-color="#0F172A" flood-opacity="0.35"/>
     </filter>
   </defs>
 
   <!-- Background App Rounded Tile -->
-  <rect width="512" height="512" rx="115" fill="url(#bgGrad)"/>
+  <rect width="512" height="512" rx="120" fill="url(#bgGrad)"/>
   
   <!-- 3D Bottom Lip Accent -->
-  <rect x="0" y="468" width="512" height="44" rx="22" fill="#256B00"/>
+  <rect x="0" y="470" width="512" height="42" rx="21" fill="#4338CA" opacity="0.4"/>
+
+  <!-- Top Gloss Curve -->
+  <path d="M20 120 C20 60 60 20 120 20 L392 20 C452 20 492 60 492 120 L492 220 C360 170 150 200 20 300 Z" fill="#FFFFFF" opacity="0.18"/>
 
   <g filter="url(#shadow)" transform="translate(48, 64)">
     <!-- 3D Open Book Base -->
-    <path d="M40 330 C120 305 200 305 208 340 C216 305 296 305 376 330 V90 C296 65 216 65 208 100 C200 65 120 65 40 90 Z" fill="#1B4D00" opacity="0.3" transform="translate(0, 16)"/>
+    <path d="M40 330 C120 305 200 305 208 340 C216 305 296 305 376 330 V90 C296 65 216 65 208 100 C200 65 120 65 40 90 Z" fill="#0F172A" opacity="0.35" transform="translate(0, 18)"/>
     
     <!-- Book Pages Open -->
     <path d="M40 320 C120 295 200 295 208 330 C216 295 296 295 376 320 V75 C296 50 216 50 208 85 C200 50 120 50 40 75 Z" fill="url(#bookGrad)" stroke="#CBD5E1" stroke-width="4"/>
@@ -34,19 +45,24 @@
     <!-- Book Lines on Left Page -->
     <path d="M75 140 H170 M75 195 H160 M75 250 H135" stroke="#94A3B8" stroke-width="14" stroke-linecap="round"/>
     
-    <!-- Audio Wave on Right Page -->
-    <path d="M245 190 L320 150 V260 L245 220 Z" fill="#1CB0F6"/>
-    <circle cx="340" cy="205" r="16" fill="url(#goldGrad)"/>
-    <path d="M340 160 C365 175 365 235 340 250" stroke="#1CB0F6" stroke-width="10" stroke-linecap="round" fill="none"/>
+    <!-- Audio Equalizer on Right Page -->
+    <line x1="248" y1="210" x2="248" y2="150" stroke="#8B5CF6" stroke-width="12" stroke-linecap="round"/>
+    <line x1="276" y1="230" x2="276" y2="130" stroke="#EC4899" stroke-width="12" stroke-linecap="round"/>
+    <line x1="304" y1="220" x2="304" y2="140" stroke="#F59E0B" stroke-width="12" stroke-linecap="round"/>
+    <line x1="332" y1="205" x2="332" y2="165" stroke="#10B981" stroke-width="12" stroke-linecap="round"/>
     
-    <!-- Golden Spine & Ribbon -->
+    <!-- Golden Spine Ribbon -->
     <path d="M208 85 V330" stroke="#58CC02" stroke-width="16" stroke-linecap="round"/>
-    <path d="M208 85 L208 190 L228 170 L248 190 L248 85 Z" fill="url(#goldGrad)"/>
+    <path d="M208 85 L208 180 L228 160 L248 180 L248 85 Z" fill="url(#goldGrad)"/>
   </g>
 
-  <!-- 3D Badge -->
-  <g transform="translate(360, 360)">
-    <rect width="110" height="48" rx="24" fill="url(#goldGrad)" stroke="#FFFFFF" stroke-width="4" filter="url(#shadow)"/>
-    <text x="55" y="32" font-family="system-ui, -apple-system, sans-serif" font-weight="900" font-size="24" fill="#3B2800" text-anchor="middle">3D</text>
+  <!-- 3D Gold Badge (Bottom Right) -->
+  <g transform="translate(330, 340)">
+    <rect width="130" height="60" rx="30" fill="url(#goldGrad)" stroke="#FFFFFF" stroke-width="5" filter="url(#shadow)"/>
+    <text x="65" y="42" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-weight="900" font-size="32" fill="#78350F" text-anchor="middle">3D</text>
   </g>
+
+  <!-- Sparkle Stars -->
+  <path d="M420 70 Q420 95 445 95 Q420 95 420 120 Q420 95 395 95 Q420 95 420 70 Z" fill="#FDE047"/>
+  <path d="M70 110 Q70 125 85 125 Q70 125 70 140 Q70 125 55 125 Q70 125 70 110 Z" fill="#67E8F9"/>
 </svg>
