@@ -115,9 +115,9 @@ function updateVisualToolStyles(): void {
     const btn = document.getElementById(`btn-tool-${t}`);
     if (btn) {
       if (currentDrawingTool === t) {
-        btn.classList.add('bg-amber-100', 'border-amber-400', 'text-amber-900', 'ring-2', 'ring-amber-400');
+        btn.classList.add('bg-white/30', 'text-white', 'ring-2', 'ring-amber-300', 'scale-105');
       } else {
-        btn.classList.remove('bg-amber-100', 'border-amber-400', 'text-amber-900', 'ring-2', 'ring-amber-400');
+        btn.classList.remove('bg-white/30', 'text-white', 'ring-2', 'ring-amber-300', 'scale-105');
       }
     }
   });
@@ -125,18 +125,18 @@ function updateVisualToolStyles(): void {
   const btnLaser = document.getElementById('btn-laser');
   if (btnLaser) {
     if (isLaserActive) {
-      btnLaser.classList.add('bg-red-100', 'text-red-600', 'ring-2', 'ring-red-500');
+      btnLaser.classList.add('bg-red-500/40', 'text-red-300', 'ring-2', 'ring-red-400', 'scale-105');
     } else {
-      btnLaser.classList.remove('bg-red-100', 'text-red-600', 'ring-2', 'ring-red-500');
+      btnLaser.classList.remove('bg-red-500/40', 'text-red-300', 'ring-2', 'ring-red-400', 'scale-105');
     }
   }
 
   const btnSpotlight = document.getElementById('btn-spotlight');
   if (btnSpotlight) {
     if (isSpotlightActive) {
-      btnSpotlight.classList.add('bg-amber-100', 'text-amber-700', 'ring-2', 'ring-amber-500');
+      btnSpotlight.classList.add('bg-amber-500/40', 'text-amber-200', 'ring-2', 'ring-amber-400', 'scale-105');
     } else {
-      btnSpotlight.classList.remove('bg-amber-100', 'text-amber-700', 'ring-2', 'ring-amber-500');
+      btnSpotlight.classList.remove('bg-amber-500/40', 'text-amber-200', 'ring-2', 'ring-amber-400', 'scale-105');
     }
   }
 }

@@ -128,35 +128,35 @@ export function renderMediaDockHtml(): string {
       </div>
 
       <!-- Controls & Progress Timeline -->
-      <div class="flex flex-wrap items-center justify-between gap-3 bg-white/5 p-2 sm:p-2.5 rounded-2xl border border-white/10">
+      <div class="flex items-center gap-2.5 sm:gap-3 bg-white/5 p-2 sm:p-2.5 rounded-2xl border border-white/10">
         
         <!-- Left: Rewind, Play/Pause, Forward, Loop -->
-        <div class="flex items-center gap-1.5 sm:gap-2">
+        <div class="flex items-center gap-1.5 shrink-0">
           <!-- Rewind 5s -->
           <button 
             type="button"
             id="btn-audio-rewind" 
-            class="btn-3d bg-slate-800 hover:bg-slate-700 text-slate-200 p-2 rounded-xl text-xs font-bold transition active:scale-95 cursor-pointer border border-slate-600" 
+            class="btn-3d bg-slate-800 hover:bg-slate-700 text-slate-200 w-9 h-9 rounded-xl text-xs font-bold transition active:scale-95 cursor-pointer border border-slate-600 flex items-center justify-center shrink-0" 
             title="Tua lại 5 giây"
           >
             <i data-lucide="rotate-ccw" class="w-4 h-4"></i>
           </button>
 
-          <!-- Main Play / Pause -->
+          <!-- Main Play / Pause (Fixed Size Icon-Only Button) -->
           <button 
             type="button"
             id="btn-audio-play" 
-            class="btn-3d btn-purple text-white px-4 py-2 rounded-xl font-black text-xs sm:text-sm flex items-center gap-1.5 shadow-lg active:scale-95 transition cursor-pointer"
+            class="btn-3d btn-purple text-white w-10 h-10 rounded-xl flex items-center justify-center shadow-lg active:scale-95 transition cursor-pointer shrink-0"
+            title="Phát / Tạm dừng [Space]"
           >
-            <i data-lucide="play" id="icon-audio-play" class="w-4 h-4"></i>
-            <span id="label-audio-play">Phát</span>
+            <i data-lucide="play" id="icon-audio-play" class="w-5 h-5"></i>
           </button>
 
           <!-- Forward 5s -->
           <button 
             type="button"
             id="btn-audio-forward" 
-            class="btn-3d bg-slate-800 hover:bg-slate-700 text-slate-200 p-2 rounded-xl text-xs font-bold transition active:scale-95 cursor-pointer border border-slate-600" 
+            class="btn-3d bg-slate-800 hover:bg-slate-700 text-slate-200 w-9 h-9 rounded-xl text-xs font-bold transition active:scale-95 cursor-pointer border border-slate-600 flex items-center justify-center shrink-0" 
             title="Tua tới 5 giây"
           >
             <i data-lucide="rotate-cw" class="w-4 h-4"></i>
@@ -166,18 +166,18 @@ export function renderMediaDockHtml(): string {
           <button 
             type="button"
             id="btn-audio-loop" 
-            class="p-2 rounded-xl text-slate-400 hover:text-purple-300 hover:bg-white/10 transition cursor-pointer" 
+            class="w-9 h-9 rounded-xl text-slate-400 hover:text-purple-300 hover:bg-white/10 transition cursor-pointer flex items-center justify-center shrink-0" 
             title="Lặp lại bài này"
           >
             <i data-lucide="repeat" id="icon-audio-loop" class="w-4 h-4"></i>
           </button>
         </div>
 
-        <!-- Center: Interactive Progress Bar & Time -->
-        <div class="flex-1 min-w-[200px] flex items-center gap-2.5">
-          <span id="audio-time-current" class="text-xs font-mono font-bold text-purple-300 shrink-0 min-w-[40px]">00:00</span>
+        <!-- Center: Interactive Progress Bar & Time (Fixed & Stable Grid/Flex) -->
+        <div class="flex-1 min-w-0 flex items-center gap-2 sm:gap-2.5">
+          <span id="audio-time-current" class="text-xs font-mono font-bold text-purple-300 shrink-0 w-11 text-center select-none tabular-nums">00:00</span>
           
-          <div class="flex-1 relative flex items-center">
+          <div class="flex-1 relative flex items-center min-w-0">
             <input 
               type="range" 
               id="audio-progress-bar" 
@@ -189,23 +189,23 @@ export function renderMediaDockHtml(): string {
             />
           </div>
 
-          <span id="audio-time-total" class="text-xs font-mono font-bold text-slate-400 shrink-0 min-w-[40px]">00:00</span>
+          <span id="audio-time-total" class="text-xs font-mono font-bold text-slate-400 shrink-0 w-11 text-center select-none tabular-nums">00:00</span>
         </div>
 
         <!-- Right: Playback Speed -->
         <div class="flex items-center gap-1.5 shrink-0">
-          <span class="text-[11px] font-bold text-slate-400 hidden lg:inline">Tốc độ:</span>
+          <span class="text-[11px] font-bold text-slate-400 hidden md:inline">Tốc độ:</span>
           <select 
             id="audio-playback-rate" 
-            class="px-2.5 py-1.5 bg-slate-800 border border-slate-600 rounded-xl font-black text-xs text-purple-200 focus:outline-none focus:border-purple-400 cursor-pointer"
+            class="px-2.5 py-1.5 bg-slate-800 border border-slate-600 rounded-xl font-black text-xs text-purple-200 focus:outline-none focus:border-purple-400 cursor-pointer shrink-0"
             title="Tốc độ phát âm thanh"
           >
-            <option value="0.5">0.5x (Chậm)</option>
+            <option value="0.5">0.5x</option>
             <option value="0.75">0.75x</option>
-            <option value="1" selected>1.0x (Chuẩn)</option>
+            <option value="1" selected>1.0x</option>
             <option value="1.25">1.25x</option>
             <option value="1.5">1.5x</option>
-            <option value="2">2.0x (Nhanh)</option>
+            <option value="2">2.0x</option>
           </select>
         </div>
 
@@ -404,14 +404,14 @@ export function setPlaybackRate(rate: number): void {
 
 function updatePlayButtonUI(playing: boolean): void {
   const icon = document.getElementById('icon-audio-play');
-  const label = document.getElementById('label-audio-play');
   const miniIcon = document.getElementById('mini-pill-play-icon');
+  const playBtn = document.getElementById('btn-audio-play');
 
   if (icon) {
     icon.setAttribute('data-lucide', playing ? 'pause' : 'play');
   }
-  if (label) {
-    label.innerText = playing ? 'Tạm Dừng' : 'Phát';
+  if (playBtn) {
+    playBtn.setAttribute('title', playing ? 'Tạm dừng [Space]' : 'Phát bài nghe [Space]');
   }
   if (miniIcon) {
     miniIcon.setAttribute('data-lucide', playing ? 'pause' : 'play');

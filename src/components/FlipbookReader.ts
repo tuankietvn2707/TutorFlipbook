@@ -4,6 +4,7 @@ import { playFlipSound, toggleSoundEffects, getSoundEffectsEnabled } from '../se
 import { resizeAnnotationCanvas } from '../services/annotationService';
 import { renderTeachingToolbarHtml, setupTeachingToolbarListeners } from './TeachingToolbar';
 import { showToast } from '../utils/toast';
+import { openShortcutsModal } from './ShortcutsModal';
 import { PageFlip } from 'page-flip';
 import confetti from 'canvas-confetti';
 
@@ -153,8 +154,12 @@ export function renderFlipbookReaderHtml(): string {
         </button>
       </div>
 
-      <!-- Right: Praise Button -->
+      <!-- Right: Praise Button & Shortcuts -->
       <div class="flex items-center gap-2">
+        <button id="btn-bottom-shortcuts" class="btn-3d btn-white p-1.5 rounded-xl text-emerald-600 cursor-pointer" title="Xem bảng phím tắt trợ giảng [?]">
+          <i data-lucide="keyboard" class="w-4 h-4 text-emerald-600"></i>
+        </button>
+
         <button id="btn-bottom-confetti" class="btn-3d btn-purple text-white font-extrabold px-3 py-1.5 rounded-xl text-xs flex items-center gap-1.5 cursor-pointer" title="Khen ngợi học sinh">
           <i data-lucide="sparkles" class="w-4 h-4"></i>
           <span>Khen Thưởng 🎉</span>
@@ -265,11 +270,14 @@ export function initPageFlip(book: Book, initialPage = 0): void {
         maxWidth: 1200,
         minHeight: 360,
         maxHeight: 1600,
-        maxShadowOpacity: 0.5,
+        maxShadowOpacity: 0.4,
         showCover: true,
         mobileScrollSupport: false,
         usePortrait: isMobile,
-        startPage: initialPage
+        startPage: initialPage,
+        flippingTime: 400,
+        useMouseEvents: true,
+        swipeDistance: 30
       });
 
       pageFlipInstance.loadFromHTML(container.querySelectorAll('.page-flip-sheet'));
@@ -472,6 +480,7 @@ export function setupFlipbookReaderListeners(callbacks: {
 
   document.getElementById('btn-enter-teaching-mode')?.addEventListener('click', toggleFullscreenTeachingMode);
   document.getElementById('btn-bottom-thumbnails')?.addEventListener('click', callbacks.onOpenThumbnails);
+  document.getElementById('btn-bottom-shortcuts')?.addEventListener('click', openShortcutsModal);
   document.getElementById('btn-bottom-confetti')?.addEventListener('click', triggerRewardConfetti);
 
   document.getElementById('btn-stage-prev')?.addEventListener('click', flipPrevPage);

@@ -3,7 +3,7 @@ import { appState } from './state/appState';
 import { loadAllBooksFromDB, saveBookToDB } from './services/dbService';
 import { initAuthListener, requestDriveAuth } from './services/googleDriveService';
 import { playFlipSound } from './services/audioService';
-import { toggleLaser, toggleSpotlight, setDrawingTool } from './services/annotationService';
+import { toggleLaser, toggleSpotlight, setDrawingTool, clearAllAnnotations } from './services/annotationService';
 import { showToast } from './utils/toast';
 
 // Modular Component Renderers & Listeners
@@ -16,15 +16,30 @@ import {
   openBookInReader,
   flipNextPage,
   flipPrevPage,
+  flipFirstPage,
+  flipLastPage,
+  zoomIn,
+  zoomOut,
+  resetReaderZoom,
+  togglePanTool,
   toggleFullscreenTeachingMode,
+  triggerRewardConfetti,
   jumpToPage
 } from './components/FlipbookReader';
-import { renderMediaDockHtml, setupMediaDockListeners } from './components/MediaDock';
+import {
+  renderMediaDockHtml,
+  setupMediaDockListeners,
+  togglePlayAudio,
+  playNextTrack,
+  playPrevTrack,
+  toggleMediaDockVisibility
+} from './components/MediaDock';
 import { renderMobileBottomNavHtml, setupMobileNavListeners } from './components/MobileBottomNav';
 import { renderUploadModalHtml, setupUploadModalListeners, openUploadModal } from './components/UploadModal';
 import { renderBatchMediaModalHtml, setupBatchMediaListeners, openBatchMediaModal } from './components/BatchMediaModal';
 import { renderGoogleDriveModalHtml, setupGoogleDriveListeners, openGoogleDriveModal } from './components/GoogleDriveModal';
 import { renderThumbnailsModalHtml, setupThumbnailsListeners, openThumbnailsModal } from './components/ThumbnailsModal';
+import { renderShortcutsModalHtml, setupShortcutsListeners, openShortcutsModal, closeShortcutsModal } from './components/ShortcutsModal';
 import { renderVideoModalHtml, setupVideoModalListeners, openVideoModal } from './components/VideoModal';
 import { renderDeleteConfirmModalHtml, setupDeleteConfirmListeners, openDeleteConfirmModal } from './components/DeleteConfirmModal';
 import { renderPwaInstallModalHtml, setupPwaListeners, openPwaInstallModal } from './components/PwaInstallModal';
@@ -238,6 +253,7 @@ export default function App() {
     });
 
     setupThumbnailsListeners();
+    setupShortcutsListeners();
     setupVideoModalListeners();
 
     setupDeleteConfirmListeners((deletedId: string) => {
@@ -256,43 +272,213 @@ export default function App() {
 
     setupPwaListeners();
 
-    // 5. Global Keyboard Shortcuts
+    // 5. Global Keyboard Shortcuts for Online Teaching & Reading
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Don't trigger if user is typing in an input
+      // Don't trigger if user is typing in an input or contenteditable
       const target = e.target as HTMLElement;
-      if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.tagName === 'SELECT')) {
+      if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.tagName === 'SELECT' || target.isContentEditable)) {
         return;
       }
 
       const readerContainer = document.getElementById('view-reader-container');
       const isReaderVisible = readerContainer && !readerContainer.classList.contains('hidden');
 
-      if (e.key === 'ArrowRight' || e.key === 'PageDown' || e.key === ' ') {
-        if (isReaderVisible && e.key !== ' ') {
-          flipNextPage();
-        }
-      } else if (e.key === 'ArrowLeft' || e.key === 'PageUp') {
-        if (isReaderVisible) {
-          flipPrevPage();
-        }
-      } else if (e.key === 'f' || e.key === 'F') {
-        if (isReaderVisible) {
-          toggleFullscreenTeachingMode();
-        }
-      } else if (e.key === 'l' || e.key === 'L') {
-        toggleLaser();
-      } else if (e.key === 's' || e.key === 'S') {
-        toggleSpotlight();
-      } else if (e.key === 'p' || e.key === 'P') {
-        setDrawingTool('highlighter');
-      } else if (e.key === 'd' || e.key === 'D') {
-        setDrawingTool('pen-red');
-      } else if (e.key === 'e' || e.key === 'E') {
-        setDrawingTool('eraser');
-      } else if (e.key === 'Escape') {
-        if (appState.get('isTeachingMode')) {
-          toggleFullscreenTeachingMode();
-        }
+      // Key routing
+      switch (e.key) {
+        // Page Navigation
+        case 'ArrowRight':
+        case 'PageDown':
+        case 'j':
+        case 'J':
+          if (isReaderVisible) {
+            e.preventDefault();
+            flipNextPage();
+          }
+          break;
+
+        case 'ArrowLeft':
+        case 'PageUp':
+        case 'k':
+        case 'K':
+          if (isReaderVisible) {
+            e.preventDefault();
+            flipPrevPage();
+          }
+          break;
+
+        case 'Home':
+          if (isReaderVisible) {
+            e.preventDefault();
+            flipFirstPage();
+          }
+          break;
+
+        case 'End':
+          if (isReaderVisible) {
+            e.preventDefault();
+            flipLastPage();
+          }
+          break;
+
+        // Zoom & Pan
+        case '+':
+        case '=':
+          if (isReaderVisible) {
+            e.preventDefault();
+            zoomIn();
+          }
+          break;
+
+        case '-':
+        case '_':
+          if (isReaderVisible) {
+            e.preventDefault();
+            zoomOut();
+          }
+          break;
+
+        case '0':
+        case 'z':
+        case 'Z':
+          if (isReaderVisible) {
+            e.preventDefault();
+            resetReaderZoom();
+          }
+          break;
+
+        case 'h':
+        case 'H':
+        case 'm':
+        case 'M':
+          if (isReaderVisible) {
+            e.preventDefault();
+            const active = togglePanTool();
+            showToast(active ? '✋ Đã bật Bàn tay kéo trang [H]' : 'Đã tắt Bàn tay kéo trang');
+          }
+          break;
+
+        // Teaching & Annotation Tools
+        case 'l':
+        case 'L':
+          e.preventDefault();
+          {
+            const active = toggleLaser();
+            showToast(active ? '🔴 Đã bật con trỏ Laser [L]' : 'Đã tắt con trỏ Laser');
+          }
+          break;
+
+        case 's':
+        case 'S':
+          e.preventDefault();
+          {
+            const active = toggleSpotlight();
+            showToast(active ? '💡 Đã bật Đèn rọi Spotlight [S]' : 'Đã tắt Đèn rọi Spotlight');
+          }
+          break;
+
+        case 'p':
+        case 'P':
+        case '1':
+          e.preventDefault();
+          setDrawingTool('highlighter');
+          showToast('🖍️ Đã chọn Bút dạ quang vàng [P]');
+          break;
+
+        case 'd':
+        case 'D':
+        case '2':
+          e.preventDefault();
+          setDrawingTool('pen-red');
+          showToast('✏️ Đã chọn Bút vẽ đỏ [D]');
+          break;
+
+        case 'b':
+        case 'B':
+        case '3':
+          e.preventDefault();
+          setDrawingTool('pen-blue');
+          showToast('🖊️ Đã chọn Bút vẽ xanh [B]');
+          break;
+
+        case 'e':
+        case 'E':
+        case '4':
+          e.preventDefault();
+          setDrawingTool('eraser');
+          showToast('🧹 Đã chọn Cục tẩy [E]');
+          break;
+
+        case 'c':
+        case 'C':
+        case 'Delete':
+          if (isReaderVisible) {
+            e.preventDefault();
+            clearAllAnnotations();
+            showToast('🗑️ Đã xóa sạch nét vẽ trên trang [C]');
+          }
+          break;
+
+        // Audio controls
+        case ' ':
+          // Spacebar toggles audio if audio dock is active or current track exists, otherwise flips page
+          e.preventDefault();
+          if (appState.get('currentBook')?.audioTracks?.length) {
+            togglePlayAudio();
+          } else if (isReaderVisible) {
+            flipNextPage();
+          }
+          break;
+
+        case 'a':
+        case 'A':
+          e.preventDefault();
+          toggleMediaDockVisibility();
+          break;
+
+        case '[':
+          e.preventDefault();
+          playPrevTrack();
+          break;
+
+        case ']':
+          e.preventDefault();
+          playNextTrack();
+          break;
+
+        // Modals & Mode switches
+        case 'g':
+        case 'G':
+        case 't':
+        case 'T':
+          if (isReaderVisible) {
+            e.preventDefault();
+            openThumbnailsModal();
+          }
+          break;
+
+        case '?':
+        case 'F1':
+          e.preventDefault();
+          openShortcutsModal();
+          break;
+
+        case 'f':
+        case 'F':
+          if (isReaderVisible) {
+            e.preventDefault();
+            toggleFullscreenTeachingMode();
+          }
+          break;
+
+        case 'Escape':
+          closeShortcutsModal();
+          if (appState.get('isTeachingMode')) {
+            toggleFullscreenTeachingMode();
+          }
+          break;
+
+        default:
+          break;
       }
     };
 
@@ -370,6 +556,7 @@ export default function App() {
             ${renderBatchMediaModalHtml()}
             ${renderGoogleDriveModalHtml()}
             ${renderThumbnailsModalHtml()}
+            ${renderShortcutsModalHtml()}
             ${renderVideoModalHtml()}
             ${renderDeleteConfirmModalHtml()}
             ${renderPwaInstallModalHtml()}
