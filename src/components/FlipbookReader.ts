@@ -2,7 +2,11 @@ import { Book } from '../types';
 import { appState } from '../state/appState';
 import { playFlipSound, toggleSoundEffects, getSoundEffectsEnabled } from '../services/audioService';
 import { resizeAnnotationCanvas } from '../services/annotationService';
-import { renderTeachingToolbarHtml, setupTeachingToolbarListeners } from './TeachingToolbar';
+import { 
+  renderTopToolbarHtml, 
+  renderBottomToolbarHtml, 
+  setupToolbarListeners 
+} from './TeachingToolbar';
 import { showToast } from '../utils/toast';
 import { openShortcutsModal } from './ShortcutsModal';
 import { PageFlip } from 'page-flip';
@@ -18,60 +22,14 @@ let isPanToolActive = false;
 
 export function renderFlipbookReaderHtml(): string {
   return `
-  <section id="view-reader" class="flex-1 flex flex-col justify-between space-y-2 select-none relative h-full w-full">
+  <section id="view-reader" class="flex-1 flex flex-col justify-between select-none relative h-full w-full bg-[#F7F9FC] overflow-hidden rounded-2xl border border-black/[0.08] shadow-sm">
     
-    <!-- Top Reader Header Bar (Standard Mode) -->
-    <div id="reader-top-bar" class="flex items-center justify-between gap-3 bg-white border-2 border-b-4 border-slate-200 rounded-2xl p-2.5 sm:p-3 shadow-sm shrink-0">
+    <!-- 1. TOP TOOLBAR (Height: 48px) -->
+    ${renderTopToolbarHtml()}
+
+    <!-- 2. MAIN 3D FLIPBOOK VIEWPORT STAGE -->
+    <div id="reader-stage" class="relative flex-1 w-full min-h-0 bg-[#F0F2F5] overflow-hidden flex items-center justify-center p-2 sm:p-4">
       
-      <!-- Left: Back to Library & Book Title -->
-      <div class="flex items-center gap-2.5 sm:gap-3 min-w-0">
-        <button id="btn-reader-back-lib" class="btn-3d btn-white p-1.5 sm:px-3 sm:py-2 rounded-xl text-slate-700 font-black text-xs flex items-center gap-2 cursor-pointer shadow-xs hover:border-sky-300" title="Quay lại thư viện">
-          <div class="w-6 h-6 rounded-lg bg-sky-50 text-sky-600 border border-sky-200/80 flex items-center justify-center">
-            <i data-lucide="arrow-left" class="w-3.5 h-3.5"></i>
-          </div>
-          <span class="hidden sm:inline font-black text-sky-800">Thư Viện</span>
-        </button>
-        
-        <div class="min-w-0">
-          <h3 id="reader-book-title" class="font-black text-xs sm:text-sm text-slate-800 truncate max-w-[200px] sm:max-w-xs md:max-w-md">Tên sách</h3>
-          <p id="reader-book-meta" class="text-[11px] font-bold text-slate-400">1 / 1 trang • 0 Audio</p>
-        </div>
-      </div>
-
-      <!-- Right: Sound Toggle, Audio Studio, Teaching Studio Mode Button, Fullscreen -->
-      <div class="flex items-center gap-2">
-        <!-- Audio Studio Dock Toggle -->
-        <button id="btn-reader-toggle-audio" class="btn-3d btn-purple text-white font-black px-3 py-2 rounded-xl text-xs flex items-center gap-1.5 shadow-sm cursor-pointer hover:brightness-105" title="Mở hộp điều khiển bài nghe Audio">
-          <div class="w-5 h-5 rounded-md bg-white/20 flex items-center justify-center">
-            <i data-lucide="headphones" class="w-3.5 h-3.5 text-white"></i>
-          </div>
-          <span class="hidden sm:inline">Bài Nghe</span>
-        </button>
-
-        <!-- Sound FX Toggle -->
-        <button id="btn-toggle-flip-sound" class="btn-3d btn-white p-2 rounded-xl text-slate-700 cursor-pointer shadow-xs hover:border-emerald-300" title="Bật/Tắt âm thanh lật sách">
-          <div class="w-5 h-5 rounded-md bg-emerald-50 text-emerald-600 border border-emerald-200 flex items-center justify-center">
-            <i data-lucide="volume-2" id="icon-sound" class="w-3.5 h-3.5 text-emerald-600"></i>
-          </div>
-        </button>
-
-        <!-- Teaching Studio / Fullscreen Trigger -->
-        <button id="btn-enter-teaching-mode" class="btn-3d btn-blue text-white font-black px-3.5 py-2 rounded-xl text-xs flex items-center gap-2 shadow-sm cursor-pointer hover:brightness-105" title="Bật chế độ Giảng Dạy Toàn Màn Hình">
-          <div class="w-5 h-5 rounded-md bg-white/20 flex items-center justify-center">
-            <i data-lucide="presentation" class="w-3.5 h-3.5"></i>
-          </div>
-          <span>Phòng Học Meet 3D</span>
-        </button>
-      </div>
-
-    </div>
-
-    <!-- MAIN FLIPBOOK 3D VIEWPORT STAGE -->
-    <div id="reader-stage" class="relative flex-1 w-full min-h-0 bg-slate-100/90 rounded-3xl border-2 border-slate-200 overflow-hidden flex items-center justify-center p-2 sm:p-4 shadow-inner">
-      
-      <!-- TOP CORNER TEACHING TOOLBAR (Docked neatly at top) -->
-      ${renderTeachingToolbarHtml()}
-
       <!-- Annotation Canvas Layer -->
       <canvas id="annotation-canvas" class="absolute inset-0 z-30 pointer-events-none w-full h-full"></canvas>
 
@@ -81,12 +39,24 @@ export function renderFlipbookReaderHtml(): string {
       </div>
 
       <!-- Arrow Navigation Buttons on Stage -->
-      <button id="btn-stage-prev" class="absolute left-2 sm:left-4 z-20 w-11 h-11 sm:w-14 sm:h-14 rounded-2xl bg-white/90 hover:bg-white text-slate-700 border-2 border-b-4 border-slate-200 shadow-xl flex items-center justify-center active:scale-95 transition-all cursor-pointer" title="Trang trước">
-        <i data-lucide="chevron-left" class="w-6 h-6 sm:w-8 sm:h-8"></i>
+      <button 
+        id="btn-stage-prev" 
+        type="button"
+        class="absolute left-2 sm:left-4 z-20 w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-white/90 hover:bg-white text-[#2C2C2A] border border-black/[0.08] shadow-lg flex items-center justify-center active:scale-95 transition-all cursor-pointer focus-visible:ring-2 focus-visible:ring-[#378ADD]" 
+        title="Trang trước [←]"
+        aria-label="Trang trước"
+      >
+        <i data-lucide="chevron-left" class="w-6 h-6"></i>
       </button>
 
-      <button id="btn-stage-next" class="absolute right-2 sm:right-4 z-20 w-11 h-11 sm:w-14 sm:h-14 rounded-2xl bg-white/90 hover:bg-white text-slate-700 border-2 border-b-4 border-slate-200 shadow-xl flex items-center justify-center active:scale-95 transition-all cursor-pointer" title="Trang sau">
-        <i data-lucide="chevron-right" class="w-6 h-6 sm:w-8 sm:h-8"></i>
+      <button 
+        id="btn-stage-next" 
+        type="button"
+        class="absolute right-2 sm:right-4 z-20 w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-white/90 hover:bg-white text-[#2C2C2A] border border-black/[0.08] shadow-lg flex items-center justify-center active:scale-95 transition-all cursor-pointer focus-visible:ring-2 focus-visible:ring-[#378ADD]" 
+        title="Trang sau [→]"
+        aria-label="Trang sau"
+      >
+        <i data-lucide="chevron-right" class="w-6 h-6"></i>
       </button>
 
       <!-- Flipbook Render Target Wrapper (Transformed with Zoom/Pan) -->
@@ -96,75 +66,8 @@ export function renderFlipbookReaderHtml(): string {
         </div>
       </div>
 
-    </div>
-
-    <!-- BOTTOM COMPACT CONTROLLER BAR -->
-    <div id="reader-bottom-bar" class="flex flex-wrap items-center justify-between gap-2 sm:gap-3 bg-white border-2 border-b-4 border-slate-200 rounded-2xl p-2.5 shadow-sm shrink-0">
-      
-      <!-- Left: Pagination & Jump Input -->
-      <div class="flex items-center gap-1.5 sm:gap-2">
-        <button id="btn-bottom-first" class="btn-3d btn-white p-1.5 rounded-xl text-slate-600 cursor-pointer" title="Về trang đầu">
-          <i data-lucide="chevrons-left" class="w-4 h-4"></i>
-        </button>
-        <button id="btn-bottom-prev" class="btn-3d btn-white p-1.5 rounded-xl text-slate-600 cursor-pointer" title="Trang trước">
-          <i data-lucide="chevron-left" class="w-4 h-4"></i>
-        </button>
-
-        <div class="flex items-center gap-1 px-2 py-1 bg-slate-100 rounded-xl border border-slate-200 text-xs font-black text-slate-700">
-          <span>Trang</span>
-          <input 
-            type="number" 
-            id="input-page-number" 
-            value="1" 
-            min="1" 
-            max="1" 
-            class="w-10 text-center bg-white border border-slate-300 rounded-lg text-xs font-black text-duoBlue focus:outline-none focus:border-duoBlue py-0.5" 
-          />
-          <span>/ <span id="total-pages-label">1</span></span>
-        </div>
-
-        <button id="btn-bottom-next" class="btn-3d btn-white p-1.5 rounded-xl text-slate-600 cursor-pointer" title="Trang sau">
-          <i data-lucide="chevron-right" class="w-4 h-4"></i>
-        </button>
-        <button id="btn-bottom-last" class="btn-3d btn-white p-1.5 rounded-xl text-slate-600 cursor-pointer" title="Đến trang cuối">
-          <i data-lucide="chevrons-right" class="w-4 h-4"></i>
-        </button>
-      </div>
-
-      <!-- Center: Zoom & Pan Hand Tool -->
-      <div class="flex items-center gap-1 sm:gap-2">
-        <button id="btn-bottom-zoom-out" class="btn-3d btn-white p-1.5 rounded-xl text-slate-600 cursor-pointer" title="Thu nhỏ">
-          <i data-lucide="zoom-out" class="w-4 h-4"></i>
-        </button>
-
-        <button id="bottom-zoom-label" class="btn-3d btn-white px-2 py-1 rounded-xl text-xs font-black text-duoBlue min-w-[50px] text-center cursor-pointer" title="Đặt lại zoom 100%">
-          100%
-        </button>
-
-        <button id="btn-bottom-zoom-in" class="btn-3d btn-white p-1.5 rounded-xl text-slate-600 cursor-pointer" title="Phóng to">
-          <i data-lucide="zoom-in" class="w-4 h-4"></i>
-        </button>
-
-        <button id="btn-bottom-pan" class="btn-3d btn-white p-1.5 rounded-xl text-slate-600 cursor-pointer" title="Công cụ kéo tay (Pan/Hand Tool)">
-          <i data-lucide="hand" class="w-4 h-4 text-amber-500"></i>
-        </button>
-
-        <button id="btn-bottom-thumbnails" class="btn-3d btn-white p-1.5 rounded-xl text-slate-600 cursor-pointer" title="Mục lục trang">
-          <i data-lucide="layout-grid" class="w-4 h-4 text-duoBlue"></i>
-        </button>
-      </div>
-
-      <!-- Right: Praise Button & Shortcuts -->
-      <div class="flex items-center gap-2">
-        <button id="btn-bottom-shortcuts" class="btn-3d btn-white p-1.5 rounded-xl text-emerald-600 cursor-pointer" title="Xem bảng phím tắt trợ giảng [?]">
-          <i data-lucide="keyboard" class="w-4 h-4 text-emerald-600"></i>
-        </button>
-
-        <button id="btn-bottom-confetti" class="btn-3d btn-purple text-white font-extrabold px-3 py-1.5 rounded-xl text-xs flex items-center gap-1.5 cursor-pointer" title="Khen ngợi học sinh">
-          <i data-lucide="sparkles" class="w-4 h-4"></i>
-          <span>Khen Thưởng 🎉</span>
-        </button>
-      </div>
+      <!-- 3. BOTTOM FLOATING TOOLBAR (Height: 48px) -->
+      ${renderBottomToolbarHtml()}
 
     </div>
 
@@ -461,45 +364,9 @@ export function setupFlipbookReaderListeners(callbacks: {
   onOpenBatchAudio?: () => void;
   onOpenVideo?: (url: string, title?: string) => void;
 }): void {
-  // Navigation buttons
-  document.getElementById('btn-reader-back-lib')?.addEventListener('click', callbacks.onBackToLibrary);
-  
-  document.getElementById('btn-reader-toggle-audio')?.addEventListener('click', () => {
-    const isOpen = appState.get('isMediaDockOpen');
-    appState.set('isMediaDockOpen', !isOpen);
-  });
-
-  document.getElementById('btn-toggle-flip-sound')?.addEventListener('click', () => {
-    const enabled = toggleSoundEffects();
-    const icon = document.getElementById('icon-sound');
-    if (icon) {
-      icon.setAttribute('class', enabled ? 'w-4 h-4 text-duoGreen' : 'w-4 h-4 text-slate-400');
-    }
-    showToast(enabled ? '🔊 Đã bật âm thanh lật sách' : '🔇 Đã tắt âm thanh');
-  });
-
-  document.getElementById('btn-enter-teaching-mode')?.addEventListener('click', toggleFullscreenTeachingMode);
-  document.getElementById('btn-bottom-thumbnails')?.addEventListener('click', callbacks.onOpenThumbnails);
-  document.getElementById('btn-bottom-shortcuts')?.addEventListener('click', openShortcutsModal);
-  document.getElementById('btn-bottom-confetti')?.addEventListener('click', triggerRewardConfetti);
-
+  // Arrow buttons on Stage
   document.getElementById('btn-stage-prev')?.addEventListener('click', flipPrevPage);
   document.getElementById('btn-stage-next')?.addEventListener('click', flipNextPage);
-
-  document.getElementById('btn-bottom-first')?.addEventListener('click', flipFirstPage);
-  document.getElementById('btn-bottom-prev')?.addEventListener('click', flipPrevPage);
-  document.getElementById('btn-bottom-next')?.addEventListener('click', flipNextPage);
-  document.getElementById('btn-bottom-last')?.addEventListener('click', flipLastPage);
-
-  document.getElementById('btn-bottom-zoom-in')?.addEventListener('click', zoomIn);
-  document.getElementById('btn-bottom-zoom-out')?.addEventListener('click', zoomOut);
-  document.getElementById('bottom-zoom-label')?.addEventListener('click', resetReaderZoom);
-  document.getElementById('btn-bottom-pan')?.addEventListener('click', togglePanTool);
-
-  const inputPage = document.getElementById('input-page-number') as HTMLInputElement;
-  inputPage?.addEventListener('change', (e: any) => {
-    jumpToPage(parseInt(e.target.value, 10));
-  });
 
   // Pan dragging on stage
   const stage = document.getElementById('reader-stage');
@@ -531,8 +398,9 @@ export function setupFlipbookReaderListeners(callbacks: {
     });
   }
 
-  // Setup Teaching Toolbar top HUD listeners
-  setupTeachingToolbarListeners({
+  // Setup Top & Bottom Minimalist Toolbars
+  setupToolbarListeners({
+    onBackToLibrary: callbacks.onBackToLibrary,
     onFlipPrev: flipPrevPage,
     onFlipNext: flipNextPage,
     onJumpPage: jumpToPage,
@@ -550,7 +418,7 @@ export function setupFlipbookReaderListeners(callbacks: {
       showToast(`⏱️ Đã bắt đầu đếm ngược ${mins} phút`);
     },
     onTriggerConfetti: triggerRewardConfetti,
-    onExitFullscreen: toggleFullscreenTeachingMode,
+    onToggleFullscreen: toggleFullscreenTeachingMode,
     onCopyShareLink: () => {
       const url = window.location.href;
       navigator.clipboard?.writeText(url);
@@ -560,22 +428,14 @@ export function setupFlipbookReaderListeners(callbacks: {
 
   // AppState subscriptions for labels
   appState.subscribe('currentPage', (page) => {
-    const input = document.getElementById('input-page-number') as HTMLInputElement;
-    if (input) input.value = String(page);
     updateReaderMeta();
   });
 
   appState.subscribe('totalPages', (total) => {
-    const totalEl = document.getElementById('total-pages-label');
-    if (totalEl) totalEl.innerText = String(total);
-    const input = document.getElementById('input-page-number') as HTMLInputElement;
-    if (input) input.max = String(total);
     updateReaderMeta();
   });
 
   appState.subscribe('currentBook', (book) => {
-    const titleEl = document.getElementById('reader-book-title');
-    if (titleEl) titleEl.innerText = book ? book.title : 'Tên sách';
     updateReaderMeta();
   });
 

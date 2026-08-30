@@ -23,7 +23,7 @@ export interface Book {
 
 export type CategoryFilter = 'all' | 'textbook' | 'exercise' | 'reference';
 
-export type AnnotationDrawingTool = 'none' | 'highlighter' | 'pen-red' | 'pen-blue' | 'eraser';
+export type AnnotationDrawingTool = 'none' | 'pencil' | 'highlighter' | 'pen-red' | 'pen-blue' | 'eraser';
 
 export interface GoogleDriveManifestEntry {
   id: string;

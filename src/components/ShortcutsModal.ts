@@ -59,8 +59,21 @@ export function renderShortcutsModalHtml(): string {
             </div>
 
             <div class="flex items-center justify-between p-2 rounded-xl bg-slate-50 border border-slate-200/80">
+              <span class="font-bold text-slate-700">Phóng to / Thu nhỏ / Về 100%</span>
+              <div class="flex items-center gap-1">
+                <kbd class="px-2 py-0.5 bg-white border border-b-2 border-slate-300 rounded text-[11px] font-mono font-black text-slate-700 shadow-xs">+</kbd>
+                <kbd class="px-2 py-0.5 bg-white border border-b-2 border-slate-300 rounded text-[11px] font-mono font-black text-slate-700 shadow-xs">-</kbd>
+                <kbd class="px-2 py-0.5 bg-white border border-b-2 border-slate-300 rounded text-[11px] font-mono font-black text-slate-700 shadow-xs">0</kbd>
+              </div>
+            </div>
+
+            <div class="flex items-center justify-between p-2 rounded-xl bg-slate-50 border border-slate-200/80">
               <span class="font-bold text-slate-700">Mở mục lục ảnh tất cả trang</span>
-              <kbd class="px-2 py-0.5 bg-white border border-b-2 border-slate-300 rounded text-[11px] font-mono font-black text-slate-700 shadow-xs">G</kbd>
+              <div class="flex items-center gap-1">
+                <kbd class="px-2 py-0.5 bg-white border border-b-2 border-slate-300 rounded text-[11px] font-mono font-black text-slate-700 shadow-xs">G</kbd>
+                <span class="text-slate-400">hoặc</span>
+                <kbd class="px-2 py-0.5 bg-white border border-b-2 border-slate-300 rounded text-[11px] font-mono font-black text-slate-700 shadow-xs">T</kbd>
+              </div>
             </div>
           </div>
         </div>
@@ -90,26 +103,18 @@ export function renderShortcutsModalHtml(): string {
 
             <div class="flex items-center justify-between p-2 rounded-xl bg-slate-50 border border-slate-200/80">
               <div class="flex items-center gap-2">
+                <span class="w-2.5 h-2.5 rounded-full bg-[#378ADD]"></span>
+                <span class="font-bold text-slate-700">Bút vẽ chính (Pencil)</span>
+              </div>
+              <kbd class="px-2 py-0.5 bg-sky-50 border border-b-2 border-sky-300 rounded text-[11px] font-mono font-black text-[#378ADD] shadow-xs">P</kbd>
+            </div>
+
+            <div class="flex items-center justify-between p-2 rounded-xl bg-slate-50 border border-slate-200/80">
+              <div class="flex items-center gap-2">
                 <span class="w-2.5 h-2.5 rounded-full bg-yellow-400"></span>
-                <span class="font-bold text-slate-700">Bút dạ quang vàng</span>
+                <span class="font-bold text-slate-700">Bút dạ quang đánh dấu</span>
               </div>
-              <kbd class="px-2 py-0.5 bg-yellow-50 border border-b-2 border-yellow-300 rounded text-[11px] font-mono font-black text-yellow-800 shadow-xs">P</kbd>
-            </div>
-
-            <div class="flex items-center justify-between p-2 rounded-xl bg-slate-50 border border-slate-200/80">
-              <div class="flex items-center gap-2">
-                <span class="w-2.5 h-2.5 rounded-full bg-rose-500"></span>
-                <span class="font-bold text-slate-700">Bút vẽ đỏ (Ghi chú)</span>
-              </div>
-              <kbd class="px-2 py-0.5 bg-rose-50 border border-b-2 border-rose-300 rounded text-[11px] font-mono font-black text-rose-700 shadow-xs">D</kbd>
-            </div>
-
-            <div class="flex items-center justify-between p-2 rounded-xl bg-slate-50 border border-slate-200/80">
-              <div class="flex items-center gap-2">
-                <span class="w-2.5 h-2.5 rounded-full bg-sky-500"></span>
-                <span class="font-bold text-slate-700">Bút vẽ xanh</span>
-              </div>
-              <kbd class="px-2 py-0.5 bg-sky-50 border border-b-2 border-sky-300 rounded text-[11px] font-mono font-black text-sky-700 shadow-xs">B</kbd>
+              <kbd class="px-2 py-0.5 bg-yellow-50 border border-b-2 border-yellow-300 rounded text-[11px] font-mono font-black text-yellow-800 shadow-xs">M</kbd>
             </div>
 
             <div class="flex items-center justify-between p-2 rounded-xl bg-slate-50 border border-slate-200/80">
@@ -165,6 +170,11 @@ export function renderShortcutsModalHtml(): string {
             <div class="flex items-center justify-between p-2 rounded-xl bg-slate-50 border border-slate-200/80">
               <span class="font-bold text-slate-700">Thoát Toàn Màn Hình / Đóng Modal</span>
               <kbd class="px-2 py-0.5 bg-white border border-b-2 border-slate-300 rounded text-[11px] font-mono font-black text-slate-700 shadow-xs">Esc</kbd>
+            </div>
+
+            <div class="flex items-center justify-between p-2 rounded-xl bg-slate-50 border border-slate-200/80">
+              <span class="font-bold text-slate-700">Khen thưởng pháo hoa học sinh</span>
+              <kbd class="px-2 py-0.5 bg-pink-50 border border-b-2 border-pink-300 rounded text-[11px] font-mono font-black text-pink-700 shadow-xs">R</kbd>
             </div>
 
             <div class="flex items-center justify-between p-2 rounded-xl bg-slate-50 border border-slate-200/80">

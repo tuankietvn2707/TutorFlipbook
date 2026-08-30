@@ -110,35 +110,41 @@ function updateVisualToolStyles(): void {
   }
 
   // Update button active state badges
-  const tools = ['highlighter', 'pen-red', 'pen-blue', 'eraser'];
+  const tools = ['pencil', 'highlighter', 'pen-red', 'pen-blue', 'eraser'];
   tools.forEach(t => {
-    const btn = document.getElementById(`btn-tool-${t}`);
-    if (btn) {
+    const btns = document.querySelectorAll(`[id="btn-tool-${t}"]`);
+    btns.forEach(btn => {
       if (currentDrawingTool === t) {
-        btn.classList.add('bg-white/30', 'text-white', 'ring-2', 'ring-amber-300', 'scale-105');
+        btn.classList.add('bg-[#378ADD]/15', 'text-[#378ADD]', 'ring-1', 'ring-[#378ADD]/40', 'scale-[0.98]');
+        btn.classList.remove('text-[#666666]', 'text-slate-600', 'text-slate-300');
       } else {
-        btn.classList.remove('bg-white/30', 'text-white', 'ring-2', 'ring-amber-300', 'scale-105');
+        btn.classList.remove('bg-[#378ADD]/15', 'text-[#378ADD]', 'ring-1', 'ring-[#378ADD]/40', 'scale-[0.98]');
+        btn.classList.add('text-[#666666]');
       }
+    });
+  });
+
+  const laserBtns = document.querySelectorAll('[id="btn-laser"]');
+  laserBtns.forEach(btnLaser => {
+    if (isLaserActive) {
+      btnLaser.classList.add('bg-red-500/15', 'text-red-500', 'ring-1', 'ring-red-400', 'scale-[0.98]');
+      btnLaser.classList.remove('text-[#666666]');
+    } else {
+      btnLaser.classList.remove('bg-red-500/15', 'text-red-500', 'ring-1', 'ring-red-400', 'scale-[0.98]');
+      btnLaser.classList.add('text-[#666666]');
     }
   });
 
-  const btnLaser = document.getElementById('btn-laser');
-  if (btnLaser) {
-    if (isLaserActive) {
-      btnLaser.classList.add('bg-red-500/40', 'text-red-300', 'ring-2', 'ring-red-400', 'scale-105');
-    } else {
-      btnLaser.classList.remove('bg-red-500/40', 'text-red-300', 'ring-2', 'ring-red-400', 'scale-105');
-    }
-  }
-
-  const btnSpotlight = document.getElementById('btn-spotlight');
-  if (btnSpotlight) {
+  const spotlightBtns = document.querySelectorAll('[id="btn-spotlight"]');
+  spotlightBtns.forEach(btnSpotlight => {
     if (isSpotlightActive) {
-      btnSpotlight.classList.add('bg-amber-500/40', 'text-amber-200', 'ring-2', 'ring-amber-400', 'scale-105');
+      btnSpotlight.classList.add('bg-amber-500/15', 'text-amber-500', 'ring-1', 'ring-amber-400', 'scale-[0.98]');
+      btnSpotlight.classList.remove('text-[#666666]');
     } else {
-      btnSpotlight.classList.remove('bg-amber-500/40', 'text-amber-200', 'ring-2', 'ring-amber-400', 'scale-105');
+      btnSpotlight.classList.remove('bg-amber-500/15', 'text-amber-500', 'ring-1', 'ring-amber-400', 'scale-[0.98]');
+      btnSpotlight.classList.add('text-[#666666]');
     }
-  }
+  });
 }
 
 export function setupAnnotationListeners(): void {
@@ -173,7 +179,13 @@ export function setupAnnotationListeners(): void {
       ctx.moveTo(lastX, lastY);
       ctx.lineTo(x, y);
 
-      if (currentDrawingTool === 'highlighter') {
+      if (currentDrawingTool === 'pencil') {
+        ctx.globalCompositeOperation = 'source-over';
+        ctx.strokeStyle = '#378ADD';
+        ctx.lineWidth = 3;
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+      } else if (currentDrawingTool === 'highlighter') {
         ctx.globalCompositeOperation = 'source-over';
         ctx.strokeStyle = 'rgba(255, 230, 0, 0.45)';
         ctx.lineWidth = 22;

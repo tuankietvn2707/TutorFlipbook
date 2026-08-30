@@ -3,7 +3,7 @@ import { appState } from './state/appState';
 import { loadAllBooksFromDB, saveBookToDB } from './services/dbService';
 import { initAuthListener, requestDriveAuth } from './services/googleDriveService';
 import { playFlipSound } from './services/audioService';
-import { toggleLaser, toggleSpotlight, setDrawingTool, clearAllAnnotations } from './services/annotationService';
+import { toggleLaser, toggleSpotlight, setDrawingTool, clearAllAnnotations, getAnnotationState } from './services/annotationService';
 import { showToast } from './utils/toast';
 
 // Modular Component Renderers & Listeners
@@ -38,7 +38,7 @@ import { renderMobileBottomNavHtml, setupMobileNavListeners } from './components
 import { renderUploadModalHtml, setupUploadModalListeners, openUploadModal } from './components/UploadModal';
 import { renderBatchMediaModalHtml, setupBatchMediaListeners, openBatchMediaModal } from './components/BatchMediaModal';
 import { renderGoogleDriveModalHtml, setupGoogleDriveListeners, openGoogleDriveModal } from './components/GoogleDriveModal';
-import { renderThumbnailsModalHtml, setupThumbnailsListeners, openThumbnailsModal } from './components/ThumbnailsModal';
+import { renderThumbnailsModalHtml, setupThumbnailsListeners, openThumbnailsModal, closeThumbnailsModal } from './components/ThumbnailsModal';
 import { renderShortcutsModalHtml, setupShortcutsListeners, openShortcutsModal, closeShortcutsModal } from './components/ShortcutsModal';
 import { renderVideoModalHtml, setupVideoModalListeners, openVideoModal } from './components/VideoModal';
 import { renderDeleteConfirmModalHtml, setupDeleteConfirmListeners, openDeleteConfirmModal } from './components/DeleteConfirmModal';
@@ -277,208 +277,279 @@ export default function App() {
       // Don't trigger if user is typing in an input or contenteditable
       const target = e.target as HTMLElement;
       if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.tagName === 'SELECT' || target.isContentEditable)) {
+        if (e.key === 'Escape' || e.code === 'Escape') {
+          target.blur();
+        }
         return;
       }
 
-      const readerContainer = document.getElementById('view-reader-container');
-      const isReaderVisible = readerContainer && !readerContainer.classList.contains('hidden');
+      // Ignore modifier combinations like Ctrl+C, Ctrl+V, Ctrl+R, Alt+Tab, etc.
+      if (e.ctrlKey || e.metaKey || e.altKey) {
+        return;
+      }
 
-      // Key routing
-      switch (e.key) {
-        // Page Navigation
-        case 'ArrowRight':
-        case 'PageDown':
-        case 'j':
-        case 'J':
-          if (isReaderVisible) {
-            e.preventDefault();
-            flipNextPage();
-          }
-          break;
+      const key = (e.key || '').toLowerCase();
+      const code = e.code || '';
 
-        case 'ArrowLeft':
-        case 'PageUp':
-        case 'k':
-        case 'K':
-          if (isReaderVisible) {
-            e.preventDefault();
-            flipPrevPage();
-          }
-          break;
+      // Helper to ensure reader view is open when using reader-specific tools
+      const ensureReaderView = (): boolean => {
+        const readerContainer = document.getElementById('view-reader-container');
+        const isVisible = readerContainer && !readerContainer.classList.contains('hidden');
+        if (isVisible) return true;
 
-        case 'Home':
-          if (isReaderVisible) {
-            e.preventDefault();
-            flipFirstPage();
-          }
-          break;
+        const cur = appState.get('currentBook');
+        const all = appState.get('allBooks');
+        if (cur) {
+          showReaderView();
+          return true;
+        } else if (all && all.length > 0) {
+          showReaderView();
+          openBookInReader(all[0]);
+          return true;
+        } else {
+          showToast('📚 Thư viện chưa có sách. Vui lòng tải sách lên để trải nghiệm!');
+          return false;
+        }
+      };
 
-        case 'End':
-          if (isReaderVisible) {
-            e.preventDefault();
-            flipLastPage();
-          }
-          break;
-
-        // Zoom & Pan
-        case '+':
-        case '=':
-          if (isReaderVisible) {
-            e.preventDefault();
-            zoomIn();
-          }
-          break;
-
-        case '-':
-        case '_':
-          if (isReaderVisible) {
-            e.preventDefault();
-            zoomOut();
-          }
-          break;
-
-        case '0':
-        case 'z':
-        case 'Z':
-          if (isReaderVisible) {
-            e.preventDefault();
-            resetReaderZoom();
-          }
-          break;
-
-        case 'h':
-        case 'H':
-        case 'm':
-        case 'M':
-          if (isReaderVisible) {
-            e.preventDefault();
-            const active = togglePanTool();
-            showToast(active ? '✋ Đã bật Bàn tay kéo trang [H]' : 'Đã tắt Bàn tay kéo trang');
-          }
-          break;
-
-        // Teaching & Annotation Tools
-        case 'l':
-        case 'L':
+      // 1. Page Navigation Shortcuts
+      if (key === 'arrowright' || key === 'pagedown' || key === 'j' || code === 'ArrowRight' || code === 'PageDown' || code === 'KeyJ') {
+        if (ensureReaderView()) {
           e.preventDefault();
-          {
-            const active = toggleLaser();
-            showToast(active ? '🔴 Đã bật con trỏ Laser [L]' : 'Đã tắt con trỏ Laser');
+          flipNextPage();
+        }
+        return;
+      }
+
+      if (key === 'arrowleft' || key === 'pageup' || key === 'k' || code === 'ArrowLeft' || code === 'PageUp' || code === 'KeyK') {
+        if (ensureReaderView()) {
+          e.preventDefault();
+          flipPrevPage();
+        }
+        return;
+      }
+
+      if (key === 'home' || code === 'Home') {
+        if (ensureReaderView()) {
+          e.preventDefault();
+          flipFirstPage();
+        }
+        return;
+      }
+
+      if (key === 'end' || code === 'End') {
+        if (ensureReaderView()) {
+          e.preventDefault();
+          flipLastPage();
+        }
+        return;
+      }
+
+      // 2. Zoom & Pan Hand Tool
+      if (key === '+' || key === '=' || code === 'Equal' || code === 'NumpadAdd') {
+        if (ensureReaderView()) {
+          e.preventDefault();
+          zoomIn();
+        }
+        return;
+      }
+
+      if (key === '-' || key === '_' || code === 'Minus' || code === 'NumpadSubtract') {
+        if (ensureReaderView()) {
+          e.preventDefault();
+          zoomOut();
+        }
+        return;
+      }
+
+      if (key === '0' || key === 'z' || code === 'Digit0' || code === 'Numpad0' || code === 'KeyZ') {
+        if (ensureReaderView()) {
+          e.preventDefault();
+          resetReaderZoom();
+        }
+        return;
+      }
+
+      if (key === 'h' || code === 'KeyH') {
+        if (ensureReaderView()) {
+          e.preventDefault();
+          const active = togglePanTool();
+          showToast(active ? '✋ Đã bật Bàn tay kéo trang [H]' : 'Đã tắt Bàn tay kéo trang');
+        }
+        return;
+      }
+
+      // 3. Teaching & Drawing Tools
+      if (key === 'l' || code === 'KeyL') {
+        if (ensureReaderView()) {
+          e.preventDefault();
+          const active = toggleLaser();
+          showToast(active ? '🔴 Đã bật con trỏ Laser [L]' : 'Đã tắt con trỏ Laser');
+        }
+        return;
+      }
+
+      if (key === 's' || code === 'KeyS') {
+        if (ensureReaderView()) {
+          e.preventDefault();
+          const active = toggleSpotlight();
+          showToast(active ? '💡 Đã bật Đèn rọi Spotlight [S]' : 'Đã tắt Đèn rọi Spotlight');
+        }
+        return;
+      }
+
+      if (key === 'p' || key === '1' || code === 'KeyP' || code === 'Digit1' || code === 'Numpad1') {
+        if (ensureReaderView()) {
+          e.preventDefault();
+          const state = getAnnotationState();
+          if (state.currentDrawingTool === 'pencil') {
+            setDrawingTool('none');
+            showToast('Đã tắt Bút vẽ');
+          } else {
+            setDrawingTool('pencil');
+            showToast('✏️ Đã chọn Bút vẽ chính [P]');
           }
-          break;
+        }
+        return;
+      }
 
-        case 's':
-        case 'S':
+      if (key === 'm' || key === '2' || code === 'KeyM' || code === 'Digit2' || code === 'Numpad2') {
+        if (ensureReaderView()) {
           e.preventDefault();
-          {
-            const active = toggleSpotlight();
-            showToast(active ? '💡 Đã bật Đèn rọi Spotlight [S]' : 'Đã tắt Đèn rọi Spotlight');
+          const state = getAnnotationState();
+          if (state.currentDrawingTool === 'highlighter') {
+            setDrawingTool('none');
+            showToast('Đã tắt Bút dạ quang');
+          } else {
+            setDrawingTool('highlighter');
+            showToast('🖍️ Đã chọn Bút dạ quang đánh dấu [M]');
           }
-          break;
+        }
+        return;
+      }
 
-        case 'p':
-        case 'P':
-        case '1':
+      if (key === 'e' || key === '3' || code === 'KeyE' || code === 'Digit3' || code === 'Numpad3') {
+        if (ensureReaderView()) {
           e.preventDefault();
-          setDrawingTool('highlighter');
-          showToast('🖍️ Đã chọn Bút dạ quang vàng [P]');
-          break;
-
-        case 'd':
-        case 'D':
-        case '2':
-          e.preventDefault();
-          setDrawingTool('pen-red');
-          showToast('✏️ Đã chọn Bút vẽ đỏ [D]');
-          break;
-
-        case 'b':
-        case 'B':
-        case '3':
-          e.preventDefault();
-          setDrawingTool('pen-blue');
-          showToast('🖊️ Đã chọn Bút vẽ xanh [B]');
-          break;
-
-        case 'e':
-        case 'E':
-        case '4':
-          e.preventDefault();
-          setDrawingTool('eraser');
-          showToast('🧹 Đã chọn Cục tẩy [E]');
-          break;
-
-        case 'c':
-        case 'C':
-        case 'Delete':
-          if (isReaderVisible) {
-            e.preventDefault();
-            clearAllAnnotations();
-            showToast('🗑️ Đã xóa sạch nét vẽ trên trang [C]');
+          const state = getAnnotationState();
+          if (state.currentDrawingTool === 'eraser') {
+            setDrawingTool('none');
+            showToast('Đã tắt Cục tẩy');
+          } else {
+            setDrawingTool('eraser');
+            showToast('🧹 Đã chọn Cục tẩy [E]');
           }
-          break;
+        }
+        return;
+      }
 
-        // Audio controls
-        case ' ':
-          // Spacebar toggles audio if audio dock is active or current track exists, otherwise flips page
+      if (key === 'c' || key === 'delete' || code === 'KeyC' || code === 'Delete' || code === 'Backspace') {
+        if (ensureReaderView()) {
           e.preventDefault();
-          if (appState.get('currentBook')?.audioTracks?.length) {
-            togglePlayAudio();
-          } else if (isReaderVisible) {
-            flipNextPage();
-          }
-          break;
+          clearAllAnnotations();
+          showToast('🗑️ Đã xóa sạch nét vẽ trên trang [C]');
+        }
+        return;
+      }
 
-        case 'a':
-        case 'A':
+      // 4. Audio & Media Controls
+      if (key === ' ' || code === 'Space') {
+        e.preventDefault();
+        const curBook = appState.get('currentBook');
+        if (curBook && curBook.audioTracks && curBook.audioTracks.length > 0) {
+          togglePlayAudio();
+        } else if (ensureReaderView()) {
+          flipNextPage();
+        }
+        return;
+      }
+
+      if (key === 'a' || code === 'KeyA') {
+        e.preventDefault();
+        toggleMediaDockVisibility();
+        return;
+      }
+
+      if (key === '[' || code === 'BracketLeft') {
+        e.preventDefault();
+        playPrevTrack();
+        return;
+      }
+
+      if (key === ']' || code === 'BracketRight') {
+        e.preventDefault();
+        playNextTrack();
+        return;
+      }
+
+      // 5. Thumbnails Grid & Modals
+      if (key === 'g' || key === 't' || code === 'KeyG' || code === 'KeyT') {
+        if (ensureReaderView()) {
           e.preventDefault();
-          toggleMediaDockVisibility();
-          break;
-
-        case '[':
-          e.preventDefault();
-          playPrevTrack();
-          break;
-
-        case ']':
-          e.preventDefault();
-          playNextTrack();
-          break;
-
-        // Modals & Mode switches
-        case 'g':
-        case 'G':
-        case 't':
-        case 'T':
-          if (isReaderVisible) {
-            e.preventDefault();
+          const modal = document.getElementById('modal-thumbnails');
+          if (modal && !modal.classList.contains('hidden')) {
+            closeThumbnailsModal();
+          } else {
             openThumbnailsModal();
           }
-          break;
+        }
+        return;
+      }
 
-        case '?':
-        case 'F1':
-          e.preventDefault();
-          openShortcutsModal();
-          break;
-
-        case 'f':
-        case 'F':
-          if (isReaderVisible) {
-            e.preventDefault();
-            toggleFullscreenTeachingMode();
-          }
-          break;
-
-        case 'Escape':
+      if (key === '?' || key === '/' || code === 'Slash' || key === 'f1' || code === 'F1') {
+        e.preventDefault();
+        const modal = document.getElementById('modal-shortcuts');
+        if (modal && !modal.classList.contains('hidden')) {
           closeShortcutsModal();
-          if (appState.get('isTeachingMode')) {
-            toggleFullscreenTeachingMode();
-          }
-          break;
+        } else {
+          openShortcutsModal();
+        }
+        return;
+      }
 
-        default:
-          break;
+      if (key === 'f' || code === 'KeyF') {
+        if (ensureReaderView()) {
+          e.preventDefault();
+          toggleFullscreenTeachingMode();
+        }
+        return;
+      }
+
+      if (key === 'r' || code === 'KeyR') {
+        e.preventDefault();
+        triggerRewardConfetti();
+        return;
+      }
+
+      // 6. Escape Key Handler
+      if (key === 'escape' || code === 'Escape') {
+        e.preventDefault();
+        closeShortcutsModal();
+        closeThumbnailsModal();
+        document.getElementById('modal-upload')?.classList.add('hidden');
+        document.getElementById('modal-batch-media')?.classList.add('hidden');
+        document.getElementById('modal-drive')?.classList.add('hidden');
+        document.getElementById('modal-video')?.classList.add('hidden');
+        document.getElementById('modal-delete-confirm')?.classList.add('hidden');
+        document.getElementById('modal-pwa-install')?.classList.add('hidden');
+        document.getElementById('zoom-menu-dropdown')?.classList.add('hidden');
+        document.getElementById('more-tools-dropdown')?.classList.add('hidden');
+
+        const state = getAnnotationState();
+        if (state.currentDrawingTool !== 'none') {
+          setDrawingTool('none');
+          showToast('Đã tắt công cụ vẽ');
+        }
+        if (state.isLaserActive) {
+          toggleLaser();
+        }
+        if (state.isSpotlightActive) {
+          toggleSpotlight();
+        }
+        if (appState.get('isTeachingMode')) {
+          toggleFullscreenTeachingMode();
+        }
+        return;
       }
     };
 

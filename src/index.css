@@ -1,5 +1,15 @@
 @import "tailwindcss";
 
+:root {
+  --text-primary: #2C2C2A;
+  --text-secondary: #666666;
+  --text-accent: #378ADD;
+  --bg-accent-muted: rgba(55, 138, 221, 0.12);
+  --surface-1: #F5F5F0;
+  --border: rgba(0, 0, 0, 0.08);
+  --text-danger: #E24B4A;
+}
+
 * {
   box-sizing: border-box;
 }
