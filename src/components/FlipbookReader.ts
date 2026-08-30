@@ -1,7 +1,7 @@
 import { Book } from '../types';
 import { appState } from '../state/appState';
 import { playFlipSound, toggleSoundEffects, getSoundEffectsEnabled } from '../services/audioService';
-import { resizeAnnotationCanvas } from '../services/annotationService';
+import { resizeAnnotationCanvas, setupAnnotationListeners } from '../services/annotationService';
 import { 
   renderTopToolbarHtml, 
   renderBottomToolbarHtml, 
@@ -425,6 +425,9 @@ export function setupFlipbookReaderListeners(callbacks: {
       showToast('🔗 Đã sao chép liên kết bài học!');
     }
   });
+
+  // Initialize Canvas Drawing and Annotation Listeners
+  setupAnnotationListeners();
 
   // AppState subscriptions for labels
   appState.subscribe('currentPage', (page) => {

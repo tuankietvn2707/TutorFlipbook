@@ -3,7 +3,15 @@ import { appState } from './state/appState';
 import { loadAllBooksFromDB, saveBookToDB } from './services/dbService';
 import { initAuthListener, requestDriveAuth } from './services/googleDriveService';
 import { playFlipSound } from './services/audioService';
-import { toggleLaser, toggleSpotlight, setDrawingTool, clearAllAnnotations, getAnnotationState } from './services/annotationService';
+import { 
+  toggleLaser, 
+  toggleSpotlight, 
+  setDrawingTool, 
+  clearAllAnnotations, 
+  getAnnotationState,
+  setupAnnotationListeners,
+  resizeAnnotationCanvas
+} from './services/annotationService';
 import { showToast } from './utils/toast';
 
 // Modular Component Renderers & Listeners
@@ -272,7 +280,10 @@ export default function App() {
 
     setupPwaListeners();
 
-    // 5. Global Keyboard Shortcuts for Online Teaching & Reading
+    // 5. Initialize Annotation & Canvas Drawing System
+    setupAnnotationListeners();
+
+    // 6. Global Keyboard Shortcuts for Online Teaching & Reading
     const handleKeyDown = (e: KeyboardEvent) => {
       // Don't trigger if user is typing in an input or contenteditable
       const target = e.target as HTMLElement;
@@ -553,13 +564,15 @@ export default function App() {
       }
     };
 
-    window.addEventListener('keydown', handleKeyDown);
+    window.addEventListener('keydown', handleKeyDown, { capture: true });
+    document.addEventListener('keydown', handleKeyDown, { capture: true });
 
-    // 6. Initialize Lucide Icons
+    // 7. Initialize Lucide Icons
     refreshLucideIcons();
 
     return () => {
-      window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('keydown', handleKeyDown, { capture: true });
+      document.removeEventListener('keydown', handleKeyDown, { capture: true });
       if (typeof unsubscribeAuth === 'function') {
         unsubscribeAuth();
       }
