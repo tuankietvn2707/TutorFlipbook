@@ -9,7 +9,8 @@ import {
   getCurrentGoogleUser, 
   getGoogleDriveAccessToken,
   getOAuthClientId,
-  setCustomOAuthClientId
+  setCustomOAuthClientId,
+  setManualAccessToken
 } from '../services/googleDriveService';
 import { saveBookToDB } from '../services/dbService';
 import { showToast, showLoader } from '../utils/toast';
@@ -136,6 +137,22 @@ export function renderGoogleDriveModalHtml(): string {
               />
               <button id="btn-save-custom-client-id" class="btn-3d btn-blue text-[10px] font-black px-2.5 py-1 rounded-lg cursor-pointer">
                 Lưu
+              </button>
+            </div>
+          </div>
+
+          <!-- Direct Access Token Input (Bypass / Quick Test) -->
+          <div class="pt-2 border-t border-sky-200 space-y-1.5">
+            <label class="block text-[10px] font-black text-slate-700">Hoặc dán Access Token Google (Kết nối tức thì):</label>
+            <div class="flex gap-1.5">
+              <input 
+                type="password" 
+                id="input-manual-access-token" 
+                placeholder="ya29.a0AfH6..." 
+                class="flex-1 px-2.5 py-1 bg-white border border-slate-300 rounded-lg text-[10px] font-mono focus:outline-none focus:border-sky-500"
+              />
+              <button id="btn-save-manual-token" class="btn-3d btn-green text-[10px] font-black px-2.5 py-1 rounded-lg cursor-pointer text-white">
+                Dùng Token
               </button>
             </div>
           </div>
@@ -304,6 +321,17 @@ export function setupGoogleDriveListeners(onBooksImported: (books: Book[]) => vo
     if (input) {
       setCustomOAuthClientId(input.value);
       showToast('✅ Đã lưu Google OAuth Client ID tùy chỉnh!');
+    }
+  });
+
+  document.getElementById('btn-save-manual-token')?.addEventListener('click', () => {
+    const input = document.getElementById('input-manual-access-token') as HTMLInputElement;
+    if (input && input.value.trim().length > 0) {
+      setManualAccessToken(input.value.trim(), 'Google Drive User');
+      refreshModalAccountUI();
+      input.value = '';
+    } else {
+      showToast('⚠️ Vui lòng dán Access Token hợp lệ');
     }
   });
 }

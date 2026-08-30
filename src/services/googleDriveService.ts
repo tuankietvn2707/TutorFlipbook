@@ -28,12 +28,22 @@ const STORAGE_USER_KEY = 'biblio3d_gdrive_user';
 const STORAGE_EXPIRES_KEY = 'biblio3d_gdrive_expires_at';
 const STORAGE_CLIENT_ID_KEY = 'biblio3d_custom_client_id';
 
-// Firebase initialization
-const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
-export const auth = getAuth(app);
+// Firebase initialization (guarded)
+let auth: any = null;
+let provider: any = null;
 
-const provider = new GoogleAuthProvider();
-SCOPES.forEach((s) => provider.addScope(s));
+try {
+  if (firebaseConfig && firebaseConfig.apiKey && !firebaseConfig.apiKey.includes('YOUR_API_KEY')) {
+    const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
+    auth = getAuth(app);
+    provider = new GoogleAuthProvider();
+    SCOPES.forEach((s) => provider.addScope(s));
+  }
+} catch (e) {
+  console.warn('Firebase Auth initialization skipped or failed:', e);
+}
+
+export { auth };
 
 // In-memory & Persistent state
 let cachedAccessToken: string | null = null;
@@ -121,24 +131,33 @@ export function initAuthListener(
     updateDriveUIStatus(false);
   }
 
-  return onAuthStateChanged(auth, async (firebaseUser: User | null) => {
-    if (firebaseUser) {
-      const userProfile: GoogleDriveUserProfile = {
-        displayName: firebaseUser.displayName,
-        email: firebaseUser.email,
-        photoURL: firebaseUser.photoURL
-      };
-      currentUser = userProfile;
-      if (cachedAccessToken) {
-        setGoogleDriveAccessToken(cachedAccessToken, 3500, userProfile);
-        updateDriveUIStatus(true);
-        if (onSuccess) onSuccess(userProfile, cachedAccessToken);
+  if (!auth) {
+    return () => {};
+  }
+
+  try {
+    return onAuthStateChanged(auth, async (firebaseUser: User | null) => {
+      if (firebaseUser) {
+        const userProfile: GoogleDriveUserProfile = {
+          displayName: firebaseUser.displayName,
+          email: firebaseUser.email,
+          photoURL: firebaseUser.photoURL
+        };
+        currentUser = userProfile;
+        if (cachedAccessToken) {
+          setGoogleDriveAccessToken(cachedAccessToken, 3500, userProfile);
+          updateDriveUIStatus(true);
+          if (onSuccess) onSuccess(userProfile, cachedAccessToken);
+        }
+      } else if (!cachedAccessToken) {
+        updateDriveUIStatus(false);
+        if (onSignedOut) onSignedOut();
       }
-    } else if (!cachedAccessToken) {
-      updateDriveUIStatus(false);
-      if (onSignedOut) onSignedOut();
-    }
-  });
+    });
+  } catch (e) {
+    console.warn('Firebase onAuthStateChanged error:', e);
+    return () => {};
+  }
 }
 
 // Request Auth via Google Identity Services (GSI)
@@ -151,7 +170,6 @@ function requestGsiToken(): Promise<{ token: string; profile: GoogleDriveUserPro
     }
 
     if (!window.google?.accounts?.oauth2) {
-      console.warn('Google Identity Services (GSI) not loaded on window');
       resolve(null);
       return;
     }
@@ -190,25 +208,40 @@ function requestGsiToken(): Promise<{ token: string; profile: GoogleDriveUserPro
             }
 
             resolve({ token, profile });
-          } else if (response && response.error) {
-            console.error('GSI Token error:', response);
-            resolve(null);
           } else {
             resolve(null);
           }
         },
         error_callback: (err: any) => {
-          console.error('GSI init error:', err);
+          // Handle popup close or permission rejection smoothly without crashing
+          const errStr = typeof err === 'string' ? err : (err?.message || err?.type || JSON.stringify(err));
+          if (errStr.includes('closed') || errStr.includes('popup_closed')) {
+            console.info('GSI popup closed by user or origin check');
+          } else {
+            console.warn('GSI notification:', errStr);
+          }
           resolve(null);
         }
       });
 
       tokenClient.requestAccessToken({ prompt: 'consent' });
     } catch (err) {
-      console.error('GSI Execution error:', err);
+      console.warn('GSI Execution notice:', err);
       resolve(null);
     }
   });
+}
+
+// Set manual access token (for custom token or manual paste)
+export function setManualAccessToken(token: string, name = 'Google User'): void {
+  const profile: GoogleDriveUserProfile = {
+    displayName: name,
+    email: 'Token được nhập thủ công',
+    photoURL: ''
+  };
+  setGoogleDriveAccessToken(token.trim(), 3600, profile);
+  updateDriveUIStatus(true);
+  showToast('✅ Đã kết nối Google Drive bằng Access Token!');
 }
 
 // User Action Triggered Sign-In with Dual Fallback & Smart Diagnostics
@@ -235,38 +268,50 @@ export async function requestDriveAuth(): Promise<string | null> {
       }
     }
 
-    // 2. Fallback to Firebase Popup
-    const result = await signInWithPopup(auth, provider);
-    const credential = GoogleAuthProvider.credentialFromResult(result);
+    // 2. Fallback to Firebase Popup if available and valid
+    if (auth && provider) {
+      try {
+        const result = await signInWithPopup(auth, provider);
+        const credential = GoogleAuthProvider.credentialFromResult(result);
 
-    if (credential && credential.accessToken) {
-      const profile: GoogleDriveUserProfile = {
-        displayName: result.user.displayName,
-        email: result.user.email,
-        photoURL: result.user.photoURL
-      };
-      setGoogleDriveAccessToken(credential.accessToken, 3500, profile);
-      updateDriveUIStatus(true);
-      showToast(`🎉 Đã kết nối Google Drive (${result.user.displayName || result.user.email})!`);
-      return credential.accessToken;
-    } else {
-      throw new Error('Không nhận được mã ủy quyền Google');
+        if (credential && credential.accessToken) {
+          const profile: GoogleDriveUserProfile = {
+            displayName: result.user.displayName,
+            email: result.user.email,
+            photoURL: result.user.photoURL
+          };
+          setGoogleDriveAccessToken(credential.accessToken, 3500, profile);
+          updateDriveUIStatus(true);
+          showToast(`🎉 Đã kết nối Google Drive (${result.user.displayName || result.user.email})!`);
+          return credential.accessToken;
+        }
+      } catch (fbErr: any) {
+        const currentHost = window.location.host;
+        if (fbErr.code === 'auth/unauthorized-domain') {
+          showToast(`⚠️ Domain [${currentHost}] chưa được cấp quyền trên Firebase. Vui lòng xem hướng dẫn bên dưới!`, 5000);
+          notifyDomainUnauthorized(currentHost);
+        } else if (fbErr.code === 'auth/popup-closed-by-user') {
+          showToast('ℹ️ Cửa sổ Google đã đóng.', 3000);
+        } else if (fbErr.message?.includes('api-key-not-valid') || fbErr.code === 'auth/invalid-api-key') {
+          showToast(`ℹ️ Vui lòng thêm domain [${currentHost}] vào Google Cloud Console hoặc dùng chức năng Nhập Token / JSON sao lưu`, 6000);
+          notifyDomainUnauthorized(currentHost);
+        } else if (fbErr.code !== 'auth/cancelled-popup-request') {
+          showToast(`ℹ️ ${fbErr.message || 'Chưa hoàn tất xác thực Google'}`);
+        }
+        return null;
+      }
     }
-  } catch (error: any) {
-    console.error('Google Sign In Error:', error);
+
+    // If both didn't succeed
     const currentHost = window.location.host;
-
-    if (error.code === 'auth/unauthorized-domain') {
-      showToast(`⚠️ Domain [${currentHost}] chưa được cấp quyền trên Firebase Auth. Vui lòng xem mục Hướng dẫn Vercel trong bảng cài đặt!`, 6000);
-      notifyDomainUnauthorized(currentHost);
-    } else if (error.code === 'auth/popup-closed-by-user') {
-      showToast('ℹ️ Cửa sổ Google đóng lại do domain chưa được kích hoạt hoặc người dùng hủy', 4000);
-      notifyDomainUnauthorized(currentHost);
-    } else if (error.code === 'auth/cancelled-popup-request') {
-      // Ignored
-    } else {
-      showToast(`⚠️ Lỗi kết nối Google: ${error.message || 'Chưa hoàn tất xác thực'}`);
-    }
+    showToast(`ℹ️ Cửa sổ đăng nhập đã đóng hoặc domain [${currentHost}] cần được cấp quyền trong Google Cloud Console.`, 4000);
+    notifyDomainUnauthorized(currentHost);
+    return null;
+  } catch (error: any) {
+    console.warn('Google Sign In Notice:', error);
+    const currentHost = window.location.host;
+    showToast(`ℹ️ Vui lòng kiểm tra hướng dẫn ủy quyền domain [${currentHost}]`);
+    notifyDomainUnauthorized(currentHost);
     return null;
   } finally {
     isSigningIn = false;
