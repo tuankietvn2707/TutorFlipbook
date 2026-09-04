@@ -243,23 +243,28 @@ export function setupGoogleDriveListeners(onBooksImported: (books: Book[]) => vo
   });
 
   document.getElementById('btn-fetch-all-drive')?.addEventListener('click', async () => {
-    showLoader(true, 'Đang tìm và tải sách từ Google Drive về máy...');
+    showLoader(true, 'Đang chuẩn bị tải sách từ Google Drive...');
     try {
       const books = await fetchBooksFromDrive();
-      showLoader(false);
       if (books && books.length > 0) {
-        for (const b of books) {
-          await saveBookToDB(b);
+        showLoader(true, `Đang lưu ${books.length} cuốn sách vào máy...`);
+        for (let i = 0; i < books.length; i++) {
+          await saveBookToDB(books[i]);
         }
-        showToast(`🎉 Đã khôi phục thành công ${books.length} cuốn sách từ Google Drive!`);
+        showLoader(false);
+        showToast(`🎉 Đã khôi phục thành công ${books.length} cuốn sách từ Google Drive!`, 4000);
         onBooksImported(books);
         closeGoogleDriveModal();
       } else {
-        showToast('ℹ️ Không tìm thấy cuốn sách nào trong thư mục Google Drive của bạn');
+        showLoader(false);
+        showToast('ℹ️ Thư mục Google Drive chưa có sách nào. Hãy bấm "Sao Lưu & Đồng Bộ" trên thiết bị có sách trước!', 5000);
       }
-    } catch (e) {
+    } catch (e: any) {
+      console.error('Error in fetch books handler:', e);
       showLoader(false);
-      showToast('⚠️ Không thể tải sách từ Google Drive');
+      showToast(`⚠️ Không thể tải sách từ Google Drive: ${e?.message || 'Lỗi mạng hoặc hết phiên'}`);
+    } finally {
+      showLoader(false);
     }
   });
 

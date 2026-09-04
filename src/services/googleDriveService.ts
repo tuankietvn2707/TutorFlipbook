@@ -362,14 +362,18 @@ export async function getOrCreateDriveFolder(): Promise<string | null> {
   if (!token) return null;
 
   try {
+    const q = encodeURIComponent(`name='${GDRIVE_FOLDER_NAME}' and mimeType='application/vnd.google-apps.folder' and trashed=false`);
     const searchRes = await fetch(
-      `https://www.googleapis.com/drive/v3/files?q=name='${GDRIVE_FOLDER_NAME}' and mimeType='application/vnd.google-apps.folder' and trashed=false&spaces=drive`,
+      `https://www.googleapis.com/drive/v3/files?q=${q}&spaces=drive&fields=files(id,name)`,
       { headers: { Authorization: `Bearer ${token}` } }
     );
     if (!searchRes.ok) {
       if (searchRes.status === 401) {
         setGoogleDriveAccessToken(null);
         showToast('⚠️ Phiên đăng nhập Google Drive đã hết hạn. Vui lòng bấm Đăng nhập lại!');
+      } else {
+        const errText = await searchRes.text().catch(() => '');
+        console.warn('Drive folder search failed:', searchRes.status, errText);
       }
       return null;
     }
@@ -379,7 +383,7 @@ export async function getOrCreateDriveFolder(): Promise<string | null> {
       return searchData.files[0].id;
     }
 
-    // Create folder
+    // Create folder if not found
     const createRes = await fetch('https://www.googleapis.com/drive/v3/files', {
       method: 'POST',
       headers: {
@@ -391,8 +395,12 @@ export async function getOrCreateDriveFolder(): Promise<string | null> {
         mimeType: 'application/vnd.google-apps.folder'
       })
     });
+    if (!createRes.ok) {
+      console.warn('Drive folder creation failed:', createRes.status);
+      return null;
+    }
     const createData = await createRes.json();
-    return createData.id;
+    return createData.id || null;
   } catch (e) {
     console.error('Error getting Drive folder:', e);
     return null;
@@ -407,8 +415,9 @@ export async function uploadBookFileToDrive(book: Book, folderId: string): Promi
     const fileName = `book_${book.id}.json`;
 
     // Check if file already exists in folder to update or create
+    const q = encodeURIComponent(`name='${fileName}' and '${folderId}' in parents and trashed=false`);
     const checkRes = await fetch(
-      `https://www.googleapis.com/drive/v3/files?q=name='${fileName}' and '${folderId}' in parents and trashed=false`,
+      `https://www.googleapis.com/drive/v3/files?q=${q}&fields=files(id,name)`,
       { headers: { Authorization: `Bearer ${token}` } }
     );
     let existingFileId: string | null = null;
@@ -449,39 +458,80 @@ export async function uploadBookFileToDrive(book: Book, folderId: string): Promi
 }
 
 export async function fetchBooksFromDrive(): Promise<Book[]> {
-  const token = getGoogleDriveAccessToken();
-  if (!token) return [];
+  let token = getGoogleDriveAccessToken();
+  if (!token) {
+    token = await requestDriveAuth();
+    if (!token) return [];
+  }
+
+  updateLoaderProgress(5, 'Đang tìm thư mục trên Google Drive...', 'Vui lòng chờ...');
 
   const folderId = await getOrCreateDriveFolder();
-  if (!folderId) return [];
+  if (!folderId) {
+    showToast('⚠️ Không tìm thấy thư mục lưu trữ sách trên Google Drive');
+    return [];
+  }
+
+  if (getIsOperationCancelled()) return [];
+  updateLoaderProgress(15, 'Đang quét danh sách sách trên Drive...', 'Đang đọc danh mục file...');
 
   try {
+    const q = encodeURIComponent(`'${folderId}' in parents and trashed=false and name contains 'book_'`);
     const listRes = await fetch(
-      `https://www.googleapis.com/drive/v3/files?q='${folderId}' in parents and trashed=false and name contains 'book_'`,
+      `https://www.googleapis.com/drive/v3/files?q=${q}&fields=files(id,name,size)`,
       { headers: { Authorization: `Bearer ${token}` } }
     );
-    if (!listRes.ok) return [];
+    if (!listRes.ok) {
+      if (listRes.status === 401) {
+        setGoogleDriveAccessToken(null);
+        showToast('⚠️ Phiên đăng nhập Google Drive đã hết hạn. Vui lòng bấm Đăng nhập lại!');
+      }
+      return [];
+    }
 
     const listData = await listRes.json();
     const files = listData.files || [];
-    const downloadedBooks: Book[] = [];
+    if (files.length === 0) {
+      updateLoaderProgress(100, 'Quét hoàn tất', 'Không có file sách nào');
+      return [];
+    }
 
-    for (const f of files) {
+    const downloadedBooks: Book[] = [];
+    const total = files.length;
+
+    for (let i = 0; i < total; i++) {
+      if (getIsOperationCancelled()) break;
+      const f = files[i];
+      const percent = Math.round(15 + ((i + 1) / total) * 80);
+      updateLoaderProgress(percent, `Đang tải: ${f.name.replace('book_', '').replace('.json', '')}`, `Đã tải ${i + 1}/${total} cuốn sách`);
+
       try {
+        // Fetch with 30s timeout per file to prevent hanging on mobile
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 30000);
+
         const fileRes = await fetch(`https://www.googleapis.com/drive/v3/files/${f.id}?alt=media`, {
-          headers: { Authorization: `Bearer ${token}` }
+          headers: { Authorization: `Bearer ${token}` },
+          signal: controller.signal
         });
+        clearTimeout(timeoutId);
+
         if (fileRes.ok) {
           const bookData = await fileRes.json();
           if (bookData && bookData.id && bookData.title) {
             downloadedBooks.push(bookData);
           }
         }
-      } catch (err) {
-        console.warn('Could not read book file from drive:', f.name, err);
+      } catch (err: any) {
+        if (err.name === 'AbortError') {
+          console.warn('File download timed out for file:', f.name);
+        } else {
+          console.warn('Could not read book file from drive:', f.name, err);
+        }
       }
     }
 
+    updateLoaderProgress(100, 'Tải hoàn tất!', `Đã khôi phục ${downloadedBooks.length} cuốn sách`);
     return downloadedBooks;
   } catch (e) {
     console.error('Error fetching books from drive:', e);
