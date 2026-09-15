@@ -22,13 +22,13 @@ let panStartX = 0;
 let panStartY = 0;
 let isPanToolActive = false;
 
-// 1x1 transparent SVG placeholder to release GPU VRAM textures for far-away pages
-const EMPTY_PAGE_SVG = 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="1" height="1"/>';
+// 1x1 transparent GIF placeholder to release GPU VRAM textures for far-away pages
+const EMPTY_PAGE_DATA_URL = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
 
 /**
  * Dynamically updates the rendered image sources in St.PageFlip so only
  * pages within a small sliding window (current spread +- 3) hold full bitmap textures in GPU memory.
- * Pages further away are replaced with a 1x1 SVG, freeing dozens to hundreds of MBs of VRAM.
+ * Pages further away are replaced with a 1x1 GIF, freeing dozens to hundreds of MBs of VRAM.
  */
 export function updateVirtualPageImages(pageIndex: number, pages: string[]): void {
   const container = document.getElementById('flipbook-book');
@@ -51,7 +51,7 @@ export function updateVirtualPageImages(pageIndex: number, pages: string[]): voi
     } else if (dist > 5) {
       // Far window: reclaim GPU texture memory
       if (img.getAttribute('data-loaded') === 'true') {
-        img.src = EMPTY_PAGE_SVG;
+        img.src = EMPTY_PAGE_DATA_URL;
         img.removeAttribute('data-loaded');
       }
     }
@@ -220,7 +220,7 @@ export function initPageFlip(book: Book, initialPage = 0): void {
   }
 
   // Generate page sheets for PageFlip with sliding window virtual textures
-  // Only pages near the current spread (+- 3) load full bitmaps; others use 1x1 placeholder SVG to save hundreds of MBs in GPU VRAM
+  // Only pages near the current spread (+- 3) load full bitmaps; others use 1x1 placeholder GIF to save hundreds of MBs in GPU VRAM
   book.pages.forEach((pageDataUrl, idx) => {
     const pageDiv = document.createElement('div');
     const isCover = idx === 0 || idx === book.pages.length - 1;
@@ -231,7 +231,7 @@ export function initPageFlip(book: Book, initialPage = 0): void {
     const isNear = Math.abs(idx - initialPage) <= 3;
     pageDiv.innerHTML = `
       <img 
-        src="${isNear ? pageDataUrl : EMPTY_PAGE_SVG}" 
+        src="${isNear ? pageDataUrl : EMPTY_PAGE_DATA_URL}" 
         data-page-index="${idx}"
         ${isNear ? 'data-loaded="true"' : ''}
         alt="Trang ${idx + 1}" 
