@@ -22,6 +22,7 @@ import {
   renderFlipbookReaderHtml,
   setupFlipbookReaderListeners,
   openBookInReader,
+  cleanupFlipbookReader,
   flipNextPage,
   flipPrevPage,
   flipFirstPage,
@@ -34,6 +35,7 @@ import {
   triggerRewardConfetti,
   jumpToPage
 } from './components/FlipbookReader';
+import { APP_VERSION } from './version';
 import {
   renderMediaDockHtml,
   setupMediaDockListeners,
@@ -64,10 +66,10 @@ export default function App() {
     // 1. Initialize Google Auth State Listener
     const unsubscribeAuth = initAuthListener();
 
-    // 2. Initialize and Load Books from IndexedDB
+    // 2. Initialize and Load Books from IndexedDB (Lightweight summary mode: only covers loaded to save GBs of RAM)
     const initAppBooks = async () => {
       try {
-        const books = await loadAllBooksFromDB();
+        const books = await loadAllBooksFromDB(false);
         appState.set('allBooks', books);
         renderLibraryGrid();
         updateHeaderStats(books.length);
@@ -145,6 +147,9 @@ export default function App() {
 
       libContainer?.classList.remove('hidden');
       readerContainer?.classList.add('hidden');
+
+      // Crucial: Deconstruct PageFlip DOM sheets and release canvas/textures from GPU memory
+      cleanupFlipbookReader();
 
       updateNavStyles('library');
 
@@ -564,15 +569,13 @@ export default function App() {
       }
     };
 
-    window.addEventListener('keydown', handleKeyDown, { capture: true });
-    document.addEventListener('keydown', handleKeyDown, { capture: true });
+    window.addEventListener('keydown', handleKeyDown);
 
     // 7. Initialize Lucide Icons
     refreshLucideIcons();
 
     return () => {
-      window.removeEventListener('keydown', handleKeyDown, { capture: true });
-      document.removeEventListener('keydown', handleKeyDown, { capture: true });
+      window.removeEventListener('keydown', handleKeyDown);
       if (typeof unsubscribeAuth === 'function') {
         unsubscribeAuth();
       }
@@ -629,6 +632,15 @@ export default function App() {
           id="mobile-bottom-nav-container"
           dangerouslySetInnerHTML={{ __html: renderMobileBottomNavHtml() }}
         />
+
+        {/* Persistent Bottom-Right Version Indicator */}
+        <div
+          id="app-version-badge"
+          className="fixed bottom-2 right-3 z-30 pointer-events-none hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-white/90 backdrop-blur-md border border-slate-200/90 text-[11px] font-bold text-slate-500 shadow-xs"
+        >
+          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+          <span>v{APP_VERSION}</span>
+        </div>
       </div>
 
       {/* Modals Container */}

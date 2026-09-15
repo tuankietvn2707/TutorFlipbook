@@ -28,7 +28,42 @@ export function initDB(): Promise<IDBDatabase> {
   });
 }
 
-export async function loadAllBooksFromDB(): Promise<Book[]> {
+export async function loadBookById(id: string): Promise<Book | null> {
+  try {
+    const db = await initDB();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(DB_STORE, 'readonly');
+      const store = tx.objectStore(DB_STORE);
+      const req = store.get(id);
+      req.onsuccess = () => resolve(req.result || null);
+      req.onerror = (e) => reject(e);
+    });
+  } catch (err) {
+    console.error(`Error loading book ${id} from DB:`, err);
+    return null;
+  }
+}
+
+export async function loadAllBooksWithPagesFromDB(): Promise<Book[]> {
+  try {
+    const db = await initDB();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(DB_STORE, 'readonly');
+      const store = tx.objectStore(DB_STORE);
+      const req = store.getAll();
+      req.onsuccess = () => {
+        const rawBooks: Book[] = req.result || [];
+        resolve(rawBooks.filter(b => !b.isSample && !b.id.startsWith('sample-book-')));
+      };
+      req.onerror = (e) => reject(e);
+    });
+  } catch (err) {
+    console.error('Error loading all full books from DB:', err);
+    return [];
+  }
+}
+
+export async function loadAllBooksFromDB(includeFullPages: boolean = false): Promise<Book[]> {
   try {
     const db = await initDB();
     return new Promise((resolve, reject) => {
@@ -49,7 +84,18 @@ export async function loadAllBooksFromDB(): Promise<Book[]> {
               console.warn('Failed to delete sample book id:', b.id, err);
             }
           } else {
-            realBooks.push(b);
+            if (includeFullPages) {
+              realBooks.push(b);
+            } else {
+              // Lightweight representation: keep cover for grid, drop high-res page images array
+              // to prevent hundreds of megabytes in JS Heap memory
+              const coverImg = b.coverImage || (b.pages && b.pages[0]) || '';
+              realBooks.push({
+                ...b,
+                coverImage: coverImg,
+                pages: coverImg ? [coverImg] : [] // Only keep cover thumbnail, release 99% of page RAM
+              });
+            }
           }
         }
         resolve(realBooks);

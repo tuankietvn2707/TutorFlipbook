@@ -19,9 +19,15 @@ function getAudioContext(): AudioContext | null {
  * Creates an ultra-soft, warm brown/pink noise buffer with smooth air texture.
  * Free of harsh highs, mimicking the natural friction of velvety paper fibers.
  */
+let cachedNoiseBuffer: AudioBuffer | null = null;
+
 function createVelvetBreezeNoiseBuffer(ctx: AudioContext, duration: number = 0.5): AudioBuffer {
+  if (cachedNoiseBuffer && cachedNoiseBuffer.sampleRate === ctx.sampleRate) {
+    return cachedNoiseBuffer;
+  }
+
   const sampleRate = ctx.sampleRate;
-  const bufferSize = Math.floor(sampleRate * duration);
+  const bufferSize = Math.floor(sampleRate * Math.max(0.6, duration));
   const buffer = ctx.createBuffer(1, bufferSize, sampleRate);
   const data = buffer.getChannelData(0);
 
@@ -47,6 +53,8 @@ function createVelvetBreezeNoiseBuffer(ctx: AudioContext, duration: number = 0.5
 
     data[i] = (lastOut * 0.7 + airyBreeze);
   }
+
+  cachedNoiseBuffer = buffer;
   return buffer;
 }
 

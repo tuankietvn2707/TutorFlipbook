@@ -11,6 +11,8 @@ import { showToast } from '../utils/toast';
 import { openShortcutsModal } from './ShortcutsModal';
 import { PageFlip } from 'page-flip';
 import confetti from 'canvas-confetti';
+import { loadBookById } from '../services/dbService';
+import { APP_VERSION } from '../version';
 
 let pageFlipInstance: any = null;
 let zoomLevel = 1.0;
@@ -19,6 +21,62 @@ let isPanning = false;
 let panStartX = 0;
 let panStartY = 0;
 let isPanToolActive = false;
+
+// 1x1 transparent SVG placeholder to release GPU VRAM textures for far-away pages
+const EMPTY_PAGE_SVG = 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="1" height="1"/>';
+
+/**
+ * Dynamically updates the rendered image sources in St.PageFlip so only
+ * pages within a small sliding window (current spread +- 3) hold full bitmap textures in GPU memory.
+ * Pages further away are replaced with a 1x1 SVG, freeing dozens to hundreds of MBs of VRAM.
+ */
+export function updateVirtualPageImages(pageIndex: number, pages: string[]): void {
+  const container = document.getElementById('flipbook-book');
+  if (!container || !pages || pages.length === 0) return;
+  
+  const imgs = container.querySelectorAll<HTMLImageElement>('.page-flip-sheet img');
+  imgs.forEach((img) => {
+    const rawIdx = img.getAttribute('data-page-index');
+    if (rawIdx === null) return;
+    const idx = parseInt(rawIdx, 10);
+    if (isNaN(idx) || idx < 0 || idx >= pages.length) return;
+
+    const dist = Math.abs(idx - pageIndex);
+    if (dist <= 3) {
+      // Near window: load page texture
+      if (img.getAttribute('data-loaded') !== 'true') {
+        img.src = pages[idx];
+        img.setAttribute('data-loaded', 'true');
+      }
+    } else if (dist > 5) {
+      // Far window: reclaim GPU texture memory
+      if (img.getAttribute('data-loaded') === 'true') {
+        img.src = EMPTY_PAGE_SVG;
+        img.removeAttribute('data-loaded');
+      }
+    }
+  });
+}
+
+export function cleanupFlipbookReader(): void {
+  if (pageFlipInstance) {
+    try {
+      pageFlipInstance.destroy();
+    } catch (e) {
+      console.warn('PageFlip destroy warning:', e);
+    }
+    pageFlipInstance = null;
+  }
+  const flipbookParent = document.getElementById('reader-flipbook-container');
+  if (flipbookParent) {
+    flipbookParent.innerHTML = '<div id="flipbook-book" class="flip-book shadow-2xl"></div>';
+  }
+  const canvas = document.getElementById('annotation-canvas') as HTMLCanvasElement;
+  if (canvas) {
+    const ctx = canvas.getContext('2d');
+    ctx?.clearRect(0, 0, canvas.width, canvas.height);
+  }
+}
 
 export function renderFlipbookReaderHtml(): string {
   return `
@@ -60,7 +118,7 @@ export function renderFlipbookReaderHtml(): string {
       </button>
 
       <!-- Flipbook Render Target Wrapper (Transformed with Zoom/Pan) -->
-      <div id="reader-flipbook-container" class="relative z-10 transition-transform duration-75 origin-center flex items-center justify-center w-full h-full">
+      <div id="reader-flipbook-container" class="relative z-10 origin-center flex items-center justify-center w-full h-full will-change-transform">
         <div id="flipbook-book" class="flip-book shadow-2xl">
           <!-- Dynamically generated St.PageFlip sheets -->
         </div>
@@ -75,17 +133,30 @@ export function renderFlipbookReaderHtml(): string {
   `;
 }
 
-export function openBookInReader(book: Book, initialPage = 0): void {
+export async function openBookInReader(book: Book, initialPage = 0): Promise<void> {
+  let fullBook = book;
+  // If this book record is a lightweight summary (pages stripped for memory saving), load the full pages from DB
+  if (!book.pages || book.pages.length <= 1) {
+    try {
+      const loaded = await loadBookById(book.id);
+      if (loaded && loaded.pages && loaded.pages.length > 0) {
+        fullBook = loaded;
+      }
+    } catch (err) {
+      console.warn('Could not load full book from DB:', err);
+    }
+  }
+
   appState.update({
-    currentBook: book,
-    totalPages: book.totalPages,
+    currentBook: fullBook,
+    totalPages: fullBook.totalPages,
     currentPage: initialPage + 1
   });
 
   // Allow DOM layout to complete before sizing canvas and flipbook
   requestAnimationFrame(() => {
     setTimeout(() => {
-      initPageFlip(book, initialPage);
+      initPageFlip(fullBook, initialPage);
     }, 60);
   });
 }
@@ -148,7 +219,8 @@ export function initPageFlip(book: Book, initialPage = 0): void {
     }
   }
 
-  // Generate page sheets for PageFlip
+  // Generate page sheets for PageFlip with sliding window virtual textures
+  // Only pages near the current spread (+- 3) load full bitmaps; others use 1x1 placeholder SVG to save hundreds of MBs in GPU VRAM
   book.pages.forEach((pageDataUrl, idx) => {
     const pageDiv = document.createElement('div');
     const isCover = idx === 0 || idx === book.pages.length - 1;
@@ -156,8 +228,17 @@ export function initPageFlip(book: Book, initialPage = 0): void {
     if (isCover) {
       pageDiv.setAttribute('data-density', 'hard');
     }
+    const isNear = Math.abs(idx - initialPage) <= 3;
     pageDiv.innerHTML = `
-      <img src="${pageDataUrl}" alt="Trang ${idx + 1}" class="w-full h-full object-contain pointer-events-none select-none" />
+      <img 
+        src="${isNear ? pageDataUrl : EMPTY_PAGE_SVG}" 
+        data-page-index="${idx}"
+        ${isNear ? 'data-loaded="true"' : ''}
+        alt="Trang ${idx + 1}" 
+        loading="${isNear ? 'eager' : 'lazy'}" 
+        decoding="async" 
+        class="w-full h-full object-contain pointer-events-none select-none" 
+      />
     `;
     container.appendChild(pageDiv);
   });
@@ -173,12 +254,12 @@ export function initPageFlip(book: Book, initialPage = 0): void {
         maxWidth: 1200,
         minHeight: 360,
         maxHeight: 1600,
-        maxShadowOpacity: 0.4,
+        maxShadowOpacity: 0.2,
         showCover: true,
         mobileScrollSupport: false,
         usePortrait: isMobile,
         startPage: initialPage,
-        flippingTime: 400,
+        flippingTime: 320,
         useMouseEvents: true,
         swipeDistance: 30
       });
@@ -196,6 +277,12 @@ export function initPageFlip(book: Book, initialPage = 0): void {
         if (curMeta && activeBook) {
           curMeta.textContent = `${displayPage} / ${activeBook.totalPages} trang • ${activeBook.audioTracks ? activeBook.audioTracks.length : 0} Audio`;
         }
+
+        // Dynamically update virtual image textures for new current page window
+        if (activeBook && activeBook.pages) {
+          updateVirtualPageImages(pageIndex, activeBook.pages);
+        }
+
         playFlipSound();
       });
 
@@ -228,21 +315,34 @@ export function flipPrevPage(): void {
 }
 
 export function flipFirstPage(): void {
+  const activeBook = appState.get('currentBook');
+  if (activeBook && activeBook.pages) {
+    updateVirtualPageImages(0, activeBook.pages);
+  }
   if (pageFlipInstance) {
     pageFlipInstance.flip(0);
   }
 }
 
 export function flipLastPage(): void {
+  const total = appState.get('totalPages');
+  const target = Math.max(0, total - 1);
+  const activeBook = appState.get('currentBook');
+  if (activeBook && activeBook.pages) {
+    updateVirtualPageImages(target, activeBook.pages);
+  }
   if (pageFlipInstance) {
-    const total = appState.get('totalPages');
-    pageFlipInstance.flip(Math.max(0, total - 1));
+    pageFlipInstance.flip(target);
   }
 }
 
 export function jumpToPage(pageNum: number): void {
   const total = appState.get('totalPages');
   const target = Math.max(1, Math.min(total, pageNum));
+  const activeBook = appState.get('currentBook');
+  if (activeBook && activeBook.pages) {
+    updateVirtualPageImages(target - 1, activeBook.pages);
+  }
   if (pageFlipInstance) {
     pageFlipInstance.flip(target - 1);
   }
@@ -320,7 +420,7 @@ export function togglePanTool(): boolean {
 function applyTransform(): void {
   const container = document.getElementById('reader-flipbook-container');
   if (container) {
-    container.style.transform = `translate(${panOffset.x}px, ${panOffset.y}px) scale(${zoomLevel})`;
+    container.style.transform = `translate3d(${panOffset.x}px, ${panOffset.y}px, 0) scale(${zoomLevel})`;
   }
 }
 
@@ -371,12 +471,16 @@ export function setupFlipbookReaderListeners(callbacks: {
   // Pan dragging on stage
   const stage = document.getElementById('reader-stage');
   if (stage) {
+    let panRafId: number | null = null;
+
     stage.addEventListener('mousedown', (e) => {
       if (isPanToolActive || zoomLevel > 1.0) {
         isPanning = true;
         panStartX = e.clientX - panOffset.x;
         panStartY = e.clientY - panOffset.y;
         stage.style.cursor = 'grabbing';
+        const container = document.getElementById('reader-flipbook-container');
+        if (container) container.style.transition = 'none';
       }
     });
 
@@ -384,9 +488,14 @@ export function setupFlipbookReaderListeners(callbacks: {
       if (isPanning) {
         panOffset.x = e.clientX - panStartX;
         panOffset.y = e.clientY - panStartY;
-        applyTransform();
+        if (panRafId === null) {
+          panRafId = requestAnimationFrame(() => {
+            panRafId = null;
+            applyTransform();
+          });
+        }
       }
-    });
+    }, { passive: true });
 
     window.addEventListener('mouseup', () => {
       if (isPanning) {
@@ -394,6 +503,8 @@ export function setupFlipbookReaderListeners(callbacks: {
         if (stage) {
           stage.style.cursor = isPanToolActive ? 'grab' : 'default';
         }
+        const container = document.getElementById('reader-flipbook-container');
+        if (container) container.style.transition = '';
       }
     });
   }

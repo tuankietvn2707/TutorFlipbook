@@ -1,5 +1,6 @@
 import { appState } from '../state/appState';
 import { renderBrandLogoSvg } from '../utils/logo';
+import { APP_VERSION } from '../version';
 
 export function renderSidebarHtml(): string {
   return `
@@ -107,6 +108,12 @@ export function renderSidebarHtml(): string {
       <p class="text-[10px] text-slate-500 font-bold leading-tight">
         Lưu trữ không giới hạn trang sách & file Audio offline.
       </p>
+    </div>
+
+    <!-- App Version Footer Indicator -->
+    <div class="pt-1 flex items-center justify-center gap-1.5 text-[11px] font-bold text-slate-600 select-none">
+      <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+      <span>Phiên bản v${APP_VERSION}</span>
     </div>
 
   </aside>

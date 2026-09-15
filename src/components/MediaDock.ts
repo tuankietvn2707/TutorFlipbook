@@ -14,7 +14,7 @@ export function renderMediaDockHtml(): string {
   <!-- FLOATING AUDIO STUDIO DOCK (ALWAYS VISIBLE & ACCESSIBLE IN ALL MODES) -->
   <div 
     id="media-player-dock" 
-    class="hidden fixed bottom-4 left-3 right-3 sm:left-1/2 sm:-translate-x-1/2 sm:w-[94%] sm:max-w-4xl z-50 bg-slate-900/95 backdrop-blur-2xl border-2 border-purple-500/50 rounded-3xl p-3.5 sm:p-4 shadow-[0_20px_60px_rgba(0,0,0,0.65)] text-white space-y-2.5 select-none transition-all duration-300 animate-in fade-in slide-in-from-bottom-5"
+    class="hidden fixed bottom-4 left-3 right-3 sm:left-1/2 sm:-translate-x-1/2 sm:w-[94%] sm:max-w-4xl z-50 bg-slate-900/98 border-2 border-purple-500/50 rounded-3xl p-3.5 sm:p-4 shadow-[0_20px_60px_rgba(0,0,0,0.65)] text-white space-y-2.5 select-none transition-all duration-300 animate-in fade-in slide-in-from-bottom-5"
   >
     <!-- Header Row: Title, Quick Actions & Close -->
     <div class="flex items-center justify-between gap-2 border-b border-white/15 pb-2.5">

@@ -2,6 +2,7 @@ import { Book } from '../types';
 import { appState } from '../state/appState';
 import { refreshLucideIcons } from '../utils/icons';
 import { openBatchMediaModal } from './BatchMediaModal';
+import { APP_VERSION } from '../version';
 
 export function renderLibraryViewHtml(): string {
   return `
@@ -28,6 +29,17 @@ export function renderLibraryViewHtml(): string {
         <span>Tải Sách PDF Ngay</span>
       </button>
     </div>
+
+    <!-- FOOTER WITH VERSION -->
+    <footer class="pt-10 pb-6 border-t border-slate-200/80 text-center space-y-1.5 select-none">
+      <div class="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-white border border-slate-200 text-slate-700 text-xs font-black shadow-xs">
+        <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+        <span>Biblio3D TutorFlow • Version ${APP_VERSION}</span>
+      </div>
+      <p class="text-[11px] text-slate-600 font-bold">
+        Chế độ đọc sách 3D tương tác • Quản lý tài liệu & Audio giảng dạy thông minh
+      </p>
+    </footer>
 
   </section>
   `;
@@ -118,7 +130,7 @@ export function renderLibraryGrid(): void {
           </div>
 
           <!-- HOVER QUICK-ACTION OVERLAY -->
-          <div class="absolute inset-0 bg-slate-950/40 backdrop-blur-[2px] opacity-0 group-hover:opacity-100 transition-opacity duration-200 z-20 flex flex-col items-center justify-center p-4 text-white text-center gap-2">
+          <div class="absolute inset-0 bg-slate-950/60 opacity-0 group-hover:opacity-100 transition-opacity duration-200 z-20 flex flex-col items-center justify-center p-4 text-white text-center gap-2">
             <div class="w-12 h-12 rounded-2xl bg-[#58CC02] text-white flex items-center justify-center shadow-lg transform scale-90 group-hover:scale-100 transition-transform duration-200 border-b-4 border-[#399300]">
               <i data-lucide="book-open" class="w-6 h-6"></i>
             </div>
@@ -128,7 +140,7 @@ export function renderLibraryGrid(): void {
 
           <!-- BOTTOM METADATA BADGES ON COVER -->
           <div class="flex items-center justify-between p-2.5 z-20 text-[11px] font-black text-white">
-            <span class="bg-black/60 backdrop-blur-md px-2 py-0.5 rounded-lg border border-white/20 shadow-sm flex items-center gap-1">
+            <span class="bg-black/75 px-2 py-0.5 rounded-lg border border-white/20 shadow-sm flex items-center gap-1">
               <i data-lucide="file-text" class="w-3 h-3 text-sky-400"></i>
               ${b.totalPages} trang
             </span>
@@ -136,13 +148,13 @@ export function renderLibraryGrid(): void {
             ${
               audioCount > 0
                 ? `
-                <span class="bg-purple-900/80 backdrop-blur-md text-purple-200 px-2 py-0.5 rounded-lg border border-purple-400/40 shadow-sm flex items-center gap-1">
+                <span class="bg-purple-950/90 text-purple-200 px-2 py-0.5 rounded-lg border border-purple-400/40 shadow-sm flex items-center gap-1">
                   <i data-lucide="headphones" class="w-3 h-3 text-purple-300"></i>
                   ${audioCount} Audio
                 </span>
                 `
                 : `
-                <span class="bg-black/40 backdrop-blur-md text-slate-300 px-2 py-0.5 rounded-lg border border-white/10 shadow-sm text-[10px]">
+                <span class="bg-black/75 text-slate-300 px-2 py-0.5 rounded-lg border border-white/10 shadow-sm text-[10px]">
                   Chưa có Audio
                 </span>
                 `

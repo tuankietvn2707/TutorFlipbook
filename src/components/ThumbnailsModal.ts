@@ -40,7 +40,7 @@ export function openThumbnailsModal(): void {
       }"
     >
       <div class="aspect-[3/4] w-full bg-white rounded-lg overflow-hidden flex items-center justify-center shadow-sm">
-        <img src="${pageImg}" alt="Trang ${idx + 1}" class="w-full h-full object-contain pointer-events-none" />
+        <img src="${pageImg}" alt="Trang ${idx + 1}" loading="lazy" decoding="async" class="w-full h-full object-contain pointer-events-none" />
       </div>
       <span class="font-black text-xs ${idx + 1 === curPage ? 'text-duoBlue' : 'text-slate-600'}">Trang ${idx + 1}</span>
     </div>
@@ -54,6 +54,10 @@ export function openThumbnailsModal(): void {
 export function closeThumbnailsModal(): void {
   const modal = document.getElementById('modal-thumbnails');
   modal?.classList.add('hidden');
+  const container = document.getElementById('thumbnails-container');
+  if (container) {
+    container.innerHTML = '';
+  }
 }
 
 export function setupThumbnailsListeners(): void {

@@ -121,7 +121,9 @@ body {
   border: 2px solid #E5E5E5;
   border-bottom-width: 6px;
   border-radius: 1.25rem;
-  transition: all 0.15s ease-out;
+  transition: transform 0.15s ease-out, border-color 0.15s ease-out, box-shadow 0.15s ease-out;
+  content-visibility: auto;
+  contain-intrinsic-size: 280px 420px;
 }
 .card-3d:hover {
   transform: translateY(-3px);
@@ -129,25 +131,27 @@ body {
   border-color: #D1D5DB;
 }
 
-/* Laser Pointer */
+/* Laser Pointer (Optimized with GPU compositor layer) */
 #laser-pointer-dot {
   position: fixed;
+  top: 0;
+  left: 0;
   width: 14px;
   height: 14px;
   border-radius: 50%;
   background: #FF4B4B;
-  box-shadow: 0 0 16px 6px rgba(255, 75, 75, 0.7), 0 0 32px 12px rgba(255, 75, 75, 0.4);
+  box-shadow: 0 0 10px 4px rgba(255, 75, 75, 0.85);
   pointer-events: none;
   z-index: 9999;
-  transform: translate(-50%, -50%);
   display: none;
-  transition: transform 0.04s ease-out;
+  will-change: transform;
 }
 
 /* Flipbook Container */
 .page-flip-sheet {
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.1);
   background-size: cover;
+  contain: paint;
 }
 
 /* Spotlight Overlay */

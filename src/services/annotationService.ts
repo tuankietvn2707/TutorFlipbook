@@ -59,7 +59,10 @@ export function clearAllAnnotations(): void {
 export function resizeAnnotationCanvas(): void {
   const canvas = document.getElementById('annotation-canvas') as HTMLCanvasElement;
   const stage = document.getElementById('reader-stage');
+  const readerContainer = document.getElementById('view-reader-container');
   if (!canvas || !stage) return;
+  // If reader view is hidden, skip expensive canvas resizing
+  if (readerContainer && readerContainer.classList.contains('hidden')) return;
 
   const width = stage.clientWidth || window.innerWidth;
   const height = stage.clientHeight || window.innerHeight;
@@ -170,21 +173,35 @@ export function setupAnnotationListeners(): void {
 
   resizeAnnotationCanvas();
 
-  // 1. Global pointer tracking for Laser & Spotlight
+  // 1. Global pointer tracking for Laser & Spotlight (RAF Throttled + GPU Transforms)
+  let pointerRafId: number | null = null;
+  let lastPointerX = 0;
+  let lastPointerY = 0;
+
   window.addEventListener('pointermove', (e: PointerEvent) => {
-    if (isLaserActive && laserDot) {
-      laserDot.style.left = `${e.clientX}px`;
-      laserDot.style.top = `${e.clientY}px`;
-    }
+    // Early exit if neither laser nor spotlight is active (avoids CPU wakeups on every mousemove)
+    if (!isLaserActive && !isSpotlightActive) return;
 
-    if (isSpotlightActive && spotlightMask) {
-      spotlightMask.style.background = `radial-gradient(circle 140px at ${e.clientX}px ${e.clientY}px, rgba(0,0,0,0) 0%, rgba(0,0,0,0.68) 100%)`;
-    }
-  });
+    lastPointerX = e.clientX;
+    lastPointerY = e.clientY;
 
-  // 2. High-performance Canvas Drawing with PointerEvents
+    if (pointerRafId === null) {
+      pointerRafId = requestAnimationFrame(() => {
+        pointerRafId = null;
+        if (isLaserActive && laserDot) {
+          laserDot.style.transform = `translate3d(${lastPointerX}px, ${lastPointerY}px, 0) translate(-50%, -50%)`;
+        }
+
+        if (isSpotlightActive && spotlightMask) {
+          spotlightMask.style.background = `radial-gradient(circle 140px at ${lastPointerX}px ${lastPointerY}px, rgba(0,0,0,0) 0%, rgba(0,0,0,0.68) 100%)`;
+        }
+      });
+    }
+  }, { passive: true });
+
+  // 2. High-performance Hardware-Accelerated Canvas Drawing
   if (canvas) {
-    const ctx = canvas.getContext('2d', { willReadFrequently: true });
+    const ctx = canvas.getContext('2d');
 
     const getCanvasCoords = (e: PointerEvent) => {
       const rect = canvas.getBoundingClientRect();
