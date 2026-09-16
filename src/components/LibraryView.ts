@@ -83,6 +83,8 @@ export function renderLibraryGrid(): void {
         <!-- 3D REALISTIC BOOK COVER CONTAINER -->
         <a 
           href="?bookId=${b.id}"
+          target="_blank"
+          rel="noopener noreferrer"
           class="block relative w-full aspect-[3/4] rounded-2xl overflow-hidden bg-slate-900 border-2 border-slate-200/80 shadow-md group-hover:shadow-2xl transition-all duration-300 cursor-pointer flex flex-col justify-between book-card-link"
           data-book-id="${b.id}"
           title="Nhấn để mở đọc 3D: ${b.title}"
@@ -183,6 +185,8 @@ export function renderLibraryGrid(): void {
           <!-- Open 3D Flipbook Button -->
           <a 
             href="?bookId=${b.id}"
+            target="_blank"
+            rel="noopener noreferrer"
             class="btn-3d btn-green flex-1 py-2 px-2.5 rounded-xl font-black text-xs text-white flex items-center justify-center gap-1 shadow-sm hover:brightness-105 cursor-pointer"
             title="Mở sách đọc 3D"
           >

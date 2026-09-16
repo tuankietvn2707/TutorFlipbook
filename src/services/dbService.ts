@@ -69,17 +69,17 @@ export async function loadAllBooksFromDB(includeFullPages: boolean = false): Pro
     return new Promise((resolve, reject) => {
       const tx = db.transaction(DB_STORE, 'readwrite');
       const store = tx.objectStore(DB_STORE);
-      const req = store.getAll();
+      const req = store.openCursor();
+      const realBooks: Book[] = [];
 
-      req.onsuccess = () => {
-        const rawBooks: Book[] = req.result || [];
-        const realBooks: Book[] = [];
-        
-        // Remove all sample books permanently from storage
-        for (const b of rawBooks) {
+      req.onsuccess = (event: any) => {
+        const cursor = event.target.result;
+        if (cursor) {
+          const b = cursor.value;
+          
           if (b.isSample || b.id.startsWith('sample-book-')) {
             try {
-              store.delete(b.id);
+              cursor.delete();
             } catch (err) {
               console.warn('Failed to delete sample book id:', b.id, err);
             }
@@ -90,16 +90,21 @@ export async function loadAllBooksFromDB(includeFullPages: boolean = false): Pro
               // Lightweight representation: keep cover for grid, drop high-res page images array
               // to prevent hundreds of megabytes in JS Heap memory
               const coverImg = b.coverImage || (b.pages && b.pages[0]) || '';
+              // CRITICAL: delete massive array from memory immediately
+              delete b.pages;
               realBooks.push({
                 ...b,
                 coverImage: coverImg,
-                pages: coverImg ? [coverImg] : [] // Only keep cover thumbnail, release 99% of page RAM
+                pages: coverImg ? [coverImg] : [] // Only keep cover thumbnail
               });
             }
           }
+          cursor.continue();
+        } else {
+          resolve(realBooks);
         }
-        resolve(realBooks);
       };
+      
       req.onerror = (e) => reject(e);
     });
   } catch (e) {
