@@ -80,6 +80,9 @@ export async function extractPagesFromPdfFile(
         `Đang render trang ${pageNum} / ${numPages}`,
         `Đã hoàn thành ${percent}% tài liệu`
       );
+
+      // Give the main thread a breathing window to process UI updates and garbage collection, preventing CPU thermal spikes
+      await new Promise(resolve => setTimeout(resolve, 0));
     }
   } finally {
     // Release canvas memory buffer immediately
