@@ -70,6 +70,13 @@ export async function extractPagesFromPdfFile(
       // 0.82 quality gives crisp text while cutting base64 texture memory by ~30%
       const dataUrl = canvas.toDataURL('image/jpeg', 0.82);
       pageImages.push(dataUrl);
+      
+      // CRITICAL: Release PDF.js page memory immediately to prevent gigabytes of RAM usage
+      try {
+        page.cleanup();
+      } catch (e) {
+        // ignore
+      }
 
       const percent = Math.round((pageNum / numPages) * 100);
       if (onProgress) {
@@ -88,6 +95,15 @@ export async function extractPagesFromPdfFile(
     // Release canvas memory buffer immediately
     canvas.width = 0;
     canvas.height = 0;
+    
+    // CRITICAL: Destroy PDF document to clear huge worker and main-thread memory cache
+    try {
+      if (pdfDoc) {
+        await pdfDoc.destroy();
+      }
+    } catch (e) {
+      console.warn('Error destroying pdfDoc', e);
+    }
   }
 
   return pageImages;

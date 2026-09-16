@@ -157,6 +157,19 @@ export default function App() {
     };
 
     const showLibraryView = () => {
+      // 1. Force PageFlip to destroy and release WebGL/Canvas memory
+      cleanupFlipbookReader();
+      
+      // 2. Clear massive Base64 arrays from JS Heap to prevent BFCache bloat
+      const curBook = appState.get('currentBook');
+      if (curBook) {
+        curBook.pages = []; // sever reference to the massive array
+      }
+      appState.set('currentBook', null);
+      
+      // 3. Clear allBooks just in case to free up RAM before reload
+      appState.set('allBooks', []);
+
       window.location.href = '/';
     };
 
@@ -582,9 +595,21 @@ export default function App() {
 
     // 7. Initialize Lucide Icons
     refreshLucideIcons();
+    
+    // 8. Prevent BFCache Memory Bloat
+    // Browsers cache the heap (gigabytes) when navigating away. We must clean up on pagehide.
+    const handlePageHide = () => {
+      cleanupFlipbookReader();
+      const curBook = appState.get('currentBook');
+      if (curBook) curBook.pages = [];
+      appState.set('currentBook', null);
+      appState.set('allBooks', []);
+    };
+    window.addEventListener('pagehide', handlePageHide);
 
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('pagehide', handlePageHide);
       if (typeof unsubscribeAuth === 'function') {
         unsubscribeAuth();
       }
