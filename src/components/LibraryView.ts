@@ -81,9 +81,10 @@ export function renderLibraryGrid(): void {
       <div class="card-3d bg-white rounded-3xl p-4 flex flex-col justify-between space-y-3.5 group hover:border-duoBlue/50 hover:shadow-xl transition-all duration-300">
         
         <!-- 3D REALISTIC BOOK COVER CONTAINER -->
-        <div 
-          class="relative w-full aspect-[3/4] rounded-2xl overflow-hidden bg-slate-900 border-2 border-slate-200/80 shadow-md group-hover:shadow-2xl transition-all duration-300 cursor-pointer flex flex-col justify-between"
-          onclick="window.onBookCardClick('${b.id}')"
+        <a 
+          href="?bookId=${b.id}"
+          class="block relative w-full aspect-[3/4] rounded-2xl overflow-hidden bg-slate-900 border-2 border-slate-200/80 shadow-md group-hover:shadow-2xl transition-all duration-300 cursor-pointer flex flex-col justify-between book-card-link"
+          data-book-id="${b.id}"
           title="Nhấn để mở đọc 3D: ${b.title}"
         >
           
@@ -161,7 +162,7 @@ export function renderLibraryGrid(): void {
             }
           </div>
 
-        </div>
+        </a>
 
         <!-- Book Title & Created Date -->
         <div class="space-y-1 px-0.5">
@@ -180,14 +181,14 @@ export function renderLibraryGrid(): void {
         <div class="pt-2 border-t border-slate-100 flex items-center justify-between gap-1.5">
           
           <!-- Open 3D Flipbook Button -->
-          <button 
-            onclick="window.onBookCardClick('${b.id}')" 
+          <a 
+            href="?bookId=${b.id}"
             class="btn-3d btn-green flex-1 py-2 px-2.5 rounded-xl font-black text-xs text-white flex items-center justify-center gap-1 shadow-sm hover:brightness-105 cursor-pointer"
             title="Mở sách đọc 3D"
           >
             <i data-lucide="book-open" class="w-3.5 h-3.5"></i>
             <span>Đọc 3D</span>
-          </button>
+          </a>
 
           <!-- Add Audio To This Book Button -->
           <button 
@@ -240,10 +241,14 @@ export function setupLibraryListeners(callbacks: {
   onOpenBatchMedia?: (bookId?: string) => void;
 }): void {
   // Global book click handler
-  (window as any).onBookCardClick = (id: string) => {
+  (window as any).onBookCardClick = (id: string, e?: Event) => {
+    if (e) {
+      e.preventDefault();
+    }
     const books = appState.get('allBooks');
     const book = books.find(b => b.id === id);
     if (book) {
+      window.history.pushState({}, '', `?bookId=${book.id}`);
       callbacks.onOpenBook(book);
     }
   };

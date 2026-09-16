@@ -4,6 +4,7 @@ export interface AudioTrack {
   url: string;
   size?: number;
   fileType?: string;
+  folder?: string;
 }
 
 export interface Book {

@@ -4,7 +4,7 @@ import { saveBookToDB } from '../services/dbService';
 import { naturalSortAudioTracks } from '../utils/sorting';
 import { showToast } from '../utils/toast';
 
-let batchAudioQueue: { file: File; name: string; size: number }[] = [];
+let batchAudioQueue: { file: File; name: string; size: number; folder?: string }[] = [];
 
 export function renderBatchMediaModalHtml(): string {
   return `
@@ -37,7 +37,19 @@ export function renderBatchMediaModalHtml(): string {
         </div>
         <p class="font-black text-sm text-slate-800">Kéo & Thả Hàng Loạt File Âm Thanh Vào Đây</p>
         <p class="text-xs text-slate-500 font-bold">Hỗ trợ chọn cùng lúc nhiều file: .mp3, .wav, .m4a, .aac, .ogg, .flac</p>
-        <input type="file" id="batch-media-input" multiple accept="audio/*" class="hidden" />
+        
+        <div class="flex gap-2 mt-2">
+          <label class="btn-3d btn-purple px-4 py-2 rounded-xl text-white font-black text-xs cursor-pointer inline-flex items-center gap-1.5 shadow-md">
+            <i data-lucide="file-audio" class="w-4 h-4"></i>
+            Chọn nhiều File
+            <input type="file" id="batch-media-input" multiple accept="audio/*" class="hidden" />
+          </label>
+          <label class="btn-3d btn-white border-2 border-purple-200 px-4 py-2 rounded-xl text-purple-700 font-black text-xs cursor-pointer inline-flex items-center gap-1.5 shadow-md">
+            <i data-lucide="folder-plus" class="w-4 h-4"></i>
+            Chọn cả Thư mục
+            <input type="file" id="batch-media-folder-input" webkitdirectory directory multiple class="hidden" />
+          </label>
+        </div>
       </div>
 
       <!-- Target Selection: Gán vào sách nào? -->
@@ -150,7 +162,10 @@ function updateQueueListUI(): void {
     <div class="flex items-center justify-between p-2 bg-white rounded-xl border border-slate-200 text-xs font-bold">
       <div class="flex items-center gap-2 truncate">
         <span class="w-5 h-5 rounded-md bg-purple-100 text-purple-700 flex items-center justify-center text-[10px] font-black">${idx + 1}</span>
-        <span class="truncate text-slate-800">${item.name}</span>
+        <div class="flex flex-col truncate">
+          <span class="truncate text-slate-800">${item.name}</span>
+          ${item.folder ? `<span class="text-[9px] text-purple-600 font-extrabold truncate uppercase">📁 ${item.folder}</span>` : ''}
+        </div>
       </div>
       <div class="flex items-center gap-2 flex-shrink-0">
         <span class="text-[10px] text-slate-400">${(item.size / (1024 * 1024)).toFixed(2)} MB</span>
@@ -171,12 +186,29 @@ function updateQueueListUI(): void {
 export function setupBatchMediaListeners(onBatchAddedToBook: (book: Book) => void): void {
   const dropzone = document.getElementById('batch-dropzone');
   const input = document.getElementById('batch-media-input') as HTMLInputElement;
+  const folderInput = document.getElementById('batch-media-folder-input') as HTMLInputElement;
 
-  dropzone?.addEventListener('click', () => input?.click());
+  dropzone?.addEventListener('click', (e) => {
+    // Only trigger if they clicked the dropzone itself, not the buttons inside
+    if (e.target === dropzone || (e.target as HTMLElement).tagName === 'P' || (e.target as HTMLElement).tagName === 'I') {
+      input?.click();
+    }
+  });
 
   input?.addEventListener('change', (e: any) => {
     if (e.target.files && e.target.files.length > 0) {
       addFilesToQueue(Array.from(e.target.files));
+    }
+  });
+
+  folderInput?.addEventListener('change', (e: any) => {
+    if (e.target.files && e.target.files.length > 0) {
+      const audioFiles = Array.from(e.target.files as FileList).filter(
+        f => f.type.startsWith('audio/') || f.name.match(/\.(mp3|wav|m4a|aac|ogg|flac)$/i)
+      );
+      if (audioFiles.length > 0) {
+        addFilesToQueue(audioFiles);
+      }
     }
   });
 
@@ -252,7 +284,8 @@ export function setupBatchMediaListeners(onBatchAddedToBook: (book: Book) => voi
           id: 'track_' + Date.now() + '_' + i + '_' + Math.random().toString(36).substr(2, 5),
           name: item.name,
           url: dataUrl,
-          size: item.size
+          size: item.size,
+          folder: item.folder
         });
       } catch {
         const url = URL.createObjectURL(item.file);
@@ -260,7 +293,8 @@ export function setupBatchMediaListeners(onBatchAddedToBook: (book: Book) => voi
           id: 'track_' + Date.now() + '_' + i + '_' + Math.random().toString(36).substr(2, 5),
           name: item.name,
           url,
-          size: item.size
+          size: item.size,
+          folder: item.folder
         });
       }
     }
@@ -285,11 +319,23 @@ function readFileAsDataURL(file: File): Promise<string> {
 }
 
 function addFilesToQueue(files: File[]): void {
+  const folderPrompt = prompt('Tạo thư mục cho các file audio này? (Ví dụ: Unit 1, Bài 1. Để trống nếu không cần):', '') || '';
+  const baseFolder = folderPrompt.trim();
+
   for (const f of files) {
+    let trackFolder = baseFolder;
+    if (!trackFolder && f.webkitRelativePath) {
+      const parts = f.webkitRelativePath.split('/');
+      if (parts.length > 1) {
+        trackFolder = parts[parts.length - 2];
+      }
+    }
+
     batchAudioQueue.push({
       file: f,
       name: f.name.replace(/\.[^/.]+$/, ''),
-      size: f.size
+      size: f.size,
+      folder: trackFolder || undefined
     });
   }
   batchAudioQueue = naturalSortAudioTracks(batchAudioQueue);

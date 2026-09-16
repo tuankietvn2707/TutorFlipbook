@@ -125,6 +125,15 @@ export function renderMediaDockHtml(): string {
         >
           <i data-lucide="skip-forward" class="w-4 h-4"></i>
         </button>
+
+        <button 
+          type="button"
+          id="btn-track-delete" 
+          class="p-1.5 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 hover:text-rose-300 transition active:scale-95 shrink-0 cursor-pointer" 
+          title="Xóa bài nghe đang chọn"
+        >
+          <i data-lucide="trash-2" class="w-4 h-4"></i>
+        </button>
       </div>
 
       <!-- Controls & Progress Timeline -->
@@ -303,12 +312,31 @@ export function initMediaDock(book: Book | null): void {
   if (playerContent) playerContent.classList.remove('hidden');
 
   const sortedTracks = naturalSortAudioTracks(tracks);
-  sortedTracks.forEach((track, idx) => {
-    const opt = document.createElement('option');
-    opt.value = track.url;
-    opt.innerText = `${idx + 1}. ${track.name}`;
-    opt.dataset.index = String(idx);
-    select.appendChild(opt);
+  
+  // Group tracks by folder
+  const folders: Record<string, typeof sortedTracks> = {};
+  sortedTracks.forEach(t => {
+    const f = t.folder || 'Khác';
+    if (!folders[f]) folders[f] = [];
+    folders[f].push(t);
+  });
+
+  // Render grouped options
+  Object.keys(folders).sort().forEach(folderName => {
+    const group = document.createElement('optgroup');
+    group.label = folderName === 'Khác' ? 'Thư mục chung' : `📁 ${folderName}`;
+    
+    folders[folderName].forEach(track => {
+      // Find absolute index across all tracks for display
+      const absIdx = sortedTracks.findIndex(t => t.id === track.id);
+      const opt = document.createElement('option');
+      opt.value = track.url;
+      opt.innerText = `${absIdx + 1}. ${track.name}`;
+      opt.dataset.index = String(absIdx);
+      group.appendChild(opt);
+    });
+    
+    select.appendChild(group);
   });
 
   currentTrackIndex = 0;
@@ -494,6 +522,33 @@ export function setupMediaDockListeners(callbacks: {
   document.getElementById('btn-track-prev')?.addEventListener('click', playPrevTrack);
   document.getElementById('btn-track-next')?.addEventListener('click', playNextTrack);
 
+  // Delete Track
+  document.getElementById('btn-track-delete')?.addEventListener('click', async () => {
+    const book = appState.get('currentBook');
+    const trackSelect = document.getElementById('media-track-select') as HTMLSelectElement;
+    if (!book || !book.audioTracks || !trackSelect.value) return;
+
+    if (!confirm('Bạn có chắc chắn muốn xóa bài nghe này khỏi sách?')) return;
+
+    const targetUrl = trackSelect.value;
+    book.audioTracks = book.audioTracks.filter(t => t.url !== targetUrl);
+    
+    // Update DB
+    await saveBookToDB(book);
+    
+    // Update State
+    const allBooks = appState.get('allBooks');
+    const idx = allBooks.findIndex(b => b.id === book.id);
+    if (idx !== -1) {
+      allBooks[idx] = { ...book };
+      appState.set('allBooks', [...allBooks]);
+    }
+    
+    // Refresh Dock
+    initMediaDock(book);
+    showToast('🗑️ Đã xóa bài nghe khỏi sách');
+  });
+
   // Loop toggle
   document.getElementById('btn-audio-loop')?.addEventListener('click', () => {
     isLoopSingle = !isLoopSingle;
@@ -573,6 +628,9 @@ export function setupMediaDockListeners(callbacks: {
       return;
     }
 
+    const folderPrompt = prompt('Tạo thư mục cho các file audio này? (Ví dụ: Unit 1, Bài 1. Để trống nếu không cần):', '') || '';
+    const baseFolder = folderPrompt.trim();
+
     showToast(`⏳ Đang xử lý ${files.length} tệp âm thanh...`);
 
     const newTracks: AudioTrack[] = [];
@@ -580,10 +638,20 @@ export function setupMediaDockListeners(callbacks: {
       const file = files[i];
       const dataUrl = await readFileAsDataURL(file);
       const cleanName = file.name.replace(/\.[^/.]+$/, '');
+      
+      let trackFolder = baseFolder;
+      if (!trackFolder && file.webkitRelativePath) {
+        const parts = file.webkitRelativePath.split('/');
+        if (parts.length > 1) {
+          trackFolder = parts[parts.length - 2]; // Get the immediate parent folder name
+        }
+      }
+
       newTracks.push({
         id: `track-${Date.now()}-${i}-${Math.random().toString(36).substring(2, 6)}`,
         name: cleanName,
-        url: dataUrl
+        url: dataUrl,
+        folder: trackFolder || undefined
       });
     }
 

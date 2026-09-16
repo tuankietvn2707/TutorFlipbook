@@ -45,7 +45,8 @@ export function updateVirtualPageImages(pageIndex: number, pages: string[]): voi
     if (dist <= 3) {
       // Near window: load page texture
       if (img.getAttribute('data-loaded') !== 'true') {
-        img.src = pages[idx];
+        const safeUrl = pages[idx] ? pages[idx].replace(/"/g, '%22') : EMPTY_PAGE_DATA_URL;
+        img.src = safeUrl;
         img.setAttribute('data-loaded', 'true');
       }
     } else if (dist > 5) {
@@ -229,9 +230,10 @@ export function initPageFlip(book: Book, initialPage = 0): void {
       pageDiv.setAttribute('data-density', 'hard');
     }
     const isNear = Math.abs(idx - initialPage) <= 3;
+    const safeDataUrl = pageDataUrl ? pageDataUrl.replace(/"/g, '%22') : EMPTY_PAGE_DATA_URL;
     pageDiv.innerHTML = `
       <img 
-        src="${isNear ? pageDataUrl : EMPTY_PAGE_DATA_URL}" 
+        src="${isNear ? safeDataUrl : EMPTY_PAGE_DATA_URL}" 
         data-page-index="${idx}"
         ${isNear ? 'data-loaded="true"' : ''}
         alt="Trang ${idx + 1}" 

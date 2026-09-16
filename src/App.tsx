@@ -73,11 +73,26 @@ export default function App() {
         appState.set('allBooks', books);
         renderLibraryGrid();
         updateHeaderStats(books.length);
+
+        // URL Routing
+        const urlParams = new URLSearchParams(window.location.search);
+        const bookId = urlParams.get('bookId');
+        if (bookId) {
+          const targetBook = books.find(b => b.id === bookId);
+          if (targetBook) {
+            handleOpenBook(targetBook);
+          }
+        }
       } catch (err) {
         console.error('Failed to load books:', err);
       }
     };
     initAppBooks();
+
+    const handleOpenBook = (book: Book) => {
+      showReaderView();
+      openBookInReader(book);
+    };
 
     // 3. Navigation View Switcher (Library vs Reader)
     const updateNavStyles = (activeTab: 'library' | 'reader') => {
@@ -142,19 +157,7 @@ export default function App() {
     };
 
     const showLibraryView = () => {
-      const libContainer = document.getElementById('view-library-container');
-      const readerContainer = document.getElementById('view-reader-container');
-
-      libContainer?.classList.remove('hidden');
-      readerContainer?.classList.add('hidden');
-
-      // Crucial: Deconstruct PageFlip DOM sheets and release canvas/textures from GPU memory
-      cleanupFlipbookReader();
-
-      updateNavStyles('library');
-
-      // Re-render library grid to ensure fresh counts
-      renderLibraryGrid();
+      window.location.href = '/';
     };
 
     const showReaderView = () => {
@@ -169,9 +172,18 @@ export default function App() {
 
       const libContainer = document.getElementById('view-library-container');
       const readerContainer = document.getElementById('view-reader-container');
+      
+      const sidebar = document.getElementById('main-sidebar-container');
+      const header = document.getElementById('main-header-container');
+      const mobileNav = document.getElementById('mobile-bottom-nav-container');
 
       libContainer?.classList.add('hidden');
       readerContainer?.classList.remove('hidden');
+      
+      // Hide dashboard chrome completely to make it operate independently
+      sidebar?.classList.add('hidden');
+      header?.classList.add('hidden');
+      mobileNav?.classList.add('hidden');
 
       updateNavStyles('reader');
     };
@@ -197,10 +209,7 @@ export default function App() {
     });
 
     setupLibraryListeners({
-      onOpenBook: (book) => {
-        showReaderView();
-        openBookInReader(book);
-      },
+      onOpenBook: handleOpenBook,
       onDeleteBook: (book) => {
         openDeleteConfirmModal(book);
       },
