@@ -330,7 +330,7 @@ export function initMediaDock(book: Book | null): void {
       // Find absolute index across all tracks for display
       const absIdx = sortedTracks.findIndex(t => t.id === track.id);
       const opt = document.createElement('option');
-      opt.value = track.url;
+      opt.value = track.id;
       opt.innerText = `${absIdx + 1}. ${track.name}`;
       opt.dataset.index = String(absIdx);
       group.appendChild(opt);
@@ -356,8 +356,8 @@ export function loadTrack(track: AudioTrack): void {
   const select = document.getElementById('media-track-select') as HTMLSelectElement;
   const miniTrackName = document.getElementById('mini-pill-track-name');
   
-  if (select && track.url) {
-    select.value = track.url;
+  if (select && track.id) {
+    select.value = track.id;
   }
   if (miniTrackName) {
     miniTrackName.innerText = track.name;
@@ -530,8 +530,8 @@ export function setupMediaDockListeners(callbacks: {
 
     if (!confirm('Bạn có chắc chắn muốn xóa bài nghe này khỏi sách?')) return;
 
-    const targetUrl = trackSelect.value;
-    book.audioTracks = book.audioTracks.filter(t => t.url !== targetUrl);
+    const targetId = trackSelect.value;
+    book.audioTracks = book.audioTracks.filter(t => t.id !== targetId);
     
     // Update DB
     await saveBookToDB(book);
@@ -612,7 +612,7 @@ export function setupMediaDockListeners(callbacks: {
   trackSelect?.addEventListener('change', (e: any) => {
     const book = appState.get('currentBook');
     if (!book || !book.audioTracks) return;
-    const found = book.audioTracks.find(t => t.url === e.target.value);
+    const found = book.audioTracks.find(t => t.id === e.target.value);
     if (found) {
       loadTrack(found);
       togglePlayAudio();

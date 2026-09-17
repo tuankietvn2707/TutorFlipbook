@@ -89,9 +89,11 @@ export default function App() {
     };
     initAppBooks();
 
-    const handleOpenBook = (book: Book) => {
+    const handleOpenBook = async (book: Book) => {
+      // Set to bypass the default auto-load in showReaderView
+      appState.set('currentBook', book);
       showReaderView();
-      openBookInReader(book);
+      await openBookInReader(book);
     };
 
     // 3. Navigation View Switcher (Library vs Reader)

@@ -136,11 +136,11 @@ export function renderFlipbookReaderHtml(): string {
 
 export async function openBookInReader(book: Book, initialPage = 0): Promise<void> {
   let fullBook = book;
-  // If this book record is a lightweight summary (pages stripped for memory saving), load the full pages from DB
-  if (!book.pages || book.pages.length <= 1) {
+  // If this book record is a lightweight summary (pages or audio stripped for memory saving), load the full data from DB
+  if (!book.pages || book.pages.length <= 1 || (book.audioTracks && book.audioTracks[0] && !book.audioTracks[0].url)) {
     try {
       const loaded = await loadBookById(book.id);
-      if (loaded && loaded.pages && loaded.pages.length > 0) {
+      if (loaded) {
         fullBook = loaded;
       }
     } catch (err) {

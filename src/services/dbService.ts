@@ -90,12 +90,17 @@ export async function loadAllBooksFromDB(includeFullPages: boolean = false): Pro
               // Lightweight representation: keep cover for grid, drop high-res page images array
               // to prevent hundreds of megabytes in JS Heap memory
               const coverImg = b.coverImage || (b.pages && b.pages[0]) || '';
+              const audioCount = b.audioTracks ? b.audioTracks.length : 0;
+              
               // CRITICAL: delete massive array from memory immediately
               delete b.pages;
+              delete b.audioTracks;
+              
               realBooks.push({
                 ...b,
                 coverImage: coverImg,
-                pages: coverImg ? [coverImg] : [] // Only keep cover thumbnail
+                pages: coverImg ? [coverImg] : [], // Only keep cover thumbnail
+                audioTracks: new Array(audioCount).fill({ url: '' }) // Mock length for UI counts
               });
             }
           }
