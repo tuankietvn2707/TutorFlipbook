@@ -9,10 +9,20 @@ import {
 } from './TeachingToolbar';
 import { showToast } from '../utils/toast';
 import { openShortcutsModal } from './ShortcutsModal';
-import { PageFlip } from 'page-flip';
+import * as PageFlipPkg from 'page-flip';
 import confetti from 'canvas-confetti';
 import { loadBookById } from '../services/dbService';
 import { APP_VERSION } from '../version';
+
+function getPageFlipConstructor(): any {
+  return (
+    (PageFlipPkg as any)?.PageFlip ||
+    (PageFlipPkg as any)?.default?.PageFlip ||
+    (PageFlipPkg as any)?.default ||
+    (window as any)?.St?.PageFlip ||
+    (window as any)?.PageFlip
+  );
+}
 
 let pageFlipInstance: any = null;
 let zoomLevel = 1.0;
@@ -140,7 +150,7 @@ export async function openBookInReader(book: Book, initialPage = 0): Promise<voi
   if (!book.pages || book.pages.length <= 1 || (book.audioTracks && book.audioTracks[0] && !book.audioTracks[0].url)) {
     try {
       const loaded = await loadBookById(book.id);
-      if (loaded) {
+      if (loaded && loaded.pages && loaded.pages.length > 0) {
         fullBook = loaded;
       }
     } catch (err) {
@@ -148,16 +158,29 @@ export async function openBookInReader(book: Book, initialPage = 0): Promise<voi
     }
   }
 
+  // Ensure valid pages array
+  if (!fullBook.pages || fullBook.pages.length === 0) {
+    const fallbackCover = fullBook.coverImage || EMPTY_PAGE_DATA_URL;
+    fullBook.pages = [fallbackCover, fallbackCover];
+  } else if (fullBook.pages.length === 1) {
+    fullBook.pages = [fullBook.pages[0], fullBook.pages[0]];
+  }
+
   appState.update({
     currentBook: fullBook,
-    totalPages: fullBook.totalPages,
+    totalPages: fullBook.pages.length,
     currentPage: initialPage + 1
   });
 
-  // Allow DOM layout to complete before sizing canvas and flipbook
+  // Render flipbook immediately
+  initPageFlip(fullBook, initialPage);
+
+  // Allow DOM layout to complete and re-verify sizing/rendering
   requestAnimationFrame(() => {
     setTimeout(() => {
-      initPageFlip(fullBook, initialPage);
+      if (!pageFlipInstance) {
+        initPageFlip(fullBook, initialPage);
+      }
     }, 60);
   });
 }
@@ -180,6 +203,11 @@ export function initPageFlip(book: Book, initialPage = 0): void {
   const container = document.getElementById('flipbook-book');
   if (!container) return;
 
+  const safePages = Array.isArray(book.pages) && book.pages.length > 0
+    ? book.pages
+    : [book.coverImage || EMPTY_PAGE_DATA_URL, book.coverImage || EMPTY_PAGE_DATA_URL];
+  const pagesToRender = safePages.length === 1 ? [safePages[0], safePages[0]] : safePages;
+
   // Update book header info
   const titleEl = document.getElementById('reader-book-title');
   const metaEl = document.getElementById('reader-book-meta');
@@ -187,18 +215,18 @@ export function initPageFlip(book: Book, initialPage = 0): void {
   const inputPageNum = document.getElementById('input-page-number') as HTMLInputElement;
 
   if (titleEl) titleEl.textContent = book.title;
-  if (metaEl) metaEl.textContent = `${initialPage + 1} / ${book.totalPages} trang • ${book.audioTracks ? book.audioTracks.length : 0} Audio`;
-  if (totalPagesLabel) totalPagesLabel.textContent = `${book.totalPages}`;
+  if (metaEl) metaEl.textContent = `${initialPage + 1} / ${pagesToRender.length} trang • ${book.audioTracks ? book.audioTracks.length : 0} Audio`;
+  if (totalPagesLabel) totalPagesLabel.textContent = `${pagesToRender.length}`;
   if (inputPageNum) {
-    inputPageNum.max = `${book.totalPages}`;
+    inputPageNum.max = `${pagesToRender.length}`;
     inputPageNum.value = `${initialPage + 1}`;
   }
 
   // Safe calculation for stage width and height
   const stageEl = document.getElementById('reader-stage');
   const isMobile = window.innerWidth < 768;
-  const stageWidth = (stageEl && stageEl.clientWidth > 100) ? stageEl.clientWidth : (isMobile ? window.innerWidth - 24 : window.innerWidth - 320);
-  const stageHeight = (stageEl && stageEl.clientHeight > 100) ? stageEl.clientHeight : (window.innerHeight - 220);
+  const stageWidth = (stageEl && stageEl.clientWidth > 100) ? stageEl.clientWidth : (isMobile ? window.innerWidth - 16 : window.innerWidth - 48);
+  const stageHeight = (stageEl && stageEl.clientHeight > 100) ? stageEl.clientHeight : (window.innerHeight - 120);
 
   let pageWidth: number;
   let pageHeight: number;
@@ -221,10 +249,9 @@ export function initPageFlip(book: Book, initialPage = 0): void {
   }
 
   // Generate page sheets for PageFlip with sliding window virtual textures
-  // Only pages near the current spread (+- 3) load full bitmaps; others use 1x1 placeholder GIF to save hundreds of MBs in GPU VRAM
-  book.pages.forEach((pageDataUrl, idx) => {
+  pagesToRender.forEach((pageDataUrl, idx) => {
     const pageDiv = document.createElement('div');
-    const isCover = idx === 0 || idx === book.pages.length - 1;
+    const isCover = idx === 0 || idx === pagesToRender.length - 1;
     pageDiv.className = 'page-flip-sheet bg-white shadow-md overflow-hidden flex items-center justify-center select-none';
     if (isCover) {
       pageDiv.setAttribute('data-density', 'hard');
@@ -245,7 +272,7 @@ export function initPageFlip(book: Book, initialPage = 0): void {
     container.appendChild(pageDiv);
   });
 
-  const PageFlipConstructor = PageFlip || (window.St && window.St.PageFlip);
+  const PageFlipConstructor = getPageFlipConstructor();
   if (PageFlipConstructor) {
     try {
       pageFlipInstance = new PageFlipConstructor(container, {
@@ -253,10 +280,10 @@ export function initPageFlip(book: Book, initialPage = 0): void {
         height: pageHeight,
         size: 'fixed',
         minWidth: 260,
-        maxWidth: 1200,
+        maxWidth: 1400,
         minHeight: 360,
-        maxHeight: 1600,
-        maxShadowOpacity: 0.2,
+        maxHeight: 1800,
+        maxShadowOpacity: 0.25,
         showCover: true,
         mobileScrollSupport: false,
         usePortrait: isMobile,
@@ -277,7 +304,7 @@ export function initPageFlip(book: Book, initialPage = 0): void {
         const curMeta = document.getElementById('reader-book-meta');
         const activeBook = appState.get('currentBook');
         if (curMeta && activeBook) {
-          curMeta.textContent = `${displayPage} / ${activeBook.totalPages} trang • ${activeBook.audioTracks ? activeBook.audioTracks.length : 0} Audio`;
+          curMeta.textContent = `${displayPage} / ${pagesToRender.length} trang • ${activeBook.audioTracks ? activeBook.audioTracks.length : 0} Audio`;
         }
 
         // Dynamically update virtual image textures for new current page window
@@ -292,6 +319,9 @@ export function initPageFlip(book: Book, initialPage = 0): void {
     } catch (err) {
       console.error('Error constructing PageFlip instance:', err);
     }
+  } else {
+    console.error('PageFlip constructor not available!');
+    showToast('⚠️ Không thể khởi tạo thư viện lật sách 3D');
   }
 
   appState.update({

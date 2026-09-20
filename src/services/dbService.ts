@@ -123,9 +123,27 @@ export async function saveBookToDB(book: Book): Promise<void> {
   return new Promise((resolve, reject) => {
     const tx = db.transaction(DB_STORE, 'readwrite');
     const store = tx.objectStore(DB_STORE);
-    const req = store.put(book);
-    req.onsuccess = () => resolve();
-    req.onerror = (e) => reject(e);
+    const getReq = store.get(book.id);
+    getReq.onsuccess = () => {
+      const existing = getReq.result;
+      let bookToSave = book;
+      // If new book record has stripped pages, preserve original high-res pages array from existing record
+      if (existing && (!book.pages || book.pages.length <= 1) && existing.pages && existing.pages.length > 1) {
+        bookToSave = {
+          ...existing,
+          ...book,
+          pages: existing.pages
+        };
+      }
+      const putReq = store.put(bookToSave);
+      putReq.onsuccess = () => resolve();
+      putReq.onerror = (e) => reject(e);
+    };
+    getReq.onerror = () => {
+      const putReq = store.put(book);
+      putReq.onsuccess = () => resolve();
+      putReq.onerror = (e) => reject(e);
+    };
   });
 }
 

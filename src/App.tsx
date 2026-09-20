@@ -1,6 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import { appState } from './state/appState';
-import { loadAllBooksFromDB, saveBookToDB } from './services/dbService';
+import { loadAllBooksFromDB, saveBookToDB, loadBookById } from './services/dbService';
 import { initAuthListener, requestDriveAuth } from './services/googleDriveService';
 import { playFlipSound } from './services/audioService';
 import { 
@@ -78,9 +78,14 @@ export default function App() {
         const urlParams = new URLSearchParams(window.location.search);
         const bookId = urlParams.get('bookId');
         if (bookId) {
-          const targetBook = books.find(b => b.id === bookId);
+          let targetBook = books.find(b => b.id === bookId);
+          if (!targetBook) {
+            targetBook = (await loadBookById(bookId)) || undefined;
+          }
           if (targetBook) {
-            handleOpenBook(targetBook);
+            await handleOpenBook(targetBook);
+          } else {
+            console.warn('Book with ID not found in library:', bookId);
           }
         }
       } catch (err) {
