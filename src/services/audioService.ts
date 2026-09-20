@@ -1,3 +1,312 @@
+/**
+ * Centralized Audio Service for Tutor Flipbook
+ * 
+ * Provides:
+ * 1. Native Audio object instantiation & audio pipeline management with
+ *    full support for the 'audio/wav' MIME type (and MP3, M4A, etc.).
+ * 2. Proper handling of Blob objects created from WAV files (including memory-safe
+ *    Blob URL generation and lifecycle cleanup).
+ * 3. Robust playback logic with user-activation error recovery.
+ * 4. Realistic page-flip sound effect synthesis via Web Audio API.
+ */
+
+// ==========================================
+// 1. WAV MIME TYPES & FORMAT DETECTION
+// ==========================================
+
+export const WAV_MIME_TYPE = 'audio/wav';
+
+export const SUPPORTED_WAV_MIMES = [
+  'audio/wav',
+  'audio/x-wav',
+  'audio/wave',
+  'audio/vnd.wave'
+] as const;
+
+/**
+ * Checks if a filename, MIME string, or Blob represents a WAV audio file.
+ */
+export function isWavFormat(sourceInfo: string, blob?: Blob): boolean {
+  if (blob) {
+    if (blob.type === 'audio/wav' || blob.type === 'audio/x-wav' || blob.type === 'audio/wave') {
+      return true;
+    }
+  }
+  const clean = sourceInfo.toLowerCase().trim();
+  return (
+    clean.includes('audio/wav') ||
+    clean.includes('audio/x-wav') ||
+    clean.includes('audio/wave') ||
+    clean.endsWith('.wav') ||
+    clean.endsWith('.wave')
+  );
+}
+
+/**
+ * Checks if the current browser environment can play the 'audio/wav' MIME type.
+ */
+export function canBrowserPlayWav(): boolean {
+  const testAudio = new Audio();
+  const canPlay = testAudio.canPlayType('audio/wav');
+  return canPlay === 'probably' || canPlay === 'maybe';
+}
+
+// ==========================================
+// 2. WAV BLOB CONVERSION & LIFECYCLE MANAGEMENT
+// ==========================================
+
+// Track active Object URLs created by the audio service to revoke them and avoid memory leaks
+const activeBlobUrls = new Set<string>();
+
+/**
+ * Converts a raw source (Blob, ArrayBuffer, Uint8Array, or base64 DataURL)
+ * into a verified Blob with the explicit 'audio/wav' MIME type.
+ */
+export function createWavBlob(source: Blob | ArrayBuffer | Uint8Array | string): Blob {
+  if (source instanceof Blob) {
+    if (source.type === 'audio/wav') {
+      return source;
+    }
+    // Re-wrap Blob ensuring explicit 'audio/wav' MIME type
+    return new Blob([source], { type: 'audio/wav' });
+  }
+
+  if (typeof source === 'string') {
+    // If it's a data URL
+    if (source.startsWith('data:')) {
+      const commaIdx = source.indexOf(',');
+      const base64Data = commaIdx !== -1 ? source.substring(commaIdx + 1) : source;
+      const binaryStr = atob(base64Data);
+      const len = binaryStr.length;
+      const bytes = new Uint8Array(len);
+      for (let i = 0; i < len; i++) {
+        bytes[i] = binaryStr.charCodeAt(i);
+      }
+      return new Blob([bytes], { type: 'audio/wav' });
+    }
+    // If it's plain string or binary data
+    return new Blob([source], { type: 'audio/wav' });
+  }
+
+  // ArrayBuffer or Uint8Array
+  return new Blob([source], { type: 'audio/wav' });
+}
+
+/**
+ * Converts a File object (e.g. from an <input type="file">) into an explicit 'audio/wav' Blob.
+ */
+export async function fileToWavBlob(file: File): Promise<Blob> {
+  const arrayBuffer = await file.arrayBuffer();
+  return new Blob([arrayBuffer], { type: 'audio/wav' });
+}
+
+/**
+ * Creates a trackable Blob URL and registers it for future memory cleanup.
+ */
+export function registerBlobUrl(blob: Blob): string {
+  const url = URL.createObjectURL(blob);
+  activeBlobUrls.add(url);
+  return url;
+}
+
+/**
+ * Revokes a specific Blob URL and removes it from the tracking set.
+ */
+export function revokeTrackedBlobUrl(url: string | null | undefined): void {
+  if (!url) return;
+  if (activeBlobUrls.has(url)) {
+    try {
+      URL.revokeObjectURL(url);
+    } catch {
+      // ignore
+    }
+    activeBlobUrls.delete(url);
+  }
+}
+
+/**
+ * Revokes all active Blob URLs managed by the audio service.
+ */
+export function revokeAllBlobUrls(): void {
+  for (const url of activeBlobUrls) {
+    try {
+      URL.revokeObjectURL(url);
+    } catch {
+      // ignore
+    }
+  }
+  activeBlobUrls.clear();
+}
+
+// ==========================================
+// 3. AUDIO OBJECT INSTANTIATION & PIPELINE
+// ==========================================
+
+export interface AudioPlayerOptions {
+  mimeType?: string;
+  preload?: 'auto' | 'metadata' | 'none';
+  loop?: boolean;
+  volume?: number;
+  autoplay?: boolean;
+}
+
+/**
+ * Instantiates an Audio object configured with support for the 'audio/wav' MIME type
+ * and ensures the audio pipeline correctly handles Blob objects created from WAV files.
+ */
+export function instantiateAudioPlayer(
+  source?: string | Blob,
+  options?: AudioPlayerOptions
+): HTMLAudioElement {
+  const audio = new Audio();
+  audio.preload = options?.preload || 'auto';
+  if (options?.loop !== undefined) audio.loop = options.loop;
+  if (options?.volume !== undefined) audio.volume = options.volume;
+  if (options?.autoplay !== undefined) audio.autoplay = options.autoplay;
+
+  if (source) {
+    configureAudioSource(audio, source, options?.mimeType);
+  }
+
+  return audio;
+}
+
+/**
+ * Configures the audio pipeline of an HTMLAudioElement or Audio object.
+ * Correctly handles:
+ * - Blob objects created from WAV files (applying 'audio/wav' MIME type).
+ * - Base64 Data URLs (converting to Blob for instant seekability & low latency).
+ * - Appending <source> elements with explicit type="audio/wav" for decoder precision.
+ * 
+ * Returns the playable URL assigned to the audio element.
+ */
+export function configureAudioSource(
+  audioElement: HTMLAudioElement,
+  source: string | Blob,
+  mimeTypeHint?: string
+): string {
+  if (!audioElement || !source) return '';
+
+  // Determine if this is a WAV format
+  const isWav = typeof source === 'string'
+    ? isWavFormat(source) || mimeTypeHint === 'audio/wav'
+    : isWavFormat(mimeTypeHint || '', source);
+
+  const targetMime = isWav ? 'audio/wav' : (mimeTypeHint || 'audio/mpeg');
+
+  let playableUrl = '';
+
+  // Case A: source is a Blob object (e.g. created from WAV file)
+  if (source instanceof Blob) {
+    // Ensure the Blob has the target MIME type
+    const typedBlob = source.type === targetMime
+      ? source
+      : new Blob([source], { type: targetMime });
+
+    // Revoke previous blob URL if assigned directly
+    if (audioElement.src && audioElement.src.startsWith('blob:')) {
+      revokeTrackedBlobUrl(audioElement.src);
+    }
+
+    playableUrl = registerBlobUrl(typedBlob);
+  }
+  // Case B: source is a Base64 data URL
+  else if (typeof source === 'string' && source.startsWith('data:')) {
+    if (isWav) {
+      const wavBlob = createWavBlob(source);
+      if (audioElement.src && audioElement.src.startsWith('blob:')) {
+        revokeTrackedBlobUrl(audioElement.src);
+      }
+      playableUrl = registerBlobUrl(wavBlob);
+    } else {
+      // Non-WAV data URL
+      try {
+        const commaIdx = source.indexOf(',');
+        const base64 = commaIdx !== -1 ? source.substring(commaIdx + 1) : source;
+        const bin = atob(base64);
+        const bytes = new Uint8Array(bin.length);
+        for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+        const blob = new Blob([bytes], { type: targetMime });
+        if (audioElement.src && audioElement.src.startsWith('blob:')) {
+          revokeTrackedBlobUrl(audioElement.src);
+        }
+        playableUrl = registerBlobUrl(blob);
+      } catch {
+        playableUrl = source;
+      }
+    }
+  }
+  // Case C: source is already an HTTP URL or Blob URL
+  else {
+    playableUrl = source as string;
+  }
+
+  // Clear existing <source> elements to avoid decoder confusion
+  while (audioElement.firstChild) {
+    audioElement.removeChild(audioElement.firstChild);
+  }
+
+  // Append explicit <source> element with MIME type for highest decoder compliance
+  const sourceElement = document.createElement('source');
+  sourceElement.src = playableUrl;
+  sourceElement.type = targetMime;
+  audioElement.appendChild(sourceElement);
+
+  // Also assign directly to src for universal browser support
+  audioElement.src = playableUrl;
+
+  // Load the new source into media buffer
+  audioElement.load();
+
+  return playableUrl;
+}
+
+/**
+ * Robust playback execution for an Audio object or HTMLAudioElement.
+ * Resumes AudioContext if suspended and handles user-activation promise rejections.
+ */
+export async function playAudioPipeline(audioElement: HTMLAudioElement): Promise<void> {
+  if (!audioElement) return;
+
+  // If AudioContext exists and is suspended, resume it
+  if (audioCtx && audioCtx.state === 'suspended') {
+    try {
+      await audioCtx.resume();
+    } catch {
+      // ignore
+    }
+  }
+
+  try {
+    await audioElement.play();
+  } catch (err: any) {
+    console.warn('Playback error in audio pipeline:', err);
+    throw err;
+  }
+}
+
+/**
+ * Tears down and cleans up the audio pipeline of an HTMLAudioElement.
+ */
+export function cleanupAudioPipeline(audioElement?: HTMLAudioElement | null): void {
+  if (audioElement) {
+    audioElement.pause();
+    if (audioElement.src && audioElement.src.startsWith('blob:')) {
+      revokeTrackedBlobUrl(audioElement.src);
+    }
+    audioElement.src = '';
+    while (audioElement.firstChild) {
+      audioElement.removeChild(audioElement.firstChild);
+    }
+    audioElement.load();
+  }
+  revokeAllBlobUrls();
+}
+
+// ==========================================
+// 4. REALISTIC PAGE-FLIP SOUND EFFECTS
+// ==========================================
+
 let audioCtx: AudioContext | null = null;
 let soundEffectsEnabled = true;
 let lastSoundIndex = -1;
@@ -15,10 +324,6 @@ function getAudioContext(): AudioContext | null {
   return audioCtx;
 }
 
-/**
- * Creates an ultra-soft, warm brown/pink noise buffer with smooth air texture.
- * Free of harsh highs, mimicking the natural friction of velvety paper fibers.
- */
 let cachedNoiseBuffer: AudioBuffer | null = null;
 
 function createVelvetBreezeNoiseBuffer(ctx: AudioContext, duration: number = 0.5): AudioBuffer {
@@ -59,12 +364,7 @@ function createVelvetBreezeNoiseBuffer(ctx: AudioContext, duration: number = 0.5
 }
 
 /**
- * 5 Soft, Natural Page-Turn Sounds with Smooth Fade-In & Fade-Out (Like a gentle breeze):
- * 0: Whisper Breeze Page Turn (Làn gió lật trang nhẹ)
- * 1: Silky Paper Glide (Tiếng lướt giấy lụa mượt mà)
- * 2: Soft Aerodynamic Flutter (Gió thoảng 2 nhịp êm đềm)
- * 3: Velvet Book Page Sough (Tiếng lá sách nhung mềm dịu)
- * 4: Gentle Page Air Whisper (Tiếng thì thầm của trang giấy)
+ * 5 Soft, Natural Page-Turn Sounds with Smooth Fade-In & Fade-Out
  */
 export function playFlipSound(): void {
   if (!soundEffectsEnabled) return;
@@ -72,7 +372,6 @@ export function playFlipSound(): void {
     const ctx = getAudioContext();
     if (!ctx) return;
 
-    // Cycle without consecutive repetition
     let variation: number;
     do {
       variation = Math.floor(Math.random() * 5);
@@ -80,10 +379,9 @@ export function playFlipSound(): void {
     lastSoundIndex = variation;
 
     const now = ctx.currentTime;
-    const jitter = 0.96 + Math.random() * 0.08; // Subtle pitch variation
+    const jitter = 0.96 + Math.random() * 0.08;
 
     switch (variation) {
-      // --- Variation 0: Whisper Breeze Page Turn (Làn gió lật trang nhẹ) ---
       case 0: {
         const dur = 0.32 * jitter;
         const noise = ctx.createBufferSource();
@@ -97,10 +395,8 @@ export function playFlipSound(): void {
         filter.frequency.exponentialRampToValueAtTime(350 * jitter, now + dur);
 
         const gain = ctx.createGain();
-        // Gentle Fade-in
         gain.gain.setValueAtTime(0.0001, now);
         gain.gain.exponentialRampToValueAtTime(0.16, now + dur * 0.35);
-        // Soft Fade-out like a breeze tapering off
         gain.gain.exponentialRampToValueAtTime(0.0001, now + dur);
 
         noise.connect(filter);
@@ -112,7 +408,6 @@ export function playFlipSound(): void {
         break;
       }
 
-      // --- Variation 1: Silky Paper Glide (Tiếng lướt giấy lụa mượt mà) ---
       case 1: {
         const dur = 0.38 * jitter;
         const noise = ctx.createBufferSource();
@@ -130,10 +425,8 @@ export function playFlipSound(): void {
         lowpass.frequency.setValueAtTime(2200, now);
 
         const gain = ctx.createGain();
-        // Smooth swell
         gain.gain.setValueAtTime(0.0001, now);
         gain.gain.exponentialRampToValueAtTime(0.14, now + dur * 0.4);
-        // Long gentle tail fade
         gain.gain.exponentialRampToValueAtTime(0.0001, now + dur);
 
         noise.connect(filter);
@@ -146,7 +439,6 @@ export function playFlipSound(): void {
         break;
       }
 
-      // --- Variation 2: Soft Aerodynamic Flutter (Gió thoảng 2 nhịp êm đềm) ---
       case 2: {
         const dur = 0.35 * jitter;
         const noise = ctx.createBufferSource();
@@ -161,11 +453,9 @@ export function playFlipSound(): void {
         filter.frequency.linearRampToValueAtTime(400 * jitter, now + dur);
 
         const gain = ctx.createGain();
-        // First subtle air breath
         gain.gain.setValueAtTime(0.0001, now);
         gain.gain.exponentialRampToValueAtTime(0.08, now + dur * 0.18);
         gain.gain.exponentialRampToValueAtTime(0.05, now + dur * 0.38);
-        // Second main soft page landing
         gain.gain.exponentialRampToValueAtTime(0.15, now + dur * 0.58);
         gain.gain.exponentialRampToValueAtTime(0.0001, now + dur);
 
@@ -178,7 +468,6 @@ export function playFlipSound(): void {
         break;
       }
 
-      // --- Variation 3: Velvet Book Page Sough (Tiếng lá sách nhung mềm dịu) ---
       case 3: {
         const dur = 0.42 * jitter;
         const noise = ctx.createBufferSource();
@@ -192,7 +481,6 @@ export function playFlipSound(): void {
         filter.frequency.exponentialRampToValueAtTime(300 * jitter, now + dur);
 
         const gain = ctx.createGain();
-        // Warm, slow swell
         gain.gain.setValueAtTime(0.0001, now);
         gain.gain.exponentialRampToValueAtTime(0.13, now + dur * 0.38);
         gain.gain.exponentialRampToValueAtTime(0.0001, now + dur);
@@ -206,7 +494,6 @@ export function playFlipSound(): void {
         break;
       }
 
-      // --- Variation 4: Gentle Page Air Whisper (Tiếng thì thầm của trang giấy) ---
       case 4:
       default: {
         const dur = 0.28 * jitter;
@@ -221,7 +508,6 @@ export function playFlipSound(): void {
         filter.frequency.exponentialRampToValueAtTime(550 * jitter, now + dur);
 
         const gain = ctx.createGain();
-        // Smooth swell & fade
         gain.gain.setValueAtTime(0.0001, now);
         gain.gain.exponentialRampToValueAtTime(0.15, now + dur * 0.32);
         gain.gain.exponentialRampToValueAtTime(0.0001, now + dur);

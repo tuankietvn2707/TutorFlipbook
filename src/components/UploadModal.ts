@@ -3,6 +3,7 @@ import { extractPagesFromPdfFile } from '../services/pdfService';
 import { saveBookToDB } from '../services/dbService';
 import { showToast, showLoader, cancelLoadingOperation, setAbortHandler } from '../utils/toast';
 import { readFileAsAudioDataURL, isAudioFile, detectAudioFormatLabel } from '../utils/audioHelper';
+import { isWavFormat, fileToWavBlob } from '../services/audioService';
 
 let selectedPdfFile: File | null = null;
 let uploadedAudioTracks: AudioTrack[] = [];
@@ -311,13 +312,24 @@ function handleSelectedPdf(file: File): void {
 async function handleBatchAudios(files: File[]): Promise<void> {
   showToast(`⏳ Đang xử lý ${files.length} tệp âm thanh (WAV/MP3)...`);
   for (const file of files) {
+    const format = detectAudioFormatLabel(file.name);
+    const isWav = isWavFormat(file.name);
+    let wavBlob: Blob | undefined;
+    if (isWav) {
+      try {
+        wavBlob = await fileToWavBlob(file);
+      } catch {
+        // fallback
+      }
+    }
+
     try {
       const dataUrl = await readFileAsAudioDataURL(file);
-      const format = detectAudioFormatLabel(file.name);
       uploadedAudioTracks.push({
         id: 'track_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5),
         name: file.name.replace(/\.[^/.]+$/, ''),
         url: dataUrl,
+        blob: wavBlob,
         size: file.size,
         fileType: format
       });
@@ -327,8 +339,9 @@ async function handleBatchAudios(files: File[]): Promise<void> {
         id: 'track_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5),
         name: file.name.replace(/\.[^/.]+$/, ''),
         url,
+        blob: wavBlob,
         size: file.size,
-        fileType: detectAudioFormatLabel(file.name)
+        fileType: format
       });
     }
   }

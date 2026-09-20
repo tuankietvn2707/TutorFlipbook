@@ -168,9 +168,15 @@ export function renderLibraryGrid(): void {
 
         <!-- Book Title & Created Date -->
         <div class="space-y-1 px-0.5">
-          <h4 class="font-black text-sm text-slate-800 line-clamp-1 group-hover:text-duoBlue transition-colors" title="${b.title}">
+          <a 
+            href="?bookId=${b.id}"
+            target="_blank"
+            rel="noopener noreferrer"
+            class="font-black text-sm text-slate-800 line-clamp-1 group-hover:text-duoBlue transition-colors hover:underline block cursor-pointer" 
+            title="Mở tab mới: ${b.title}"
+          >
             ${b.title}
-          </h4>
+          </a>
           <div class="flex items-center justify-between text-[11px] font-bold text-slate-400">
             <span>Ngày: ${new Date(b.createdAt).toLocaleDateString('vi-VN')}</span>
             <span class="text-duoGreen font-black flex items-center gap-0.5">
@@ -249,12 +255,8 @@ export function setupLibraryListeners(callbacks: {
     if (e) {
       e.preventDefault();
     }
-    const books = appState.get('allBooks');
-    const book = books.find(b => b.id === id);
-    if (book) {
-      window.history.pushState({}, '', `?bookId=${book.id}`);
-      callbacks.onOpenBook(book);
-    }
+    const bookUrl = `${window.location.origin}${window.location.pathname}?bookId=${id}`;
+    window.open(bookUrl, '_blank');
   };
 
   (window as any).onBookDeleteClick = (id: string) => {

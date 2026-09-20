@@ -4,6 +4,8 @@
  * uncompressed PCM WAV decoding, and memory leak prevention.
  */
 
+import { createWavBlob, registerBlobUrl, revokeTrackedBlobUrl } from '../services/audioService';
+
 let activeBlobUrl: string | null = null;
 
 /**
@@ -24,7 +26,7 @@ export function getPlayableAudioUrl(rawUrl: string, filenameHint?: string): stri
     try {
       // Clean up previous blob URL to keep memory low
       if (activeBlobUrl) {
-        URL.revokeObjectURL(activeBlobUrl);
+        revokeTrackedBlobUrl(activeBlobUrl);
         activeBlobUrl = null;
       }
 
@@ -34,19 +36,23 @@ export function getPlayableAudioUrl(rawUrl: string, filenameHint?: string): stri
       const header = rawUrl.substring(0, commaIndex);
       const base64Data = rawUrl.substring(commaIndex + 1);
 
-      // Determine MIME type
+      const isWav = (filenameHint && /\.(wav|wave)$/i.test(filenameHint)) ||
+                    header.includes('audio/wav') ||
+                    header.includes('audio/x-wav') ||
+                    header.includes('audio/wave') ||
+                    base64Data.startsWith('UklGR');
+
+      if (isWav) {
+        const wavBlob = createWavBlob(rawUrl);
+        activeBlobUrl = registerBlobUrl(wavBlob);
+        return activeBlobUrl;
+      }
+
+      // Determine MIME type for other audio formats
       let mimeType = 'audio/mpeg';
       const mimeMatch = header.match(/:(.*?);/);
       if (mimeMatch && mimeMatch[1] && mimeMatch[1] !== 'application/octet-stream') {
         mimeType = mimeMatch[1];
-      }
-
-      // Check filename hint or WAV header
-      if (filenameHint && /\.(wav|wave)$/i.test(filenameHint)) {
-        mimeType = 'audio/wav';
-      } else if (base64Data.startsWith('UklGR')) {
-        // 'UklGR' in base64 is 'RIFF' in ASCII (Standard WAV file header)
-        mimeType = 'audio/wav';
       }
 
       // Convert Base64 to Binary Array
@@ -58,7 +64,7 @@ export function getPlayableAudioUrl(rawUrl: string, filenameHint?: string): stri
       }
 
       const blob = new Blob([bytes], { type: mimeType });
-      activeBlobUrl = URL.createObjectURL(blob);
+      activeBlobUrl = registerBlobUrl(blob);
       return activeBlobUrl;
     } catch (err) {
       console.warn('Could not convert data URL to Blob URL, fallback to raw:', err);
@@ -74,11 +80,7 @@ export function getPlayableAudioUrl(rawUrl: string, filenameHint?: string): stri
  */
 export function cleanupActiveBlobUrl(): void {
   if (activeBlobUrl) {
-    try {
-      URL.revokeObjectURL(activeBlobUrl);
-    } catch {
-      // ignore
-    }
+    revokeTrackedBlobUrl(activeBlobUrl);
     activeBlobUrl = null;
   }
 }

@@ -5,6 +5,7 @@ export interface AudioTrack {
   size?: number;
   fileType?: string;
   folder?: string;
+  blob?: Blob;
 }
 
 export interface Book {

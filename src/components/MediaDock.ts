@@ -5,8 +5,14 @@ import { showToast } from '../utils/toast';
 import { refreshLucideIcons } from '../utils/icons';
 import { saveBookToDB } from '../services/dbService';
 import {
-  getPlayableAudioUrl,
-  cleanupActiveBlobUrl,
+  instantiateAudioPlayer,
+  configureAudioSource,
+  playAudioPipeline,
+  cleanupAudioPipeline,
+  isWavFormat,
+  fileToWavBlob
+} from '../services/audioService';
+import {
   readFileAsAudioDataURL,
   detectAudioFormatLabel,
   isAudioFile
@@ -599,13 +605,17 @@ function renderPlaylistDrawer(tracks: AudioTrack[]): void {
 export function loadTrack(track: AudioTrack): void {
   if (!audioElement) {
     audioElement = document.getElementById('global-audio-player') as HTMLAudioElement;
+    if (!audioElement) {
+      audioElement = instantiateAudioPlayer();
+    }
   }
   if (!audioElement || !track) return;
 
-  // Use Blob URL conversion for robust WAV & MP3 zero-latency playback & seeking
-  const playableUrl = getPlayableAudioUrl(track.url, track.name);
-  audioElement.src = playableUrl;
-  audioElement.load();
+  // Configure audio pipeline supporting 'audio/wav' MIME type & handling Blob objects
+  const isWav = isWavFormat(track.name, track.blob) || track.fileType === 'WAV' || track.url?.startsWith('data:audio/wav');
+  const mimeType = isWav ? 'audio/wav' : undefined;
+  const sourceToConfigure: string | Blob = track.blob || track.url;
+  configureAudioSource(audioElement, sourceToConfigure, mimeType);
 
   const select = document.getElementById('media-track-select') as HTMLSelectElement;
   const miniTrackName = document.getElementById('mini-pill-track-name');
@@ -653,6 +663,9 @@ export function loadTrack(track: AudioTrack): void {
 export function togglePlayAudio(): void {
   if (!audioElement) {
     audioElement = document.getElementById('global-audio-player') as HTMLAudioElement;
+    if (!audioElement) {
+      audioElement = instantiateAudioPlayer();
+    }
   }
   if (!audioElement) return;
 
@@ -667,7 +680,7 @@ export function togglePlayAudio(): void {
   }
 
   if (audioElement.paused) {
-    audioElement.play().then(() => {
+    playAudioPipeline(audioElement).then(() => {
       updatePlayButtonUI(true);
       appState.set('isPlayingAudio', true);
     }).catch(e => {
@@ -999,12 +1012,12 @@ export function setupMediaDockListeners(callbacks: {
   
   document.getElementById('btn-close-media-dock')?.addEventListener('click', () => {
     appState.set('isMediaDockOpen', false);
-    cleanupActiveBlobUrl();
+    cleanupAudioPipeline(audioElement);
   });
   document.getElementById('btn-mini-close')?.addEventListener('click', () => {
     document.getElementById('media-mini-pill')?.classList.add('hidden');
     appState.set('isMediaDockOpen', false);
-    cleanupActiveBlobUrl();
+    cleanupAudioPipeline(audioElement);
   });
 
   // Batch Media Openers
@@ -1049,6 +1062,16 @@ export function setupMediaDockListeners(callbacks: {
       const file = files[i];
       if (!isAudioFile(file)) continue;
 
+      const isWav = isWavFormat(file.name);
+      let wavBlob: Blob | undefined;
+      if (isWav) {
+        try {
+          wavBlob = await fileToWavBlob(file);
+        } catch {
+          // fallback
+        }
+      }
+
       const dataUrl = await readFileAsAudioDataURL(file);
       const cleanName = file.name.replace(/\.[^/.]+$/, '');
       const format = detectAudioFormatLabel(file.name);
@@ -1065,6 +1088,7 @@ export function setupMediaDockListeners(callbacks: {
         id: `track-${Date.now()}-${i}-${Math.random().toString(36).substring(2, 6)}`,
         name: cleanName,
         url: dataUrl,
+        blob: wavBlob,
         folder: trackFolder || undefined,
         fileType: format
       });

@@ -4,6 +4,7 @@ import { saveBookToDB } from '../services/dbService';
 import { naturalSortAudioTracks } from '../utils/sorting';
 import { showToast } from '../utils/toast';
 import { readFileAsAudioDataURL, isAudioFile, detectAudioFormatLabel } from '../utils/audioHelper';
+import { isWavFormat, fileToWavBlob } from '../services/audioService';
 
 let batchAudioQueue: { file: File; name: string; size: number; folder?: string }[] = [];
 
@@ -276,12 +277,23 @@ export function setupBatchMediaListeners(onBatchAddedToBook: (book: Book) => voi
     for (let i = 0; i < batchAudioQueue.length; i++) {
       const item = batchAudioQueue[i];
       const format = detectAudioFormatLabel(item.name);
+      const isWav = isWavFormat(item.name);
+      let wavBlob: Blob | undefined;
+      if (isWav) {
+        try {
+          wavBlob = await fileToWavBlob(item.file);
+        } catch {
+          // fallback
+        }
+      }
+
       try {
         const dataUrl = await readFileAsAudioDataURL(item.file);
         newTracks.push({
           id: 'track_' + Date.now() + '_' + i + '_' + Math.random().toString(36).substr(2, 5),
           name: item.name,
           url: dataUrl,
+          blob: wavBlob,
           size: item.size,
           folder: item.folder,
           fileType: format
@@ -292,6 +304,7 @@ export function setupBatchMediaListeners(onBatchAddedToBook: (book: Book) => voi
           id: 'track_' + Date.now() + '_' + i + '_' + Math.random().toString(36).substr(2, 5),
           name: item.name,
           url,
+          blob: wavBlob,
           size: item.size,
           folder: item.folder,
           fileType: format
