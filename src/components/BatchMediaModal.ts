@@ -3,6 +3,7 @@ import { appState } from '../state/appState';
 import { saveBookToDB } from '../services/dbService';
 import { naturalSortAudioTracks } from '../utils/sorting';
 import { showToast } from '../utils/toast';
+import { readFileAsAudioDataURL, isAudioFile, detectAudioFormatLabel } from '../utils/audioHelper';
 
 let batchAudioQueue: { file: File; name: string; size: number; folder?: string }[] = [];
 
@@ -42,7 +43,7 @@ export function renderBatchMediaModalHtml(): string {
           <label class="btn-3d btn-purple px-4 py-2 rounded-xl text-white font-black text-xs cursor-pointer inline-flex items-center gap-1.5 shadow-md">
             <i data-lucide="file-audio" class="w-4 h-4"></i>
             Chọn nhiều File
-            <input type="file" id="batch-media-input" multiple accept="audio/*" class="hidden" />
+            <input type="file" id="batch-media-input" multiple accept="audio/*,.mp3,.wav,.wave,.m4a,.aac,.ogg,.flac" class="hidden" />
           </label>
           <label class="btn-3d btn-white border-2 border-purple-200 px-4 py-2 rounded-xl text-purple-700 font-black text-xs cursor-pointer inline-flex items-center gap-1.5 shadow-md">
             <i data-lucide="folder-plus" class="w-4 h-4"></i>
@@ -203,9 +204,7 @@ export function setupBatchMediaListeners(onBatchAddedToBook: (book: Book) => voi
 
   folderInput?.addEventListener('change', (e: any) => {
     if (e.target.files && e.target.files.length > 0) {
-      const audioFiles = Array.from(e.target.files as FileList).filter(
-        f => f.type.startsWith('audio/') || f.name.match(/\.(mp3|wav|m4a|aac|ogg|flac)$/i)
-      );
+      const audioFiles = Array.from(e.target.files as FileList).filter(f => isAudioFile(f));
       if (audioFiles.length > 0) {
         addFilesToQueue(audioFiles);
       }
@@ -225,9 +224,7 @@ export function setupBatchMediaListeners(onBatchAddedToBook: (book: Book) => voi
     e.preventDefault();
     dropzone.classList.remove('border-purple-500', 'bg-purple-100/50');
     if (e.dataTransfer && e.dataTransfer.files) {
-      const audioFiles = Array.from(e.dataTransfer.files).filter(
-        f => f.type.startsWith('audio/') || f.name.match(/\.(mp3|wav|m4a|aac|ogg|flac)$/i)
-      );
+      const audioFiles = Array.from(e.dataTransfer.files).filter(f => isAudioFile(f));
       if (audioFiles.length > 0) {
         addFilesToQueue(audioFiles);
       }
@@ -278,14 +275,16 @@ export function setupBatchMediaListeners(onBatchAddedToBook: (book: Book) => voi
     const newTracks: AudioTrack[] = [];
     for (let i = 0; i < batchAudioQueue.length; i++) {
       const item = batchAudioQueue[i];
+      const format = detectAudioFormatLabel(item.name);
       try {
-        const dataUrl = await readFileAsDataURL(item.file);
+        const dataUrl = await readFileAsAudioDataURL(item.file);
         newTracks.push({
           id: 'track_' + Date.now() + '_' + i + '_' + Math.random().toString(36).substr(2, 5),
           name: item.name,
           url: dataUrl,
           size: item.size,
-          folder: item.folder
+          folder: item.folder,
+          fileType: format
         });
       } catch {
         const url = URL.createObjectURL(item.file);
@@ -294,7 +293,8 @@ export function setupBatchMediaListeners(onBatchAddedToBook: (book: Book) => voi
           name: item.name,
           url,
           size: item.size,
-          folder: item.folder
+          folder: item.folder,
+          fileType: format
         });
       }
     }

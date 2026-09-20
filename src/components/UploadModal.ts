@@ -2,6 +2,7 @@ import { AudioTrack, Book } from '../types';
 import { extractPagesFromPdfFile } from '../services/pdfService';
 import { saveBookToDB } from '../services/dbService';
 import { showToast, showLoader, cancelLoadingOperation, setAbortHandler } from '../utils/toast';
+import { readFileAsAudioDataURL, isAudioFile, detectAudioFormatLabel } from '../utils/audioHelper';
 
 let selectedPdfFile: File | null = null;
 let uploadedAudioTracks: AudioTrack[] = [];
@@ -86,8 +87,8 @@ export function renderUploadModalHtml(): string {
             
             <div class="flex items-center gap-1.5">
               <label class="btn-3d btn-purple text-white text-[11px] font-black px-2.5 py-1 rounded-lg flex items-center gap-1 cursor-pointer">
-                <i data-lucide="folder-plus" class="w-3.5 h-3.5"></i> ⚡ Chọn Hàng Loạt MP3
-                <input type="file" id="input-modal-batch-audio" multiple accept="audio/*" class="hidden" />
+                <i data-lucide="folder-plus" class="w-3.5 h-3.5"></i> ⚡ Chọn Audio (WAV / MP3)
+                <input type="file" id="input-modal-batch-audio" multiple accept="audio/*,.mp3,.wav,.wave,.m4a,.aac,.ogg,.flac" class="hidden" />
               </label>
             </div>
           </div>
@@ -95,7 +96,7 @@ export function renderUploadModalHtml(): string {
           <div id="upload-audio-tracks-list" class="space-y-2 max-h-48 overflow-y-auto pr-1">
             <!-- Dynamic Audio Track Rows -->
           </div>
-          <p class="text-[10px] text-slate-500 font-bold italic">Bạn có thể chọn cùng lúc 10-50 file MP3 từ máy tính, hệ thống sẽ tự động phân loại tên bài.</p>
+          <p class="text-[10px] text-slate-500 font-bold italic">Hỗ trợ đầy đủ file .wav, .mp3, .m4a... Bạn có thể chọn cùng lúc 10-50 file từ máy tính.</p>
         </div>
 
         <!-- SECTION: ATTACH VIDEO LINK -->
@@ -220,7 +221,7 @@ export function setupUploadModalListeners(onBookCreated: (book: Book) => void): 
     if (e.dataTransfer && e.dataTransfer.files) {
       const files = Array.from(e.dataTransfer.files);
       const pdf = files.find(f => f.type === 'application/pdf' || f.name.endsWith('.pdf'));
-      const audios = files.filter(f => f.type.startsWith('audio/') || f.name.match(/\.(mp3|wav|m4a|aac|ogg)$/i));
+      const audios = files.filter(f => isAudioFile(f));
 
       if (pdf) {
         handleSelectedPdf(pdf);
@@ -307,17 +308,30 @@ function handleSelectedPdf(file: File): void {
   }
 }
 
-function handleBatchAudios(files: File[]): void {
+async function handleBatchAudios(files: File[]): Promise<void> {
+  showToast(`⏳ Đang xử lý ${files.length} tệp âm thanh (WAV/MP3)...`);
   for (const file of files) {
-    const url = URL.createObjectURL(file);
-    uploadedAudioTracks.push({
-      id: 'track_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5),
-      name: file.name.replace(/\.[^/.]+$/, ''),
-      url,
-      size: file.size,
-      fileType: file.type
-    });
+    try {
+      const dataUrl = await readFileAsAudioDataURL(file);
+      const format = detectAudioFormatLabel(file.name);
+      uploadedAudioTracks.push({
+        id: 'track_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5),
+        name: file.name.replace(/\.[^/.]+$/, ''),
+        url: dataUrl,
+        size: file.size,
+        fileType: format
+      });
+    } catch {
+      const url = URL.createObjectURL(file);
+      uploadedAudioTracks.push({
+        id: 'track_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5),
+        name: file.name.replace(/\.[^/.]+$/, ''),
+        url,
+        size: file.size,
+        fileType: detectAudioFormatLabel(file.name)
+      });
+    }
   }
   updateUploadedTracksList();
-  showToast(`Đã thêm ${files.length} bài nghe Audio`);
+  showToast(`🎉 Đã thêm thành công ${files.length} bài nghe Audio!`);
 }

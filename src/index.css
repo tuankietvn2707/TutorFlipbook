@@ -227,7 +227,64 @@ body.teaching-mode-active #fullscreen-top-hud {
 
 /* Ensure Media Player Dock & Mini Pill always float above reader & canvas */
 #media-player-dock,
-#media-mini-pill {
+#media-mini-pill,
+#apple-audio-playlist-drawer {
   z-index: 60 !important;
 }
+
+/* Apple Equalizer Animation */
+@keyframes apple-eq-bar-1 {
+  0%, 100% { height: 4px; }
+  50% { height: 18px; }
+}
+@keyframes apple-eq-bar-2 {
+  0%, 100% { height: 16px; }
+  50% { height: 6px; }
+}
+@keyframes apple-eq-bar-3 {
+  0%, 100% { height: 8px; }
+  50% { height: 20px; }
+}
+@keyframes apple-eq-bar-4 {
+  0%, 100% { height: 14px; }
+  50% { height: 4px; }
+}
+
+.apple-eq-playing .eq-bar:nth-child(1) {
+  animation: apple-eq-bar-1 0.8s ease-in-out infinite alternate;
+}
+.apple-eq-playing .eq-bar:nth-child(2) {
+  animation: apple-eq-bar-2 0.7s ease-in-out infinite alternate;
+}
+.apple-eq-playing .eq-bar:nth-child(3) {
+  animation: apple-eq-bar-3 0.9s ease-in-out infinite alternate;
+}
+.apple-eq-playing .eq-bar:nth-child(4) {
+  animation: apple-eq-bar-4 0.75s ease-in-out infinite alternate;
+}
+
+/* Apple-style range slider thumb */
+input[type=range].apple-slider::-webkit-slider-thumb {
+  appearance: none;
+  width: 13px;
+  height: 13px;
+  border-radius: 50%;
+  background: #ffffff;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.4);
+  cursor: pointer;
+  transition: transform 0.1s ease;
+}
+input[type=range].apple-slider:hover::-webkit-slider-thumb {
+  transform: scale(1.2);
+}
+input[type=range].apple-slider::-moz-range-thumb {
+  width: 13px;
+  height: 13px;
+  border-radius: 50%;
+  background: #ffffff;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.4);
+  cursor: pointer;
+  border: none;
+}
+
 
