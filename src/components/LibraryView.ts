@@ -82,10 +82,8 @@ export function renderLibraryGrid(): void {
         
         <!-- 3D REALISTIC BOOK COVER CONTAINER -->
         <a 
-          href="?bookId=${b.id}"
-          target="_blank"
-          rel="noopener noreferrer"
-          class="block relative w-full aspect-[3/4] rounded-2xl overflow-hidden bg-slate-900 border-2 border-slate-200/80 shadow-md group-hover:shadow-2xl transition-all duration-300 cursor-pointer flex flex-col justify-between book-card-link"
+          href="?bookId=${encodeURIComponent(b.id)}"
+          class="book-open-trigger block relative w-full aspect-[3/4] rounded-2xl overflow-hidden bg-slate-900 border-2 border-slate-200/80 shadow-md group-hover:shadow-2xl transition-all duration-300 cursor-pointer flex flex-col justify-between"
           data-book-id="${b.id}"
           title="Nhấn để mở đọc 3D: ${b.title}"
         >
@@ -169,11 +167,10 @@ export function renderLibraryGrid(): void {
         <!-- Book Title & Created Date -->
         <div class="space-y-1 px-0.5">
           <a 
-            href="?bookId=${b.id}"
-            target="_blank"
-            rel="noopener noreferrer"
-            class="font-black text-sm text-slate-800 line-clamp-1 group-hover:text-duoBlue transition-colors hover:underline block cursor-pointer" 
-            title="Mở tab mới: ${b.title}"
+            href="?bookId=${encodeURIComponent(b.id)}"
+            class="book-open-trigger font-black text-sm text-slate-800 line-clamp-1 group-hover:text-duoBlue transition-colors hover:underline block cursor-pointer" 
+            data-book-id="${b.id}"
+            title="Đọc 3D: ${b.title}"
           >
             ${b.title}
           </a>
@@ -190,10 +187,9 @@ export function renderLibraryGrid(): void {
           
           <!-- Open 3D Flipbook Button -->
           <a 
-            href="?bookId=${b.id}"
-            target="_blank"
-            rel="noopener noreferrer"
-            class="btn-3d btn-green flex-1 py-2 px-2.5 rounded-xl font-black text-xs text-white flex items-center justify-center gap-1 shadow-sm hover:brightness-105 cursor-pointer"
+            href="?bookId=${encodeURIComponent(b.id)}"
+            class="book-open-trigger btn-3d btn-green flex-1 py-2 px-2.5 rounded-xl font-black text-xs text-white flex items-center justify-center gap-1 shadow-sm hover:brightness-105 cursor-pointer"
+            data-book-id="${b.id}"
             title="Mở sách đọc 3D"
           >
             <i data-lucide="book-open" class="w-3.5 h-3.5"></i>
@@ -255,9 +251,45 @@ export function setupLibraryListeners(callbacks: {
     if (e) {
       e.preventDefault();
     }
-    const bookUrl = `${window.location.origin}${window.location.pathname}?bookId=${id}`;
-    window.open(bookUrl, '_blank');
+    const books = appState.get('allBooks');
+    const book = books.find(b => b.id === id || b.id === decodeURIComponent(id));
+    if (book) {
+      callbacks.onOpenBook(book);
+    } else {
+      callbacks.onOpenBook({ id } as Book);
+    }
   };
+
+  // Attach event delegation for all book open triggers in library container
+  const libContainer = document.getElementById('view-library-container');
+  if (libContainer) {
+    libContainer.addEventListener('click', (e) => {
+      const target = e.target as HTMLElement;
+      // Do not intercept audio/delete/video action buttons
+      if (target.closest('button') && !target.closest('.book-open-trigger')) {
+        return;
+      }
+
+      const trigger = target.closest('.book-open-trigger') as HTMLElement;
+      if (trigger) {
+        const mouseEvent = e as MouseEvent;
+        // If not middle click or Ctrl/Cmd click, open smoothly in-app
+        if (!mouseEvent.ctrlKey && !mouseEvent.metaKey && mouseEvent.button === 0) {
+          e.preventDefault();
+          const id = trigger.getAttribute('data-book-id');
+          if (id) {
+            const books = appState.get('allBooks');
+            const book = books.find(b => b.id === id || b.id === decodeURIComponent(id));
+            if (book) {
+              callbacks.onOpenBook(book);
+            } else {
+              callbacks.onOpenBook({ id } as Book);
+            }
+          }
+        }
+      }
+    });
+  }
 
   (window as any).onBookDeleteClick = (id: string) => {
     const books = appState.get('allBooks');

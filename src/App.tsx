@@ -67,6 +67,65 @@ export default function App() {
     const unsubscribeAuth = initAuthListener();
 
     // 2. Initialize and Load Books from IndexedDB (Lightweight summary mode: only covers loaded to save GBs of RAM)
+    const handleOpenBook = async (bookOrId: Book | string) => {
+      let book: Book | undefined;
+      const allBooks = appState.get('allBooks');
+
+      if (typeof bookOrId === 'string') {
+        const idToFind = bookOrId.trim();
+        const decodedId = decodeURIComponent(idToFind);
+        book = allBooks.find(b => 
+          b.id === idToFind || 
+          b.id === decodedId ||
+          encodeURIComponent(b.id) === idToFind ||
+          b.title.toLowerCase().trim() === decodedId.toLowerCase().trim()
+        );
+        if (!book) {
+          book = (await loadBookById(idToFind)) || 
+                 (await loadBookById(decodedId)) || 
+                 undefined;
+        }
+        if (!book) {
+          // Fallback: search books by title keywords (e.g. Navigate, Beginner)
+          const query = decodedId.toLowerCase();
+          book = allBooks.find(b => b.title.toLowerCase().includes(query) || query.includes(b.title.toLowerCase()));
+        }
+      } else {
+        book = bookOrId;
+      }
+
+      if (!book) {
+        showToast('⚠️ Không tìm thấy cuốn sách được yêu cầu trong thư viện');
+        return;
+      }
+
+      // If book in allBooks is lightweight or has stripped pages, load complete record from IndexedDB
+      if (!book.pages || book.pages.length <= 1) {
+        try {
+          const dbFull = await loadBookById(book.id);
+          if (dbFull && dbFull.pages && dbFull.pages.length > 0) {
+            book = { ...book, ...dbFull };
+          }
+        } catch (e) {
+          console.warn('Error fetching full book record:', e);
+        }
+      }
+
+      // Set currentBook and activate reader view immediately
+      appState.set('currentBook', book);
+      
+      // Update browser URL without full-page navigation
+      try {
+        const newUrl = `${window.location.pathname}?bookId=${encodeURIComponent(book.id)}`;
+        window.history.pushState({ bookId: book.id }, '', newUrl);
+      } catch (e) {
+        // ignore
+      }
+
+      showReaderView();
+      await openBookInReader(book);
+    };
+
     const initAppBooks = async () => {
       try {
         const books = await loadAllBooksFromDB(false);
@@ -74,32 +133,17 @@ export default function App() {
         renderLibraryGrid();
         updateHeaderStats(books.length);
 
-        // URL Routing
+        // URL Routing: auto-open book if bookId parameter exists
         const urlParams = new URLSearchParams(window.location.search);
         const bookId = urlParams.get('bookId');
         if (bookId) {
-          let targetBook = books.find(b => b.id === bookId);
-          if (!targetBook) {
-            targetBook = (await loadBookById(bookId)) || undefined;
-          }
-          if (targetBook) {
-            await handleOpenBook(targetBook);
-          } else {
-            console.warn('Book with ID not found in library:', bookId);
-          }
+          await handleOpenBook(bookId);
         }
       } catch (err) {
         console.error('Failed to load books:', err);
       }
     };
     initAppBooks();
-
-    const handleOpenBook = async (book: Book) => {
-      // Set to bypass the default auto-load in showReaderView
-      appState.set('currentBook', book);
-      showReaderView();
-      await openBookInReader(book);
-    };
 
     // 3. Navigation View Switcher (Library vs Reader)
     const updateNavStyles = (activeTab: 'library' | 'reader') => {
@@ -167,17 +211,33 @@ export default function App() {
       // 1. Force PageFlip to destroy and release WebGL/Canvas memory
       cleanupFlipbookReader();
       
-      // 2. Clear massive Base64 arrays from JS Heap to prevent BFCache bloat
-      const curBook = appState.get('currentBook');
-      if (curBook) {
-        curBook.pages = []; // sever reference to the massive array
-      }
+      // 2. Clear current book state reference
       appState.set('currentBook', null);
-      
-      // 3. Clear allBooks just in case to free up RAM before reload
-      appState.set('allBooks', []);
 
-      window.location.href = '/';
+      // 3. Toggle view containers smoothly
+      const libContainer = document.getElementById('view-library-container');
+      const readerContainer = document.getElementById('view-reader-container');
+      
+      const sidebar = document.getElementById('main-sidebar-container');
+      const header = document.getElementById('main-header-container');
+      const mobileNav = document.getElementById('mobile-bottom-nav-container');
+
+      readerContainer?.classList.add('hidden');
+      libContainer?.classList.remove('hidden');
+      
+      sidebar?.classList.remove('hidden');
+      header?.classList.remove('hidden');
+      mobileNav?.classList.remove('hidden');
+
+      // 4. Clean URL query parameters
+      try {
+        window.history.pushState({}, '', window.location.pathname);
+      } catch (e) {
+        // ignore
+      }
+
+      updateNavStyles('library');
+      renderLibraryGrid();
     };
 
     const showReaderView = () => {

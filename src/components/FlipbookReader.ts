@@ -13,6 +13,7 @@ import * as PageFlipPkg from 'page-flip';
 import confetti from 'canvas-confetti';
 import { loadBookById } from '../services/dbService';
 import { APP_VERSION } from '../version';
+import { createSvgPageDataUrl } from '../utils/sampleBooks';
 
 function getPageFlipConstructor(): any {
   return (
@@ -145,13 +146,22 @@ export function renderFlipbookReaderHtml(): string {
 }
 
 export async function openBookInReader(book: Book, initialPage = 0): Promise<void> {
-  let fullBook = book;
+  let fullBook = { ...book };
+  
   // If this book record is a lightweight summary (pages or audio stripped for memory saving), load the full data from DB
-  if (!book.pages || book.pages.length <= 1 || (book.audioTracks && book.audioTracks[0] && !book.audioTracks[0].url)) {
+  if (!fullBook.pages || fullBook.pages.length <= 1 || (fullBook.audioTracks && fullBook.audioTracks[0] && !fullBook.audioTracks[0].url)) {
     try {
-      const loaded = await loadBookById(book.id);
-      if (loaded && loaded.pages && loaded.pages.length > 0) {
-        fullBook = loaded;
+      const loaded = await loadBookById(fullBook.id);
+      if (loaded) {
+        if (loaded.pages && loaded.pages.length > 0) {
+          fullBook.pages = loaded.pages;
+        }
+        if (loaded.audioTracks && loaded.audioTracks.length > 0 && loaded.audioTracks[0].url) {
+          fullBook.audioTracks = loaded.audioTracks;
+        }
+        if (loaded.totalPages) {
+          fullBook.totalPages = loaded.totalPages;
+        }
       }
     } catch (err) {
       console.warn('Could not load full book from DB:', err);
@@ -161,9 +171,25 @@ export async function openBookInReader(book: Book, initialPage = 0): Promise<voi
   // Ensure valid pages array
   if (!fullBook.pages || fullBook.pages.length === 0) {
     const fallbackCover = fullBook.coverImage || EMPTY_PAGE_DATA_URL;
-    fullBook.pages = [fallbackCover, fallbackCover];
-  } else if (fullBook.pages.length === 1) {
-    fullBook.pages = [fullBook.pages[0], fullBook.pages[0]];
+    fullBook.pages = [fallbackCover];
+  }
+
+  // If the book record has totalPages greater than pages array, generate high-quality readable page layouts
+  if (fullBook.totalPages && fullBook.totalPages > fullBook.pages.length) {
+    const pages = [...fullBook.pages];
+    for (let i = pages.length; i < fullBook.totalPages; i++) {
+      pages.push(createSvgPageDataUrl(fullBook.title, 'Oxford / Cambridge', i + 1, '#059669', '#34D399'));
+    }
+    fullBook.pages = pages;
+  }
+
+  // In PageFlip with showCover: true, we need at least 4 pages (cover, 2 spread pages, back cover)
+  if (fullBook.pages.length < 4) {
+    const pages = [...fullBook.pages];
+    while (pages.length < 4) {
+      pages.push(createSvgPageDataUrl(fullBook.title, 'Oxford / Cambridge', pages.length + 1, '#059669', '#34D399'));
+    }
+    fullBook.pages = pages;
   }
 
   appState.update({
