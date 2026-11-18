@@ -18,64 +18,24 @@ import {
   serializeAudioTrackPayload,
   splitStringIntoChunks
 } from './firebaseMediaHelpers';
+import { deleteTrackChunksFromCloud } from './firebaseAudioDelete';
 
 const AUDIO_CHUNK_BATCH_LIMIT = 8;
 
-export async function deleteTrackChunksFromCloud(
-  uid: string,
-  bookId: string,
-  trackId: string
-): Promise<void> {
-  const chunksPath = `users/${uid}/books/${bookId}/audioTracks/${trackId}/chunks`;
-  const colRef = collection(db, 'users', uid, 'books', bookId, 'audioTracks', trackId, 'chunks');
-  try {
-    const snap = await getDocs(
-      query(
-        colRef,
-        where('ownerId', '==', uid),
-        where('bookId', '==', bookId),
-        where('trackId', '==', trackId)
-      )
-    );
-    for (let i = 0; i < snap.docs.length; i += 100) {
-      const batch = writeBatch(db);
-      snap.docs.slice(i, i + 100).forEach((d) => batch.delete(d.ref));
-      await batch.commit();
-    }
-  } catch (err) {
-    handleFirestoreError(err, OperationType.DELETE, chunksPath);
-  }
-}
-
-export async function deleteBookAudioFromCloud(uid: string, bookId: string): Promise<void> {
-  const tracksPath = `users/${uid}/books/${bookId}/audioTracks`;
-  const tracksCol = collection(db, 'users', uid, 'books', bookId, 'audioTracks');
-  try {
-    const snap = await getDocs(
-      query(tracksCol, where('ownerId', '==', uid), where('bookId', '==', bookId))
-    );
-    for (const trackDoc of snap.docs) {
-      await deleteTrackChunksFromCloud(uid, bookId, trackDoc.id);
-      await deleteDoc(trackDoc.ref);
-    }
-  } catch (err) {
-    handleFirestoreError(err, OperationType.DELETE, tracksPath);
-  }
-}
-
 export async function uploadBookAudioToCloud(
+  libraryId: string,
   uid: string,
   bookId: string,
   tracks: AudioTrack[],
   onProgress?: (done: number, total: number) => void
 ): Promise<void> {
-  const tracksPath = `users/${uid}/books/${bookId}/audioTracks`;
-  const tracksCol = collection(db, 'users', uid, 'books', bookId, 'audioTracks');
+  const tracksPath = `libraries/${libraryId}/books/${bookId}/audioTracks`;
+  const tracksCol = collection(db, 'libraries', libraryId, 'books', bookId, 'audioTracks');
 
   let existingTrackIds = new Set<string>();
   try {
     const snap = await getDocs(
-      query(tracksCol, where('ownerId', '==', uid), where('bookId', '==', bookId))
+      query(tracksCol, where('ownerEmail', '==', libraryId), where('bookId', '==', bookId))
     );
     existingTrackIds = new Set(snap.docs.map((d) => d.id));
   } catch (err) {
@@ -91,7 +51,7 @@ export async function uploadBookAudioToCloud(
 
   for (const staleId of existingTrackIds) {
     if (!desiredIds.has(staleId)) {
-      await deleteTrackChunksFromCloud(uid, bookId, staleId);
+      await deleteTrackChunksFromCloud(libraryId, bookId, staleId);
       try {
         await deleteDoc(doc(tracksCol, staleId));
       } catch (err) {
@@ -108,6 +68,7 @@ export async function uploadBookAudioToCloud(
     const chunks = payload.dataString ? splitStringIntoChunks(payload.dataString) : [];
 
     const metaFields = {
+      ownerId: uid,
       name: (track.name || 'Audio').slice(0, 300),
       folder: (track.folder || '').slice(0, 200),
       fileType: (track.fileType || 'MP3').slice(0, 32),
@@ -126,6 +87,7 @@ export async function uploadBookAudioToCloud(
         await setDoc(trackRef, {
           id: trackId,
           ownerId: uid,
+          ownerEmail: libraryId,
           bookId,
           ...metaFields,
           createdAt: serverTimestamp()
@@ -135,24 +97,34 @@ export async function uploadBookAudioToCloud(
       handleFirestoreError(err, OperationType.WRITE, trackPath);
     }
 
-    await uploadSingleTrackChunks(uid, bookId, trackId, chunks);
+    await uploadSingleTrackChunks(libraryId, uid, bookId, trackId, chunks);
     onProgress?.(idx + 1, normalized.length);
   }
 }
 
 async function uploadSingleTrackChunks(
+  libraryId: string,
   uid: string,
   bookId: string,
   trackId: string,
   chunks: string[]
 ): Promise<void> {
-  const chunksPath = `users/${uid}/books/${bookId}/audioTracks/${trackId}/chunks`;
-  const chunksCol = collection(db, 'users', uid, 'books', bookId, 'audioTracks', trackId, 'chunks');
+  const chunksPath = `libraries/${libraryId}/books/${bookId}/audioTracks/${trackId}/chunks`;
+  const chunksCol = collection(
+    db,
+    'libraries',
+    libraryId,
+    'books',
+    bookId,
+    'audioTracks',
+    trackId,
+    'chunks'
+  );
 
   const existingChunkSnap = await getDocs(
     query(
       chunksCol,
-      where('ownerId', '==', uid),
+      where('ownerEmail', '==', libraryId),
       where('bookId', '==', bookId),
       where('trackId', '==', trackId)
     )
@@ -175,10 +147,16 @@ async function uploadSingleTrackChunks(
       const chunkId = `chunk_${chunkIndex}`;
       const chunkRef = doc(chunksCol, chunkId);
       if (existingChunkIds.has(chunkId)) {
-        batch.update(chunkRef, { chunkIndex, data: chunkData, updatedAt: serverTimestamp() });
+        batch.update(chunkRef, {
+          ownerId: uid,
+          chunkIndex,
+          data: chunkData,
+          updatedAt: serverTimestamp()
+        });
       } else {
         batch.set(chunkRef, {
           ownerId: uid,
+          ownerEmail: libraryId,
           bookId,
           trackId,
           chunkIndex,

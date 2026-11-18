@@ -28,8 +28,22 @@ service cloud.firestore {
       return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
     }
 
+    function isValidLibraryId(id) {
+      return id is string
+        && id.size() >= 3
+        && id.size() <= 320
+        && id.matches('^[^/\\s]+@[^/\\s]+\\.[^/\\s]+$');
+    }
+
     function isVerifiedOwner(userId) {
       return isVerifiedUser() && request.auth.uid == userId;
+    }
+
+    function isVerifiedEmailOwner(libraryId) {
+      return isVerifiedUser()
+        && request.auth.token.email is string
+        && request.auth.token.email.size() <= 320
+        && libraryId == request.auth.token.email.lower();
     }
 
     function isOptionalString(data, key, maxLen) {
@@ -51,14 +65,30 @@ service cloud.firestore {
         && data.updatedAt is timestamp;
     }
 
-    function isValidBookMeta(data, userId, bookId) {
+    function isValidEmailLibrary(data, libraryId) {
+      return data.keys().hasAll(['libraryId', 'ownerEmail', 'lastUpdatedByUid', 'createdAt', 'updatedAt'])
+        && data.keys().hasOnly(['libraryId', 'ownerEmail', 'lastUpdatedByUid', 'createdAt', 'updatedAt'])
+        && data.libraryId is string
+        && data.libraryId.size() <= 320
+        && data.libraryId == libraryId
+        && data.ownerEmail is string
+        && data.ownerEmail.size() <= 320
+        && data.ownerEmail == request.auth.token.email.lower()
+        && data.lastUpdatedByUid is string
+        && data.lastUpdatedByUid.size() <= 128
+        && data.lastUpdatedByUid == request.auth.uid
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidBookMetaBase(data, bookId) {
       return data.keys().hasAll([
           'id', 'ownerId', 'title', 'category', 'color',
           'totalPages', 'audioCount', 'syncStatus',
           'bookCreatedAt', 'lastModified', 'createdAt', 'updatedAt'
         ])
         && data.keys().hasOnly([
-          'id', 'ownerId', 'title', 'category', 'color',
+          'id', 'ownerId', 'ownerEmail', 'title', 'category', 'color',
           'totalPages', 'coverImage', 'videoUrl', 'audioCount',
           'syncStatus', 'bookCreatedAt', 'lastModified', 'createdAt', 'updatedAt'
         ])
@@ -68,8 +98,7 @@ service cloud.firestore {
         && data.id == bookId
         && data.ownerId is string
         && data.ownerId.size() <= 128
-        && data.ownerId == userId
-        && data.ownerId == request.auth.uid
+        && isOptionalString(data, 'ownerEmail', 320)
         && data.title is string
         && data.title.size() >= 1
         && data.title.size() <= 300
@@ -97,19 +126,32 @@ service cloud.firestore {
         && data.updatedAt is timestamp;
     }
 
-    function isValidBookPageChunk(data, userId, bookId) {
+    function isValidUidBookMeta(data, userId, bookId) {
+      return isValidBookMetaBase(data, bookId)
+        && data.ownerId == userId
+        && data.ownerId == request.auth.uid;
+    }
+
+    function isValidEmailBookMeta(data, libraryId, bookId) {
+      return isValidBookMetaBase(data, bookId)
+        && ('ownerEmail' in data)
+        && data.ownerEmail == libraryId
+        && data.ownerEmail == request.auth.token.email.lower()
+        && data.ownerId == request.auth.uid;
+    }
+
+    function isValidBookPageChunkBase(data, bookId) {
       return data.keys().hasAll([
           'ownerId', 'bookId', 'pageIndex', 'partIndex',
           'totalParts', 'chunk', 'createdAt', 'updatedAt'
         ])
         && data.keys().hasOnly([
-          'ownerId', 'bookId', 'pageIndex', 'partIndex',
+          'ownerId', 'ownerEmail', 'bookId', 'pageIndex', 'partIndex',
           'totalParts', 'chunk', 'createdAt', 'updatedAt'
         ])
         && data.ownerId is string
         && data.ownerId.size() <= 128
-        && data.ownerId == userId
-        && data.ownerId == request.auth.uid
+        && isOptionalString(data, 'ownerEmail', 320)
         && data.bookId is string
         && data.bookId.size() <= 128
         && data.bookId == bookId
@@ -129,13 +171,13 @@ service cloud.firestore {
         && data.updatedAt is timestamp;
     }
 
-    function isValidBookAudioMeta(data, userId, bookId, trackId) {
+    function isValidBookAudioMetaBase(data, bookId, trackId) {
       return data.keys().hasAll([
           'id', 'ownerId', 'bookId', 'name',
           'totalChunks', 'sortOrder', 'createdAt', 'updatedAt'
         ])
         && data.keys().hasOnly([
-          'id', 'ownerId', 'bookId', 'name', 'folder',
+          'id', 'ownerId', 'ownerEmail', 'bookId', 'name', 'folder',
           'fileType', 'mimeType', 'size', 'totalChunks',
           'externalUrl', 'sortOrder', 'createdAt', 'updatedAt'
         ])
@@ -145,8 +187,7 @@ service cloud.firestore {
         && data.id == trackId
         && data.ownerId is string
         && data.ownerId.size() <= 128
-        && data.ownerId == userId
-        && data.ownerId == request.auth.uid
+        && isOptionalString(data, 'ownerEmail', 320)
         && data.bookId is string
         && data.bookId.size() <= 128
         && data.bookId == bookId
@@ -168,19 +209,18 @@ service cloud.firestore {
         && data.updatedAt is timestamp;
     }
 
-    function isValidBookAudioChunk(data, userId, bookId, trackId) {
+    function isValidBookAudioChunkBase(data, bookId, trackId) {
       return data.keys().hasAll([
           'ownerId', 'bookId', 'trackId', 'chunkIndex',
           'data', 'createdAt', 'updatedAt'
         ])
         && data.keys().hasOnly([
-          'ownerId', 'bookId', 'trackId', 'chunkIndex',
+          'ownerId', 'ownerEmail', 'bookId', 'trackId', 'chunkIndex',
           'data', 'createdAt', 'updatedAt'
         ])
         && data.ownerId is string
         && data.ownerId.size() <= 128
-        && data.ownerId == userId
-        && data.ownerId == request.auth.uid
+        && isOptionalString(data, 'ownerEmail', 320)
         && data.bookId is string
         && data.bookId.size() <= 128
         && data.bookId == bookId
@@ -197,17 +237,27 @@ service cloud.firestore {
         && data.updatedAt is timestamp;
     }
 
-    function parentBookOwnedByUser(userId, bookId) {
+    function parentUidBookOwnedByUser(userId, bookId) {
       let bookPath = /databases/$(database)/documents/users/$(userId)/books/$(bookId);
       return exists(bookPath) && get(bookPath).data.ownerId == request.auth.uid;
     }
 
-    function parentTrackOwnedByUser(userId, bookId, trackId) {
+    function parentUidTrackOwnedByUser(userId, bookId, trackId) {
       let trackPath = /databases/$(database)/documents/users/$(userId)/books/$(bookId)/audioTracks/$(trackId);
       return exists(trackPath) && get(trackPath).data.ownerId == request.auth.uid;
     }
 
-    // --- Collection Rules ---
+    function parentEmailBookOwned(libraryId, bookId) {
+      let bookPath = /databases/$(database)/documents/libraries/$(libraryId)/books/$(bookId);
+      return exists(bookPath) && get(bookPath).data.ownerEmail == request.auth.token.email.lower();
+    }
+
+    function parentEmailTrackOwned(libraryId, bookId, trackId) {
+      let trackPath = /databases/$(database)/documents/libraries/$(libraryId)/books/$(bookId)/audioTracks/$(trackId);
+      return exists(trackPath) && get(trackPath).data.ownerEmail == request.auth.token.email.lower();
+    }
+
+    // --- Collection 1: Legacy UID-scoped profiles & books ---
     match /users/{userId} {
       allow get: if isValidId(userId) && isVerifiedOwner(userId);
       allow list: if false;
@@ -231,128 +281,270 @@ service cloud.firestore {
         allow create: if isValidId(userId)
           && isValidId(bookId)
           && isVerifiedOwner(userId)
-          && isValidBookMeta(incoming(), userId, bookId)
+          && isValidUidBookMeta(incoming(), userId, bookId)
           && incoming().createdAt == request.time
           && incoming().updatedAt == request.time;
         allow update: if isValidId(userId)
           && isValidId(bookId)
           && isVerifiedOwner(userId)
-          && isValidBookMeta(incoming(), userId, bookId)
+          && isValidUidBookMeta(incoming(), userId, bookId)
           && incoming().id == existing().id
           && incoming().ownerId == existing().ownerId
           && incoming().createdAt == existing().createdAt
           && incoming().updatedAt == request.time
-          && (
-            incoming().diff(existing()).affectedKeys().hasOnly([
-              'title', 'category', 'color', 'totalPages', 'coverImage',
-              'videoUrl', 'audioCount', 'syncStatus', 'lastModified', 'updatedAt'
-            ])
-            || incoming().diff(existing()).affectedKeys().hasOnly(['syncStatus', 'updatedAt'])
-          );
+          && incoming().diff(existing()).affectedKeys().hasOnly([
+            'title', 'category', 'color', 'totalPages', 'coverImage',
+            'videoUrl', 'audioCount', 'syncStatus', 'lastModified', 'updatedAt'
+          ]);
         allow delete: if isValidId(userId) && isValidId(bookId) && isVerifiedOwner(userId);
 
         match /pages/{pageDocId} {
           allow get: if isValidId(userId) && isValidId(bookId) && isValidId(pageDocId) && isVerifiedOwner(userId);
-          allow list: if isVerifiedOwner(userId)
-            && existing().ownerId == request.auth.uid
-            && existing().bookId == bookId;
+          allow list: if isVerifiedOwner(userId) && existing().ownerId == request.auth.uid && existing().bookId == bookId;
           allow create: if isValidId(userId)
             && isValidId(bookId)
             && isValidId(pageDocId)
             && isVerifiedOwner(userId)
-            && isValidBookPageChunk(incoming(), userId, bookId)
+            && isValidBookPageChunkBase(incoming(), bookId)
+            && incoming().ownerId == request.auth.uid
             && incoming().createdAt == request.time
             && incoming().updatedAt == request.time
-            && parentBookOwnedByUser(userId, bookId);
+            && parentUidBookOwnedByUser(userId, bookId);
           allow update: if isValidId(userId)
             && isValidId(bookId)
             && isValidId(pageDocId)
             && isVerifiedOwner(userId)
-            && isValidBookPageChunk(incoming(), userId, bookId)
+            && isValidBookPageChunkBase(incoming(), bookId)
             && incoming().ownerId == existing().ownerId
             && incoming().bookId == existing().bookId
             && incoming().createdAt == existing().createdAt
             && incoming().updatedAt == request.time
             && incoming().diff(existing()).affectedKeys().hasOnly(['pageIndex', 'partIndex', 'totalParts', 'chunk', 'updatedAt'])
-            && parentBookOwnedByUser(userId, bookId);
-          allow delete: if isValidId(userId)
-            && isValidId(bookId)
-            && isValidId(pageDocId)
-            && isVerifiedOwner(userId)
-            && parentBookOwnedByUser(userId, bookId);
+            && parentUidBookOwnedByUser(userId, bookId);
+          allow delete: if isValidId(userId) && isValidId(bookId) && isValidId(pageDocId) && isVerifiedOwner(userId) && parentUidBookOwnedByUser(userId, bookId);
         }
 
         match /audioTracks/{trackId} {
           allow get: if isValidId(userId) && isValidId(bookId) && isValidId(trackId) && isVerifiedOwner(userId);
-          allow list: if isVerifiedOwner(userId)
-            && existing().ownerId == request.auth.uid
-            && existing().bookId == bookId;
+          allow list: if isVerifiedOwner(userId) && existing().ownerId == request.auth.uid && existing().bookId == bookId;
           allow create: if isValidId(userId)
             && isValidId(bookId)
             && isValidId(trackId)
             && isVerifiedOwner(userId)
-            && isValidBookAudioMeta(incoming(), userId, bookId, trackId)
+            && isValidBookAudioMetaBase(incoming(), bookId, trackId)
+            && incoming().ownerId == request.auth.uid
             && incoming().createdAt == request.time
             && incoming().updatedAt == request.time
-            && parentBookOwnedByUser(userId, bookId);
+            && parentUidBookOwnedByUser(userId, bookId);
           allow update: if isValidId(userId)
             && isValidId(bookId)
             && isValidId(trackId)
             && isVerifiedOwner(userId)
-            && isValidBookAudioMeta(incoming(), userId, bookId, trackId)
+            && isValidBookAudioMetaBase(incoming(), bookId, trackId)
             && incoming().id == existing().id
             && incoming().ownerId == existing().ownerId
             && incoming().bookId == existing().bookId
             && incoming().createdAt == existing().createdAt
             && incoming().updatedAt == request.time
-            && (
-              incoming().diff(existing()).affectedKeys().hasOnly([
-                'name', 'folder', 'fileType', 'mimeType', 'size',
-                'totalChunks', 'externalUrl', 'sortOrder', 'updatedAt'
-              ])
-              || incoming().diff(existing()).affectedKeys().hasOnly(['sortOrder', 'updatedAt'])
-            )
-            && parentBookOwnedByUser(userId, bookId);
-          allow delete: if isValidId(userId)
-            && isValidId(bookId)
-            && isValidId(trackId)
-            && isVerifiedOwner(userId)
-            && parentBookOwnedByUser(userId, bookId);
+            && incoming().diff(existing()).affectedKeys().hasOnly([
+              'name', 'folder', 'fileType', 'mimeType', 'size',
+              'totalChunks', 'externalUrl', 'sortOrder', 'updatedAt'
+            ])
+            && parentUidBookOwnedByUser(userId, bookId);
+          allow delete: if isValidId(userId) && isValidId(bookId) && isValidId(trackId) && isVerifiedOwner(userId) && parentUidBookOwnedByUser(userId, bookId);
 
           match /chunks/{chunkId} {
             allow get: if isValidId(userId) && isValidId(bookId) && isValidId(trackId) && isValidId(chunkId) && isVerifiedOwner(userId);
-            allow list: if isVerifiedOwner(userId)
-              && existing().ownerId == request.auth.uid
-              && existing().bookId == bookId
-              && existing().trackId == trackId;
+            allow list: if isVerifiedOwner(userId) && existing().ownerId == request.auth.uid && existing().bookId == bookId && existing().trackId == trackId;
             allow create: if isValidId(userId)
               && isValidId(bookId)
               && isValidId(trackId)
               && isValidId(chunkId)
               && isVerifiedOwner(userId)
-              && isValidBookAudioChunk(incoming(), userId, bookId, trackId)
+              && isValidBookAudioChunkBase(incoming(), bookId, trackId)
+              && incoming().ownerId == request.auth.uid
               && incoming().createdAt == request.time
               && incoming().updatedAt == request.time
-              && parentTrackOwnedByUser(userId, bookId, trackId);
+              && parentUidTrackOwnedByUser(userId, bookId, trackId);
             allow update: if isValidId(userId)
               && isValidId(bookId)
               && isValidId(trackId)
               && isValidId(chunkId)
               && isVerifiedOwner(userId)
-              && isValidBookAudioChunk(incoming(), userId, bookId, trackId)
+              && isValidBookAudioChunkBase(incoming(), bookId, trackId)
               && incoming().ownerId == existing().ownerId
               && incoming().bookId == existing().bookId
               && incoming().trackId == existing().trackId
               && incoming().createdAt == existing().createdAt
               && incoming().updatedAt == request.time
               && incoming().diff(existing()).affectedKeys().hasOnly(['chunkIndex', 'data', 'updatedAt'])
-              && parentTrackOwnedByUser(userId, bookId, trackId);
-            allow delete: if isValidId(userId)
+              && parentUidTrackOwnedByUser(userId, bookId, trackId);
+            allow delete: if isValidId(userId) && isValidId(bookId) && isValidId(trackId) && isValidId(chunkId) && isVerifiedOwner(userId) && parentUidTrackOwnedByUser(userId, bookId, trackId);
+          }
+        }
+      }
+    }
+
+    // --- Collection 2: Unified Email-Keyed Library (Google + Email/Password same email = same library) ---
+    match /libraries/{libraryId} {
+      allow get: if isValidLibraryId(libraryId) && isVerifiedEmailOwner(libraryId);
+      allow list: if false;
+      allow create: if isValidLibraryId(libraryId)
+        && isVerifiedEmailOwner(libraryId)
+        && isValidEmailLibrary(incoming(), libraryId)
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time;
+      allow update: if isValidLibraryId(libraryId)
+        && isVerifiedEmailOwner(libraryId)
+        && isValidEmailLibrary(incoming(), libraryId)
+        && incoming().libraryId == existing().libraryId
+        && incoming().ownerEmail == existing().ownerEmail
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && incoming().diff(existing()).affectedKeys().hasOnly(['lastUpdatedByUid', 'updatedAt']);
+      allow delete: if isValidLibraryId(libraryId) && isVerifiedEmailOwner(libraryId);
+
+      match /books/{bookId} {
+        allow get: if isValidLibraryId(libraryId) && isValidId(bookId) && isVerifiedEmailOwner(libraryId);
+        allow list: if isValidLibraryId(libraryId)
+          && isVerifiedEmailOwner(libraryId)
+          && existing().ownerEmail == request.auth.token.email.lower();
+        allow create: if isValidLibraryId(libraryId)
+          && isValidId(bookId)
+          && isVerifiedEmailOwner(libraryId)
+          && isValidEmailBookMeta(incoming(), libraryId, bookId)
+          && incoming().createdAt == request.time
+          && incoming().updatedAt == request.time;
+        allow update: if isValidLibraryId(libraryId)
+          && isValidId(bookId)
+          && isVerifiedEmailOwner(libraryId)
+          && isValidBookMetaBase(incoming(), bookId)
+          && ('ownerEmail' in incoming())
+          && incoming().ownerEmail == existing().ownerEmail
+          && incoming().ownerEmail == request.auth.token.email.lower()
+          && incoming().id == existing().id
+          && incoming().createdAt == existing().createdAt
+          && incoming().updatedAt == request.time
+          && (
+            incoming().diff(existing()).affectedKeys().hasOnly([
+              'ownerId', 'title', 'category', 'color', 'totalPages', 'coverImage',
+              'videoUrl', 'audioCount', 'syncStatus', 'lastModified', 'updatedAt'
+            ])
+            || incoming().diff(existing()).affectedKeys().hasOnly(['syncStatus', 'updatedAt'])
+          );
+        allow delete: if isValidLibraryId(libraryId) && isValidId(bookId) && isVerifiedEmailOwner(libraryId);
+
+        match /pages/{pageDocId} {
+          allow get: if isValidLibraryId(libraryId) && isValidId(bookId) && isValidId(pageDocId) && isVerifiedEmailOwner(libraryId);
+          allow list: if isValidLibraryId(libraryId)
+            && isVerifiedEmailOwner(libraryId)
+            && existing().ownerEmail == request.auth.token.email.lower()
+            && existing().bookId == bookId;
+          allow create: if isValidLibraryId(libraryId)
+            && isValidId(bookId)
+            && isValidId(pageDocId)
+            && isVerifiedEmailOwner(libraryId)
+            && isValidBookPageChunkBase(incoming(), bookId)
+            && ('ownerEmail' in incoming())
+            && incoming().ownerEmail == request.auth.token.email.lower()
+            && incoming().ownerId == request.auth.uid
+            && incoming().createdAt == request.time
+            && incoming().updatedAt == request.time
+            && parentEmailBookOwned(libraryId, bookId);
+          allow update: if isValidLibraryId(libraryId)
+            && isValidId(bookId)
+            && isValidId(pageDocId)
+            && isVerifiedEmailOwner(libraryId)
+            && isValidBookPageChunkBase(incoming(), bookId)
+            && incoming().ownerEmail == existing().ownerEmail
+            && incoming().bookId == existing().bookId
+            && incoming().createdAt == existing().createdAt
+            && incoming().updatedAt == request.time
+            && incoming().diff(existing()).affectedKeys().hasOnly(['ownerId', 'pageIndex', 'partIndex', 'totalParts', 'chunk', 'updatedAt'])
+            && parentEmailBookOwned(libraryId, bookId);
+          allow delete: if isValidLibraryId(libraryId)
+            && isValidId(bookId)
+            && isValidId(pageDocId)
+            && isVerifiedEmailOwner(libraryId)
+            && parentEmailBookOwned(libraryId, bookId);
+        }
+
+        match /audioTracks/{trackId} {
+          allow get: if isValidLibraryId(libraryId) && isValidId(bookId) && isValidId(trackId) && isVerifiedEmailOwner(libraryId);
+          allow list: if isValidLibraryId(libraryId)
+            && isVerifiedEmailOwner(libraryId)
+            && existing().ownerEmail == request.auth.token.email.lower()
+            && existing().bookId == bookId;
+          allow create: if isValidLibraryId(libraryId)
+            && isValidId(bookId)
+            && isValidId(trackId)
+            && isVerifiedEmailOwner(libraryId)
+            && isValidBookAudioMetaBase(incoming(), bookId, trackId)
+            && ('ownerEmail' in incoming())
+            && incoming().ownerEmail == request.auth.token.email.lower()
+            && incoming().ownerId == request.auth.uid
+            && incoming().createdAt == request.time
+            && incoming().updatedAt == request.time
+            && parentEmailBookOwned(libraryId, bookId);
+          allow update: if isValidLibraryId(libraryId)
+            && isValidId(bookId)
+            && isValidId(trackId)
+            && isVerifiedEmailOwner(libraryId)
+            && isValidBookAudioMetaBase(incoming(), bookId, trackId)
+            && incoming().id == existing().id
+            && incoming().ownerEmail == existing().ownerEmail
+            && incoming().bookId == existing().bookId
+            && incoming().createdAt == existing().createdAt
+            && incoming().updatedAt == request.time
+            && incoming().diff(existing()).affectedKeys().hasOnly([
+              'ownerId', 'name', 'folder', 'fileType', 'mimeType', 'size',
+              'totalChunks', 'externalUrl', 'sortOrder', 'updatedAt'
+            ])
+            && parentEmailBookOwned(libraryId, bookId);
+          allow delete: if isValidLibraryId(libraryId)
+            && isValidId(bookId)
+            && isValidId(trackId)
+            && isVerifiedEmailOwner(libraryId)
+            && parentEmailBookOwned(libraryId, bookId);
+
+          match /chunks/{chunkId} {
+            allow get: if isValidLibraryId(libraryId) && isValidId(bookId) && isValidId(trackId) && isValidId(chunkId) && isVerifiedEmailOwner(libraryId);
+            allow list: if isValidLibraryId(libraryId)
+              && isVerifiedEmailOwner(libraryId)
+              && existing().ownerEmail == request.auth.token.email.lower()
+              && existing().bookId == bookId
+              && existing().trackId == trackId;
+            allow create: if isValidLibraryId(libraryId)
               && isValidId(bookId)
               && isValidId(trackId)
               && isValidId(chunkId)
-              && isVerifiedOwner(userId)
-              && parentTrackOwnedByUser(userId, bookId, trackId);
+              && isVerifiedEmailOwner(libraryId)
+              && isValidBookAudioChunkBase(incoming(), bookId, trackId)
+              && ('ownerEmail' in incoming())
+              && incoming().ownerEmail == request.auth.token.email.lower()
+              && incoming().ownerId == request.auth.uid
+              && incoming().createdAt == request.time
+              && incoming().updatedAt == request.time
+              && parentEmailTrackOwned(libraryId, bookId, trackId);
+            allow update: if isValidLibraryId(libraryId)
+              && isValidId(bookId)
+              && isValidId(trackId)
+              && isValidId(chunkId)
+              && isVerifiedEmailOwner(libraryId)
+              && isValidBookAudioChunkBase(incoming(), bookId, trackId)
+              && incoming().ownerEmail == existing().ownerEmail
+              && incoming().bookId == existing().bookId
+              && incoming().trackId == existing().trackId
+              && incoming().createdAt == existing().createdAt
+              && incoming().updatedAt == request.time
+              && incoming().diff(existing()).affectedKeys().hasOnly(['ownerId', 'chunkIndex', 'data', 'updatedAt'])
+              && parentEmailTrackOwned(libraryId, bookId, trackId);
+            allow delete: if isValidLibraryId(libraryId)
+              && isValidId(bookId)
+              && isValidId(trackId)
+              && isValidId(chunkId)
+              && isVerifiedEmailOwner(libraryId)
+              && parentEmailTrackOwned(libraryId, bookId, trackId);
           }
         }
       }

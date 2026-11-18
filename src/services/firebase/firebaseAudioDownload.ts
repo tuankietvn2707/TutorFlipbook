@@ -5,15 +5,17 @@ import { OperationType, handleFirestoreError } from './firebaseErrors';
 import { reconstructAudioTrack } from './firebaseMediaHelpers';
 
 export async function downloadBookAudioFromCloud(
-  uid: string,
-  bookId: string
+  libraryId: string,
+  bookId: string,
+  collectionRoot: 'libraries' | 'users' = 'libraries'
 ): Promise<AudioTrack[]> {
-  const tracksPath = `users/${uid}/books/${bookId}/audioTracks`;
-  const tracksCol = collection(db, 'users', uid, 'books', bookId, 'audioTracks');
+  const tracksPath = `${collectionRoot}/${libraryId}/books/${bookId}/audioTracks`;
+  const tracksCol = collection(db, collectionRoot, libraryId, 'books', bookId, 'audioTracks');
+  const ownerField = collectionRoot === 'libraries' ? 'ownerEmail' : 'ownerId';
 
   try {
     const snap = await getDocs(
-      query(tracksCol, where('ownerId', '==', uid), where('bookId', '==', bookId))
+      query(tracksCol, where(ownerField, '==', libraryId), where('bookId', '==', bookId))
     );
     const trackMetas = snap.docs
       .map((d) => d.data() as any)
@@ -25,8 +27,8 @@ export async function downloadBookAudioFromCloud(
       if ((meta.totalChunks ?? 0) > 0) {
         const chunksCol = collection(
           db,
-          'users',
-          uid,
+          collectionRoot,
+          libraryId,
           'books',
           bookId,
           'audioTracks',
@@ -36,7 +38,7 @@ export async function downloadBookAudioFromCloud(
         const cSnap = await getDocs(
           query(
             chunksCol,
-            where('ownerId', '==', uid),
+            where(ownerField, '==', libraryId),
             where('bookId', '==', bookId),
             where('trackId', '==', meta.id)
           )

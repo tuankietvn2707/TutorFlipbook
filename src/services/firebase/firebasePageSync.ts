@@ -14,18 +14,19 @@ import { splitStringIntoChunks } from './firebaseMediaHelpers';
 const BATCH_DOC_LIMIT = 8;
 
 export async function uploadBookPagesToCloud(
+  libraryId: string,
   uid: string,
   bookId: string,
   pages: string[],
   onProgress?: (done: number, total: number) => void
 ): Promise<void> {
-  const pagesPath = `users/${uid}/books/${bookId}/pages`;
-  const colRef = collection(db, 'users', uid, 'books', bookId, 'pages');
+  const pagesPath = `libraries/${libraryId}/books/${bookId}/pages`;
+  const colRef = collection(db, 'libraries', libraryId, 'books', bookId, 'pages');
 
   let existingIds = new Set<string>();
   try {
     const snap = await getDocs(
-      query(colRef, where('ownerId', '==', uid), where('bookId', '==', bookId))
+      query(colRef, where('ownerEmail', '==', libraryId), where('bookId', '==', bookId))
     );
     existingIds = new Set(snap.docs.map((d) => d.id));
   } catch (err) {
@@ -73,6 +74,7 @@ export async function uploadBookPagesToCloud(
       const ref = doc(colRef, item.id);
       if (existingIds.has(item.id)) {
         batch.update(ref, {
+          ownerId: uid,
           pageIndex: item.pageIndex,
           partIndex: item.partIndex,
           totalParts: item.totalParts,
@@ -82,6 +84,7 @@ export async function uploadBookPagesToCloud(
       } else {
         batch.set(ref, {
           ownerId: uid,
+          ownerEmail: libraryId,
           bookId,
           pageIndex: item.pageIndex,
           partIndex: item.partIndex,
@@ -102,15 +105,17 @@ export async function uploadBookPagesToCloud(
 }
 
 export async function downloadBookPagesFromCloud(
-  uid: string,
-  bookId: string
+  libraryId: string,
+  bookId: string,
+  collectionRoot: 'libraries' | 'users' = 'libraries'
 ): Promise<string[]> {
-  const pagesPath = `users/${uid}/books/${bookId}/pages`;
-  const colRef = collection(db, 'users', uid, 'books', bookId, 'pages');
+  const pagesPath = `${collectionRoot}/${libraryId}/books/${bookId}/pages`;
+  const colRef = collection(db, collectionRoot, libraryId, 'books', bookId, 'pages');
+  const ownerField = collectionRoot === 'libraries' ? 'ownerEmail' : 'ownerId';
 
   try {
     const snap = await getDocs(
-      query(colRef, where('ownerId', '==', uid), where('bookId', '==', bookId))
+      query(colRef, where(ownerField, '==', libraryId), where('bookId', '==', bookId))
     );
     const byPage = new Map<number, Array<{ partIndex: number; chunk: string }>>();
 
@@ -137,13 +142,16 @@ export async function downloadBookPagesFromCloud(
   }
 }
 
-export async function deleteAllBookPagesFromCloud(uid: string, bookId: string): Promise<void> {
-  const pagesPath = `users/${uid}/books/${bookId}/pages`;
-  const colRef = collection(db, 'users', uid, 'books', bookId, 'pages');
+export async function deleteAllBookPagesFromCloud(
+  libraryId: string,
+  bookId: string
+): Promise<void> {
+  const pagesPath = `libraries/${libraryId}/books/${bookId}/pages`;
+  const colRef = collection(db, 'libraries', libraryId, 'books', bookId, 'pages');
 
   try {
     const snap = await getDocs(
-      query(colRef, where('ownerId', '==', uid), where('bookId', '==', bookId))
+      query(colRef, where('ownerEmail', '==', libraryId), where('bookId', '==', bookId))
     );
     const docs = snap.docs;
     for (let i = 0; i < docs.length; i += 100) {

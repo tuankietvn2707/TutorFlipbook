@@ -17,18 +17,15 @@ import {
 } from '../dbService';
 import { auth, db } from './firebaseClient';
 import { OperationType, handleFirestoreError } from './firebaseErrors';
+import { getVerifiedEmailLibraryId } from './firebaseLibraryPath';
 import { sanitizeFirestoreId } from './firebaseMediaHelpers';
 import { deleteAllBookPagesFromCloud, downloadBookPagesFromCloud } from './firebasePageSync';
-import { deleteBookAudioFromCloud } from './firebaseAudioSync';
+import { deleteBookAudioFromCloud } from './firebaseAudioDelete';
 import { downloadBookAudioFromCloud } from './firebaseAudioDownload';
 import { updateCloudSyncStatus } from './firebaseSyncState';
 
 let activeBooksUnsubscribe: (() => void) | null = null;
 const knownCloudIds = new Set<string>();
-
-export function isVerifiedSignedIn(): boolean {
-  return Boolean(auth.currentUser?.uid && auth.currentUser.emailVerified);
-}
 
 export function markBookAsKnownInCloud(bookId: string): void {
   knownCloudIds.add(sanitizeFirestoreId(bookId));
@@ -41,18 +38,18 @@ export function stopCloudBooksSubscription(): void {
 }
 
 export async function hydrateBookFromCloud(bookId: string): Promise<Book | null> {
-  if (!isVerifiedSignedIn()) return null;
-  const uid = auth.currentUser!.uid;
+  const libraryId = getVerifiedEmailLibraryId();
+  if (!libraryId || !auth.currentUser?.uid) return null;
   const safeId = sanitizeFirestoreId(bookId);
-  const bookRef = doc(db, 'users', uid, 'books', safeId);
+  const bookRef = doc(db, 'libraries', libraryId, 'books', safeId);
 
   try {
     const metaSnap = await getDoc(bookRef);
     if (!metaSnap.exists()) return null;
     const meta = metaSnap.data() as any;
 
-    const pages = await downloadBookPagesFromCloud(uid, safeId);
-    const audioTracks = await downloadBookAudioFromCloud(uid, safeId);
+    const pages = await downloadBookPagesFromCloud(libraryId, safeId, 'libraries');
+    const audioTracks = await downloadBookAudioFromCloud(libraryId, safeId, 'libraries');
     const hydrated: Book = {
       id: meta.id || bookId,
       title: meta.title || 'Sách Cloud',
@@ -76,20 +73,20 @@ export async function hydrateBookFromCloud(bookId: string): Promise<Book | null>
     }
     return hydrated;
   } catch (err) {
-    handleFirestoreError(err, OperationType.GET, `users/${uid}/books/${safeId}`);
+    handleFirestoreError(err, OperationType.GET, `libraries/${libraryId}/books/${safeId}`);
   }
 }
 
 export async function deleteBookFromCloud(bookId: string): Promise<void> {
-  if (!isVerifiedSignedIn()) return;
-  const uid = auth.currentUser!.uid;
+  const libraryId = getVerifiedEmailLibraryId();
+  if (!libraryId) return;
   const safeId = sanitizeFirestoreId(bookId);
-  const bookPath = `users/${uid}/books/${safeId}`;
+  const bookPath = `libraries/${libraryId}/books/${safeId}`;
 
   try {
-    await deleteAllBookPagesFromCloud(uid, safeId);
-    await deleteBookAudioFromCloud(uid, safeId);
-    await deleteDoc(doc(db, 'users', uid, 'books', safeId));
+    await deleteAllBookPagesFromCloud(libraryId, safeId);
+    await deleteBookAudioFromCloud(libraryId, safeId);
+    await deleteDoc(doc(db, 'libraries', libraryId, 'books', safeId));
     knownCloudIds.delete(safeId);
     updateCloudSyncStatus({
       cloudBookCount: knownCloudIds.size,
@@ -101,13 +98,13 @@ export async function deleteBookFromCloud(bookId: string): Promise<void> {
 }
 
 export function subscribeToCloudBooks(
-  uid: string,
+  libraryId: string,
   onSyncedChange: () => void,
   onInitialCloudIds?: (cloudIds: Set<string>) => void
 ): () => void {
   stopCloudBooksSubscription();
-  const booksPath = `users/${uid}/books`;
-  const q = query(collection(db, 'users', uid, 'books'), where('ownerId', '==', uid));
+  const booksPath = `libraries/${libraryId}/books`;
+  const q = query(collection(db, 'libraries', libraryId, 'books'), where('ownerEmail', '==', libraryId));
   let isFirstSnapshot = true;
 
   activeBooksUnsubscribe = onSnapshot(

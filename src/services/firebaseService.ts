@@ -1,5 +1,6 @@
 export { auth, db } from './firebase/firebaseClient';
 export {
+  activateVerifiedUserSync,
   getFirebaseUser,
   initFirebaseAuthListener,
   onFirebaseUserChange,
@@ -7,6 +8,16 @@ export {
   signInWithFirebaseGoogle,
   signOutFirebase
 } from './firebase/firebaseAuth';
+export {
+  formatFirebaseAuthError,
+  hasPasswordProviderLinked,
+  linkPasswordToCurrentAccount,
+  refreshCurrentUserVerification,
+  registerWithEmail,
+  sendResetPasswordEmail,
+  sendVerificationToCurrentUser,
+  signInWithEmail
+} from './firebase/firebaseEmailAuth';
 export {
   deleteBookFromCloud,
   hydrateBookFromCloud,
