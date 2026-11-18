@@ -1,0 +1,140 @@
+/* Laser Pointer (GPU compositor layer) */
+#laser-pointer-dot {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #EF4444;
+  box-shadow: 0 0 12px 4px rgba(239, 68, 68, 0.85);
+  pointer-events: none;
+  z-index: 9999;
+  display: none;
+  will-change: transform;
+}
+
+/* Flipbook Container */
+.page-flip-sheet {
+  box-shadow: 0 6px 18px rgba(15, 23, 42, 0.12);
+  background-size: cover;
+  contain: paint;
+}
+
+/* Spotlight Overlay */
+#spotlight-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  pointer-events: none;
+  z-index: 25;
+  display: none;
+}
+
+/* Answer Reveal Curtain Overlay */
+#teaching-curtain-overlay {
+  position: absolute;
+  inset: 0 0 auto 0;
+  background: rgba(15, 23, 42, 0.94);
+  backdrop-filter: blur(8px);
+  border-bottom: 2px solid #38BDF8;
+  z-index: 28;
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.35);
+}
+
+/* Fullscreen Teaching Mode */
+body.teaching-mode-active {
+  background-color: #0F172A !important;
+}
+body.teaching-mode-active #main-sidebar-container,
+body.teaching-mode-active #main-header-container,
+body.teaching-mode-active #mobile-bottom-nav-container {
+  display: none !important;
+}
+body.teaching-mode-active #view-reader {
+  max-width: 100vw !important;
+  width: 100vw !important;
+  height: 100vh !important;
+  max-height: 100vh !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  position: fixed !important;
+  inset: 0 !important;
+  z-index: 40 !important;
+  background: #0F172A !important;
+  border-radius: 0 !important;
+  border: none !important;
+}
+body.teaching-mode-active #reader-stage {
+  border-radius: 0 !important;
+  border: none !important;
+  background: #0F172A !important;
+  height: calc(100vh - 48px) !important;
+}
+
+/* Floating Studio Layering */
+#media-player-dock,
+#media-mini-pill,
+#apple-audio-playlist-drawer {
+  z-index: 60 !important;
+}
+
+.teaching-floating-widget {
+  z-index: 45;
+}
+
+/* Equalizer Animation */
+@keyframes apple-eq-bar-1 {
+  0%, 100% { height: 4px; }
+  50% { height: 18px; }
+}
+@keyframes apple-eq-bar-2 {
+  0%, 100% { height: 16px; }
+  50% { height: 6px; }
+}
+@keyframes apple-eq-bar-3 {
+  0%, 100% { height: 8px; }
+  50% { height: 20px; }
+}
+@keyframes apple-eq-bar-4 {
+  0%, 100% { height: 14px; }
+  50% { height: 4px; }
+}
+
+.apple-eq-playing .eq-bar:nth-child(1) { animation: apple-eq-bar-1 0.8s ease-in-out infinite alternate; }
+.apple-eq-playing .eq-bar:nth-child(2) { animation: apple-eq-bar-2 0.7s ease-in-out infinite alternate; }
+.apple-eq-playing .eq-bar:nth-child(3) { animation: apple-eq-bar-3 0.9s ease-in-out infinite alternate; }
+.apple-eq-playing .eq-bar:nth-child(4) { animation: apple-eq-bar-4 0.75s ease-in-out infinite alternate; }
+
+/* Apple-style range slider thumb */
+input[type=range].apple-slider::-webkit-slider-thumb {
+  appearance: none;
+  width: 13px;
+  height: 13px;
+  border-radius: 50%;
+  background: #FFFFFF;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.45);
+  cursor: pointer;
+  transition: transform 0.1s ease;
+}
+input[type=range].apple-slider:hover::-webkit-slider-thumb {
+  transform: scale(1.2);
+}
+input[type=range].apple-slider::-moz-range-thumb {
+  width: 13px;
+  height: 13px;
+  border-radius: 50%;
+  background: #FFFFFF;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.45);
+  cursor: pointer;
+  border: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}

@@ -1,0 +1,359 @@
+{
+  "entities": {
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "Private authenticated user profile for cross-device library sync.",
+      "type": "object",
+      "properties": {
+        "uid": {
+          "type": "string",
+          "description": "Firebase Authentication user UID.",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "email": {
+          "type": "string",
+          "format": "email",
+          "description": "Verified user email address.",
+          "maxLength": 320
+        },
+        "displayName": {
+          "type": "string",
+          "description": "User display name.",
+          "maxLength": 160
+        },
+        "photoURL": {
+          "type": "string",
+          "description": "User avatar URL.",
+          "maxLength": 1024
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server creation timestamp."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server update timestamp."
+        }
+      },
+      "required": ["uid", "createdAt", "updatedAt"]
+    },
+    "BookMeta": {
+      "title": "BookMeta",
+      "description": "Book metadata, cover image, and sync summary stored per user.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique book identifier.",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "ownerId": {
+          "type": "string",
+          "description": "Owner user UID.",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "title": {
+          "type": "string",
+          "description": "Book display title.",
+          "minLength": 1,
+          "maxLength": 300
+        },
+        "category": {
+          "type": "string",
+          "description": "Book category.",
+          "minLength": 1,
+          "maxLength": 64
+        },
+        "color": {
+          "type": "string",
+          "description": "Cover accent color.",
+          "minLength": 1,
+          "maxLength": 32
+        },
+        "totalPages": {
+          "type": "integer",
+          "description": "Total page count."
+        },
+        "coverImage": {
+          "type": "string",
+          "description": "Compressed cover data URL.",
+          "maxLength": 650000
+        },
+        "videoUrl": {
+          "type": "string",
+          "description": "Optional attached lesson video URL.",
+          "maxLength": 2048
+        },
+        "audioCount": {
+          "type": "integer",
+          "description": "Number of attached audio tracks."
+        },
+        "syncStatus": {
+          "type": "string",
+          "enum": ["synced", "syncing"],
+          "description": "Cloud sync completion status."
+        },
+        "bookCreatedAt": {
+          "type": "string",
+          "description": "ISO date string when book was created.",
+          "maxLength": 64
+        },
+        "lastModified": {
+          "type": "number",
+          "description": "Client epoch timestamp of last edit."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server creation timestamp."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server update timestamp."
+        }
+      },
+      "required": [
+        "id",
+        "ownerId",
+        "title",
+        "category",
+        "color",
+        "totalPages",
+        "audioCount",
+        "syncStatus",
+        "bookCreatedAt",
+        "lastModified",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "BookPageChunk": {
+      "title": "BookPageChunk",
+      "description": "Size-bounded chunk of a rendered book page image.",
+      "type": "object",
+      "properties": {
+        "ownerId": {
+          "type": "string",
+          "description": "Owner user UID.",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "bookId": {
+          "type": "string",
+          "description": "Parent book ID.",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "pageIndex": {
+          "type": "integer",
+          "description": "Zero-based page index."
+        },
+        "partIndex": {
+          "type": "integer",
+          "description": "Zero-based chunk index for this page."
+        },
+        "totalParts": {
+          "type": "integer",
+          "description": "Total chunk parts for this page."
+        },
+        "chunk": {
+          "type": "string",
+          "description": "Image data URL slice.",
+          "minLength": 1,
+          "maxLength": 700000
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server creation timestamp."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server update timestamp."
+        }
+      },
+      "required": [
+        "ownerId",
+        "bookId",
+        "pageIndex",
+        "partIndex",
+        "totalParts",
+        "chunk",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "BookAudioMeta": {
+      "title": "BookAudioMeta",
+      "description": "Metadata for an audio track attached to a book.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Track identifier.",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "ownerId": {
+          "type": "string",
+          "description": "Owner user UID.",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "bookId": {
+          "type": "string",
+          "description": "Parent book ID.",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "name": {
+          "type": "string",
+          "description": "Track display name.",
+          "minLength": 1,
+          "maxLength": 300
+        },
+        "folder": {
+          "type": "string",
+          "description": "Optional unit/folder label.",
+          "maxLength": 200
+        },
+        "fileType": {
+          "type": "string",
+          "description": "Audio format label (WAV, MP3, etc.).",
+          "maxLength": 32
+        },
+        "mimeType": {
+          "type": "string",
+          "description": "Audio MIME type (e.g., audio/wav).",
+          "maxLength": 128
+        },
+        "size": {
+          "type": "integer",
+          "description": "Audio file byte size."
+        },
+        "totalChunks": {
+          "type": "integer",
+          "description": "Total audio data chunks."
+        },
+        "externalUrl": {
+          "type": "string",
+          "description": "External audio URL when not stored as chunks.",
+          "maxLength": 2048
+        },
+        "sortOrder": {
+          "type": "integer",
+          "description": "Track ordering index."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server creation timestamp."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server update timestamp."
+        }
+      },
+      "required": [
+        "id",
+        "ownerId",
+        "bookId",
+        "name",
+        "totalChunks",
+        "sortOrder",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "BookAudioChunk": {
+      "title": "BookAudioChunk",
+      "description": "Size-bounded base64/data chunk for an audio track.",
+      "type": "object",
+      "properties": {
+        "ownerId": {
+          "type": "string",
+          "description": "Owner user UID.",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "bookId": {
+          "type": "string",
+          "description": "Parent book ID.",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "trackId": {
+          "type": "string",
+          "description": "Parent track ID.",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "chunkIndex": {
+          "type": "integer",
+          "description": "Zero-based audio chunk index."
+        },
+        "data": {
+          "type": "string",
+          "description": "Encoded audio data chunk.",
+          "minLength": 1,
+          "maxLength": 700000
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server creation timestamp."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server update timestamp."
+        }
+      },
+      "required": [
+        "ownerId",
+        "bookId",
+        "trackId",
+        "chunkIndex",
+        "data",
+        "createdAt",
+        "updatedAt"
+      ]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/UserProfile" },
+      "description": "Private user profile isolated to its verified owner."
+    },
+    "/users/{userId}/books/{bookId}": {
+      "schema": { "$ref": "#/entities/BookMeta" },
+      "description": "User's synced book metadata documents."
+    },
+    "/users/{userId}/books/{bookId}/pages/{pageDocId}": {
+      "schema": { "$ref": "#/entities/BookPageChunk" },
+      "description": "Rendered book page image chunks scoped to parent book."
+    },
+    "/users/{userId}/books/{bookId}/audioTracks/{trackId}": {
+      "schema": { "$ref": "#/entities/BookAudioMeta" },
+      "description": "Audio track metadata attached to a book."
+    },
+    "/users/{userId}/books/{bookId}/audioTracks/{trackId}/chunks/{chunkId}": {
+      "schema": { "$ref": "#/entities/BookAudioChunk" },
+      "description": "Chunked audio data payloads for WAV/MP3 playback across devices."
+    }
+  }
+}

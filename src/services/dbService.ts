@@ -123,10 +123,12 @@ export async function saveBookToDB(book: Book): Promise<void> {
         if ((!book.pages || book.pages.length <= 1) && existing.pages && existing.pages.length > 1) {
           bookToSave.pages = existing.pages;
         }
-        // If new book record has dummy lightweight audioTracks (without URL), preserve existing real tracks
+        // Preserve existing real tracks ONLY if track count & timestamp haven't been updated from cloud
         if (existing.audioTracks && existing.audioTracks.length > 0) {
           const isDummyAudio = !book.audioTracks || (book.audioTracks.length > 0 && !book.audioTracks[0].url && !book.audioTracks[0].blob);
-          if (isDummyAudio) {
+          const sameAudioCount = existing.audioTracks.length === (book.audioTracks?.length || 0);
+          const isStaleComparedToCloud = (book.lastModified || 0) > (existing.lastModified || 0) && !sameAudioCount;
+          if (isDummyAudio && !isStaleComparedToCloud) {
             bookToSave.audioTracks = existing.audioTracks;
           }
         }

@@ -1,5 +1,6 @@
 import { Book } from '../types';
 import { deleteBookFromDB } from '../services/dbService';
+import { deleteBookFromCloud } from '../services/firebaseService';
 import { showToast } from '../utils/toast';
 
 let bookToDelete: Book | null = null;
@@ -80,6 +81,7 @@ export function setupDeleteConfirmListeners(onBookDeleted: (id: string) => void)
     if (bookToDelete) {
       const id = bookToDelete.id;
       await deleteBookFromDB(id);
+      void deleteBookFromCloud(id);
       closeDeleteConfirmModal();
       showToast('🗑️ Đã xóa cuốn sách khỏi thư viện');
       onBookDeleted(id);

@@ -3,6 +3,7 @@
   "appId": "1:173416215954:web:7d7411ebe9798002ecfd4b",
   "apiKey": "AIzaSyD9cpU7gPJyFsKOitmT6Its9b5emnNAS1Q",
   "authDomain": "tutorflipbook.firebaseapp.com",
+  "firestoreDatabaseId": "ai-studio-3dpdfflipbooktea-644c4042-1005-4e26-8e50-1e096fbd7449",
   "storageBucket": "tutorflipbook.firebasestorage.app",
   "messagingSenderId": "173416215954",
   "measurementId": "",

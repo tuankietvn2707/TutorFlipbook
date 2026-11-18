@@ -1,60 +1,18 @@
 import React, { useEffect, useRef } from 'react';
 import { appState } from './state/appState';
-import { loadAllBooksFromDB, saveBookToDB, loadBookById } from './services/dbService';
-import { initAuthListener, requestDriveAuth } from './services/googleDriveService';
-import { playFlipSound } from './services/audioService';
-import { 
-  toggleLaser, 
-  toggleSpotlight, 
-  setDrawingTool, 
-  clearAllAnnotations, 
-  getAnnotationState,
-  setupAnnotationListeners,
-  resizeAnnotationCanvas
-} from './services/annotationService';
-import { showToast } from './utils/toast';
-
-// Modular Component Renderers & Listeners
-import { renderSidebarHtml, setupSidebarListeners } from './components/Sidebar';
-import { renderHeaderHtml, setupHeaderListeners, updateHeaderStats } from './components/Header';
-import { renderLibraryViewHtml, setupLibraryListeners, renderLibraryGrid } from './components/LibraryView';
-import {
-  renderFlipbookReaderHtml,
-  setupFlipbookReaderListeners,
-  openBookInReader,
-  cleanupFlipbookReader,
-  flipNextPage,
-  flipPrevPage,
-  flipFirstPage,
-  flipLastPage,
-  zoomIn,
-  zoomOut,
-  resetReaderZoom,
-  togglePanTool,
-  toggleFullscreenTeachingMode,
-  triggerRewardConfetti,
-  jumpToPage
-} from './components/FlipbookReader';
-import { APP_VERSION } from './version';
-import {
-  renderMediaDockHtml,
-  setupMediaDockListeners,
-  togglePlayAudio,
-  playNextTrack,
-  playPrevTrack,
-  toggleMediaDockVisibility
-} from './components/MediaDock';
-import { renderMobileBottomNavHtml, setupMobileNavListeners } from './components/MobileBottomNav';
-import { renderUploadModalHtml, setupUploadModalListeners, openUploadModal } from './components/UploadModal';
-import { renderBatchMediaModalHtml, setupBatchMediaListeners, openBatchMediaModal } from './components/BatchMediaModal';
-import { renderGoogleDriveModalHtml, setupGoogleDriveListeners, openGoogleDriveModal } from './components/GoogleDriveModal';
-import { renderThumbnailsModalHtml, setupThumbnailsListeners, openThumbnailsModal, closeThumbnailsModal } from './components/ThumbnailsModal';
-import { renderShortcutsModalHtml, setupShortcutsListeners, openShortcutsModal, closeShortcutsModal } from './components/ShortcutsModal';
-import { renderVideoModalHtml, setupVideoModalListeners, openVideoModal } from './components/VideoModal';
-import { renderDeleteConfirmModalHtml, setupDeleteConfirmListeners, openDeleteConfirmModal } from './components/DeleteConfirmModal';
-import { renderPwaInstallModalHtml, setupPwaListeners, openPwaInstallModal } from './components/PwaInstallModal';
-import { Book } from './types';
+import { initFirebaseAuthListener } from './services/firebaseService';
 import { refreshLucideIcons } from './utils/icons';
+import { ErrorBoundary } from './components/ErrorBoundary';
+import { renderSidebarHtml } from './components/Sidebar';
+import { renderHeaderHtml } from './components/Header';
+import { renderLibraryViewHtml } from './components/LibraryView';
+import { renderFlipbookReaderHtml, cleanupFlipbookReader } from './components/FlipbookReader';
+import { renderMediaDockHtml } from './components/MediaDock';
+import { renderMobileBottomNavHtml } from './components/MobileBottomNav';
+import { initAppBooks } from './app/viewRouter';
+import { initializeAppListeners } from './app/setupComponents';
+import { createGlobalKeyDownHandler } from './app/keyboardShortcuts';
+import { renderAppModalsAndOverlaysHtml } from './app/appOverlaysHtml';
 
 export default function App() {
   const initializedRef = useRef(false);
@@ -63,608 +21,15 @@ export default function App() {
     if (initializedRef.current) return;
     initializedRef.current = true;
 
-    // 1. Initialize Google Auth State Listener
-    const unsubscribeAuth = initAuthListener();
-
-    // 2. Initialize and Load Books from IndexedDB (Lightweight summary mode: only covers loaded to save GBs of RAM)
-    const handleOpenBook = async (bookOrId: Book | string) => {
-      let book: Book | undefined;
-      const allBooks = appState.get('allBooks');
-
-      if (typeof bookOrId === 'string') {
-        const idToFind = bookOrId.trim();
-        const decodedId = decodeURIComponent(idToFind);
-        book = allBooks.find(b => 
-          b.id === idToFind || 
-          b.id === decodedId ||
-          encodeURIComponent(b.id) === idToFind ||
-          b.title.toLowerCase().trim() === decodedId.toLowerCase().trim()
-        );
-        if (!book) {
-          book = (await loadBookById(idToFind)) || 
-                 (await loadBookById(decodedId)) || 
-                 undefined;
-        }
-        if (!book) {
-          // Fallback: search books by title keywords (e.g. Navigate, Beginner)
-          const query = decodedId.toLowerCase();
-          book = allBooks.find(b => b.title.toLowerCase().includes(query) || query.includes(b.title.toLowerCase()));
-        }
-      } else {
-        book = bookOrId;
-      }
-
-      if (!book) {
-        showToast('⚠️ Không tìm thấy cuốn sách được yêu cầu trong thư viện');
-        return;
-      }
-
-      // If book in allBooks is lightweight or has stripped pages, load complete record from IndexedDB
-      if (!book.pages || book.pages.length <= 1) {
-        try {
-          const dbFull = await loadBookById(book.id);
-          if (dbFull && dbFull.pages && dbFull.pages.length > 0) {
-            book = { ...book, ...dbFull };
-          }
-        } catch (e) {
-          console.warn('Error fetching full book record:', e);
-        }
-      }
-
-      // Set currentBook and activate reader view immediately
-      appState.set('currentBook', book);
-      
-      // Update browser URL without full-page navigation
-      try {
-        const newUrl = `${window.location.pathname}?bookId=${encodeURIComponent(book.id)}`;
-        window.history.pushState({ bookId: book.id }, '', newUrl);
-      } catch (e) {
-        // ignore
-      }
-
-      showReaderView();
-      await openBookInReader(book);
-    };
-
-    const initAppBooks = async () => {
-      try {
-        const books = await loadAllBooksFromDB(false);
-        appState.set('allBooks', books);
-        renderLibraryGrid();
-        updateHeaderStats(books.length);
-
-        // URL Routing: auto-open book if bookId parameter exists
-        const urlParams = new URLSearchParams(window.location.search);
-        const bookId = urlParams.get('bookId');
-        if (bookId) {
-          await handleOpenBook(bookId);
-        }
-      } catch (err) {
-        console.error('Failed to load books:', err);
-      }
-    };
+    const unsubscribeAuth = initFirebaseAuthListener();
     initAppBooks();
+    initializeAppListeners();
 
-    // 3. Navigation View Switcher (Library vs Reader)
-    const updateNavStyles = (activeTab: 'library' | 'reader') => {
-      const navLib = document.getElementById('nav-btn-library');
-      const navReader = document.getElementById('nav-btn-reader');
-      const mobLib = document.getElementById('mob-nav-library');
-      const mobReader = document.getElementById('mob-nav-reader');
-
-      // Desktop Sidebar Library Tab
-      if (navLib) {
-        const badge = navLib.querySelector('.nav-icon-badge');
-        const text = navLib.querySelector('.nav-text');
-        if (activeTab === 'library') {
-          navLib.className = 'btn-3d btn-nav-library-active w-full p-2.5 rounded-2xl font-black text-sm flex items-center justify-between text-left group transition-all duration-200 cursor-pointer';
-          if (badge) badge.className = 'nav-icon-badge w-9 h-9 rounded-xl bg-sky-500 text-white shadow-sm flex items-center justify-center transition-all group-hover:scale-105';
-          if (text) text.className = 'nav-text text-sky-800 font-black';
-        } else {
-          navLib.className = 'btn-3d btn-nav-inactive w-full p-2.5 rounded-2xl font-black text-sm flex items-center justify-between text-left group transition-all duration-200 cursor-pointer';
-          if (badge) badge.className = 'nav-icon-badge w-9 h-9 rounded-xl bg-sky-50 text-sky-600 border border-sky-200/80 flex items-center justify-center transition-all group-hover:scale-105 group-hover:bg-sky-500 group-hover:text-white';
-          if (text) text.className = 'nav-text text-slate-700 group-hover:text-sky-700 font-extrabold';
-        }
-      }
-
-      // Desktop Sidebar Reader Tab
-      if (navReader) {
-        const badge = navReader.querySelector('.nav-icon-badge');
-        const text = navReader.querySelector('.nav-text');
-        if (activeTab === 'reader') {
-          navReader.className = 'btn-3d btn-nav-reader-active w-full p-2.5 rounded-2xl font-black text-sm flex items-center justify-between text-left group transition-all duration-200 cursor-pointer';
-          if (badge) badge.className = 'nav-icon-badge w-9 h-9 rounded-xl bg-emerald-500 text-white shadow-sm flex items-center justify-center transition-all group-hover:scale-105';
-          if (text) text.className = 'nav-text text-emerald-800 font-black';
-        } else {
-          navReader.className = 'btn-3d btn-nav-inactive w-full p-2.5 rounded-2xl font-black text-sm flex items-center justify-between text-left group transition-all duration-200 cursor-pointer';
-          if (badge) badge.className = 'nav-icon-badge w-9 h-9 rounded-xl bg-emerald-50 text-emerald-600 border border-emerald-200/80 flex items-center justify-center transition-all group-hover:scale-105 group-hover:bg-emerald-500 group-hover:text-white';
-          if (text) text.className = 'nav-text text-slate-700 group-hover:text-emerald-700 font-extrabold';
-        }
-      }
-
-      // Mobile Bottom Nav Library
-      if (mobLib) {
-        const iconBox = mobLib.querySelector('.mob-icon-box');
-        if (activeTab === 'library') {
-          mobLib.className = 'flex-1 flex flex-col items-center justify-center py-1 rounded-xl text-sky-600 font-black text-[10px] gap-1 active:scale-95 transition-all';
-          if (iconBox) iconBox.className = 'mob-icon-box w-7 h-7 rounded-lg bg-sky-500 text-white flex items-center justify-center shadow-sm';
-        } else {
-          mobLib.className = 'flex-1 flex flex-col items-center justify-center py-1 rounded-xl text-slate-500 font-extrabold text-[10px] gap-1 active:scale-95 transition-all';
-          if (iconBox) iconBox.className = 'mob-icon-box w-7 h-7 rounded-lg bg-sky-50 text-sky-600 border border-sky-200 flex items-center justify-center';
-        }
-      }
-
-      // Mobile Bottom Nav Reader
-      if (mobReader) {
-        const iconBox = mobReader.querySelector('.mob-icon-box');
-        if (activeTab === 'reader') {
-          mobReader.className = 'flex-1 flex flex-col items-center justify-center py-1 rounded-xl text-emerald-600 font-black text-[10px] gap-1 active:scale-95 transition-all';
-          if (iconBox) iconBox.className = 'mob-icon-box w-7 h-7 rounded-lg bg-emerald-500 text-white flex items-center justify-center shadow-sm';
-        } else {
-          mobReader.className = 'flex-1 flex flex-col items-center justify-center py-1 rounded-xl text-slate-500 font-extrabold text-[10px] gap-1 active:scale-95 transition-all';
-          if (iconBox) iconBox.className = 'mob-icon-box w-7 h-7 rounded-lg bg-emerald-50 text-emerald-600 border border-emerald-200 flex items-center justify-center';
-        }
-      }
-    };
-
-    const showLibraryView = () => {
-      // 1. Force PageFlip to destroy and release WebGL/Canvas memory
-      cleanupFlipbookReader();
-      
-      // 2. Clear current book state reference
-      appState.set('currentBook', null);
-
-      // 3. Toggle view containers smoothly
-      const libContainer = document.getElementById('view-library-container');
-      const readerContainer = document.getElementById('view-reader-container');
-      
-      const sidebar = document.getElementById('main-sidebar-container');
-      const header = document.getElementById('main-header-container');
-      const mobileNav = document.getElementById('mobile-bottom-nav-container');
-
-      readerContainer?.classList.add('hidden');
-      libContainer?.classList.remove('hidden');
-      
-      sidebar?.classList.remove('hidden');
-      header?.classList.remove('hidden');
-      mobileNav?.classList.remove('hidden');
-
-      // 4. Clean URL query parameters
-      try {
-        window.history.pushState({}, '', window.location.pathname);
-      } catch (e) {
-        // ignore
-      }
-
-      updateNavStyles('library');
-      renderLibraryGrid();
-    };
-
-    const showReaderView = () => {
-      const curBook = appState.get('currentBook');
-      const allBooks = appState.get('allBooks');
-      if (!curBook && allBooks.length > 0) {
-        openBookInReader(allBooks[0]);
-      } else if (!curBook) {
-        showToast('⚠️ Bạn chưa chọn cuốn sách nào để đọc');
-        return;
-      }
-
-      const libContainer = document.getElementById('view-library-container');
-      const readerContainer = document.getElementById('view-reader-container');
-      
-      const sidebar = document.getElementById('main-sidebar-container');
-      const header = document.getElementById('main-header-container');
-      const mobileNav = document.getElementById('mobile-bottom-nav-container');
-
-      libContainer?.classList.add('hidden');
-      readerContainer?.classList.remove('hidden');
-      
-      // Hide dashboard chrome completely to make it operate independently
-      sidebar?.classList.add('hidden');
-      header?.classList.add('hidden');
-      mobileNav?.classList.add('hidden');
-
-      updateNavStyles('reader');
-    };
-
-    // 4. Setup Component Listeners
-    setupSidebarListeners({
-      onShowLibrary: showLibraryView,
-      onResumeReader: showReaderView,
-      onOpenUploadModal: openUploadModal,
-      onOpenBatchMediaModal: openBatchMediaModal,
-      onOpenDriveModal: openGoogleDriveModal,
-      onOpenPwaModal: openPwaInstallModal
-    });
-
-    setupHeaderListeners({
-      onSearch: (query) => {
-        appState.set('searchQuery', query);
-        renderLibraryGrid();
-      },
-      onShowLibrary: showLibraryView,
-      onOpenUpload: openUploadModal,
-      onOpenDrive: openGoogleDriveModal
-    });
-
-    setupLibraryListeners({
-      onOpenBook: handleOpenBook,
-      onDeleteBook: (book) => {
-        openDeleteConfirmModal(book);
-      },
-      onOpenUpload: openUploadModal,
-      onOpenBatchMedia: (bookId?: string) => openBatchMediaModal(bookId)
-    });
-
-    setupFlipbookReaderListeners({
-      onBackToLibrary: showLibraryView,
-      onOpenThumbnails: openThumbnailsModal,
-      onOpenBatchAudio: openBatchMediaModal,
-      onOpenVideo: (url, title) => openVideoModal(url, title)
-    });
-
-    setupMediaDockListeners({
-      onOpenBatchMedia: openBatchMediaModal
-    });
-
-    setupMobileNavListeners({
-      onShowLibrary: showLibraryView,
-      onResumeReader: showReaderView,
-      onOpenUpload: openUploadModal,
-      onToggleAudio: () => {
-        const isOpen = appState.get('isMediaDockOpen');
-        appState.set('isMediaDockOpen', !isOpen);
-      },
-      onOpenDrive: openGoogleDriveModal
-    });
-
-    setupUploadModalListeners((newBook: Book) => {
-      const all = appState.get('allBooks');
-      const updated = [newBook, ...all];
-      appState.set('allBooks', updated);
-      renderLibraryGrid();
-      updateHeaderStats(updated.length);
-      openBookInReader(newBook);
-      showReaderView();
-      showToast(`🎉 Sách "${newBook.title}" đã được tải lên thành công!`);
-    });
-
-    setupBatchMediaListeners((updatedBook: Book) => {
-      const all = appState.get('allBooks');
-      const idx = all.findIndex(b => b.id === updatedBook.id);
-      if (idx !== -1) {
-        all[idx] = updatedBook;
-        appState.set('allBooks', [...all]);
-      }
-      const cur = appState.get('currentBook');
-      if (cur && cur.id === updatedBook.id) {
-        appState.set('currentBook', { ...updatedBook });
-      }
-      renderLibraryGrid();
-    });
-
-    setupGoogleDriveListeners((importedBooks: Book[]) => {
-      const current = appState.get('allBooks');
-      const merged = [...importedBooks, ...current];
-      // deduplicate
-      const unique = merged.filter((b, i, arr) => arr.findIndex(x => x.id === b.id) === i);
-      appState.set('allBooks', unique);
-      renderLibraryGrid();
-      updateHeaderStats(unique.length);
-    });
-
-    setupThumbnailsListeners();
-    setupShortcutsListeners();
-    setupVideoModalListeners();
-
-    setupDeleteConfirmListeners((deletedId: string) => {
-      const all = appState.get('allBooks');
-      const filtered = all.filter(b => b.id !== deletedId);
-      appState.set('allBooks', filtered);
-      renderLibraryGrid();
-      updateHeaderStats(filtered.length);
-
-      const cur = appState.get('currentBook');
-      if (cur && cur.id === deletedId) {
-        appState.set('currentBook', null);
-        showLibraryView();
-      }
-    });
-
-    setupPwaListeners();
-
-    // 5. Initialize Annotation & Canvas Drawing System
-    setupAnnotationListeners();
-
-    // 6. Global Keyboard Shortcuts for Online Teaching & Reading
-    const handleKeyDown = (e: KeyboardEvent) => {
-      // Don't trigger if user is typing in an input or contenteditable
-      const target = e.target as HTMLElement;
-      if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.tagName === 'SELECT' || target.isContentEditable)) {
-        if (e.key === 'Escape' || e.code === 'Escape') {
-          target.blur();
-        }
-        return;
-      }
-
-      // Ignore modifier combinations like Ctrl+C, Ctrl+V, Ctrl+R, Alt+Tab, etc.
-      if (e.ctrlKey || e.metaKey || e.altKey) {
-        return;
-      }
-
-      const key = (e.key || '').toLowerCase();
-      const code = e.code || '';
-
-      // Helper to ensure reader view is open when using reader-specific tools
-      const ensureReaderView = (): boolean => {
-        const readerContainer = document.getElementById('view-reader-container');
-        const isVisible = readerContainer && !readerContainer.classList.contains('hidden');
-        if (isVisible) return true;
-
-        const cur = appState.get('currentBook');
-        const all = appState.get('allBooks');
-        if (cur) {
-          showReaderView();
-          return true;
-        } else if (all && all.length > 0) {
-          showReaderView();
-          openBookInReader(all[0]);
-          return true;
-        } else {
-          showToast('📚 Thư viện chưa có sách. Vui lòng tải sách lên để trải nghiệm!');
-          return false;
-        }
-      };
-
-      // 1. Page Navigation Shortcuts
-      if (key === 'arrowright' || key === 'pagedown' || key === 'j' || code === 'ArrowRight' || code === 'PageDown' || code === 'KeyJ') {
-        if (ensureReaderView()) {
-          e.preventDefault();
-          flipNextPage();
-        }
-        return;
-      }
-
-      if (key === 'arrowleft' || key === 'pageup' || key === 'k' || code === 'ArrowLeft' || code === 'PageUp' || code === 'KeyK') {
-        if (ensureReaderView()) {
-          e.preventDefault();
-          flipPrevPage();
-        }
-        return;
-      }
-
-      if (key === 'home' || code === 'Home') {
-        if (ensureReaderView()) {
-          e.preventDefault();
-          flipFirstPage();
-        }
-        return;
-      }
-
-      if (key === 'end' || code === 'End') {
-        if (ensureReaderView()) {
-          e.preventDefault();
-          flipLastPage();
-        }
-        return;
-      }
-
-      // 2. Zoom & Pan Hand Tool
-      if (key === '+' || key === '=' || code === 'Equal' || code === 'NumpadAdd') {
-        if (ensureReaderView()) {
-          e.preventDefault();
-          zoomIn();
-        }
-        return;
-      }
-
-      if (key === '-' || key === '_' || code === 'Minus' || code === 'NumpadSubtract') {
-        if (ensureReaderView()) {
-          e.preventDefault();
-          zoomOut();
-        }
-        return;
-      }
-
-      if (key === '0' || key === 'z' || code === 'Digit0' || code === 'Numpad0' || code === 'KeyZ') {
-        if (ensureReaderView()) {
-          e.preventDefault();
-          resetReaderZoom();
-        }
-        return;
-      }
-
-      if (key === 'h' || code === 'KeyH') {
-        if (ensureReaderView()) {
-          e.preventDefault();
-          const active = togglePanTool();
-          showToast(active ? '✋ Đã bật Bàn tay kéo trang [H]' : 'Đã tắt Bàn tay kéo trang');
-        }
-        return;
-      }
-
-      // 3. Teaching & Drawing Tools
-      if (key === 'l' || code === 'KeyL') {
-        if (ensureReaderView()) {
-          e.preventDefault();
-          const active = toggleLaser();
-          showToast(active ? '🔴 Đã bật con trỏ Laser [L]' : 'Đã tắt con trỏ Laser');
-        }
-        return;
-      }
-
-      if (key === 's' || code === 'KeyS') {
-        if (ensureReaderView()) {
-          e.preventDefault();
-          const active = toggleSpotlight();
-          showToast(active ? '💡 Đã bật Đèn rọi Spotlight [S]' : 'Đã tắt Đèn rọi Spotlight');
-        }
-        return;
-      }
-
-      if (key === 'p' || key === '1' || code === 'KeyP' || code === 'Digit1' || code === 'Numpad1') {
-        if (ensureReaderView()) {
-          e.preventDefault();
-          const state = getAnnotationState();
-          if (state.currentDrawingTool === 'pencil') {
-            setDrawingTool('none');
-            showToast('Đã tắt Bút vẽ');
-          } else {
-            setDrawingTool('pencil');
-            showToast('✏️ Đã chọn Bút vẽ chính [P]');
-          }
-        }
-        return;
-      }
-
-      if (key === 'm' || key === '2' || code === 'KeyM' || code === 'Digit2' || code === 'Numpad2') {
-        if (ensureReaderView()) {
-          e.preventDefault();
-          const state = getAnnotationState();
-          if (state.currentDrawingTool === 'highlighter') {
-            setDrawingTool('none');
-            showToast('Đã tắt Bút dạ quang');
-          } else {
-            setDrawingTool('highlighter');
-            showToast('🖍️ Đã chọn Bút dạ quang đánh dấu [M]');
-          }
-        }
-        return;
-      }
-
-      if (key === 'e' || key === '3' || code === 'KeyE' || code === 'Digit3' || code === 'Numpad3') {
-        if (ensureReaderView()) {
-          e.preventDefault();
-          const state = getAnnotationState();
-          if (state.currentDrawingTool === 'eraser') {
-            setDrawingTool('none');
-            showToast('Đã tắt Cục tẩy');
-          } else {
-            setDrawingTool('eraser');
-            showToast('🧹 Đã chọn Cục tẩy [E]');
-          }
-        }
-        return;
-      }
-
-      if (key === 'c' || key === 'delete' || code === 'KeyC' || code === 'Delete' || code === 'Backspace') {
-        if (ensureReaderView()) {
-          e.preventDefault();
-          clearAllAnnotations();
-          showToast('🗑️ Đã xóa sạch nét vẽ trên trang [C]');
-        }
-        return;
-      }
-
-      // 4. Audio & Media Controls
-      if (key === ' ' || code === 'Space') {
-        e.preventDefault();
-        const curBook = appState.get('currentBook');
-        if (curBook && curBook.audioTracks && curBook.audioTracks.length > 0) {
-          togglePlayAudio();
-        } else if (ensureReaderView()) {
-          flipNextPage();
-        }
-        return;
-      }
-
-      if (key === 'a' || code === 'KeyA') {
-        e.preventDefault();
-        toggleMediaDockVisibility();
-        return;
-      }
-
-      if (key === '[' || code === 'BracketLeft') {
-        e.preventDefault();
-        playPrevTrack();
-        return;
-      }
-
-      if (key === ']' || code === 'BracketRight') {
-        e.preventDefault();
-        playNextTrack();
-        return;
-      }
-
-      // 5. Thumbnails Grid & Modals
-      if (key === 'g' || key === 't' || code === 'KeyG' || code === 'KeyT') {
-        if (ensureReaderView()) {
-          e.preventDefault();
-          const modal = document.getElementById('modal-thumbnails');
-          if (modal && !modal.classList.contains('hidden')) {
-            closeThumbnailsModal();
-          } else {
-            openThumbnailsModal();
-          }
-        }
-        return;
-      }
-
-      if (key === '?' || key === '/' || code === 'Slash' || key === 'f1' || code === 'F1') {
-        e.preventDefault();
-        const modal = document.getElementById('modal-shortcuts');
-        if (modal && !modal.classList.contains('hidden')) {
-          closeShortcutsModal();
-        } else {
-          openShortcutsModal();
-        }
-        return;
-      }
-
-      if (key === 'f' || code === 'KeyF') {
-        if (ensureReaderView()) {
-          e.preventDefault();
-          toggleFullscreenTeachingMode();
-        }
-        return;
-      }
-
-      if (key === 'r' || code === 'KeyR') {
-        e.preventDefault();
-        triggerRewardConfetti();
-        return;
-      }
-
-      // 6. Escape Key Handler
-      if (key === 'escape' || code === 'Escape') {
-        e.preventDefault();
-        closeShortcutsModal();
-        closeThumbnailsModal();
-        document.getElementById('modal-upload')?.classList.add('hidden');
-        document.getElementById('modal-batch-media')?.classList.add('hidden');
-        document.getElementById('modal-drive')?.classList.add('hidden');
-        document.getElementById('modal-video')?.classList.add('hidden');
-        document.getElementById('modal-delete-confirm')?.classList.add('hidden');
-        document.getElementById('modal-pwa-install')?.classList.add('hidden');
-        document.getElementById('zoom-menu-dropdown')?.classList.add('hidden');
-        document.getElementById('more-tools-dropdown')?.classList.add('hidden');
-
-        const state = getAnnotationState();
-        if (state.currentDrawingTool !== 'none') {
-          setDrawingTool('none');
-          showToast('Đã tắt công cụ vẽ');
-        }
-        if (state.isLaserActive) {
-          toggleLaser();
-        }
-        if (state.isSpotlightActive) {
-          toggleSpotlight();
-        }
-        if (appState.get('isTeachingMode')) {
-          toggleFullscreenTeachingMode();
-        }
-        return;
-      }
-    };
-
+    const handleKeyDown = createGlobalKeyDownHandler();
     window.addEventListener('keydown', handleKeyDown);
 
-    // 7. Initialize Lucide Icons
     refreshLucideIcons();
-    
-    // 8. Prevent BFCache Memory Bloat
-    // Browsers cache the heap (gigabytes) when navigating away. We must clean up on pagehide.
+
     const handlePageHide = () => {
       cleanupFlipbookReader();
       const curBook = appState.get('currentBook');
@@ -684,119 +49,52 @@ export default function App() {
   }, []);
 
   return (
-    <div className="flex h-full w-full overflow-hidden bg-[#F7F9FC]">
-      {/* Laser Pointer Dot */}
-      <div id="laser-pointer-dot"></div>
+    <ErrorBoundary>
+      <div className="flex h-full w-full overflow-hidden bg-[#F8FAFC]">
+        <div id="laser-pointer-dot"></div>
+        <div id="spotlight-overlay"></div>
 
-      {/* Spotlight Overlay */}
-      <div id="spotlight-overlay"></div>
-
-      {/* Main Sidebar */}
-      <div
-        id="main-sidebar-container"
-        dangerouslySetInnerHTML={{ __html: renderSidebarHtml() }}
-      />
-
-      {/* Main Viewport Container */}
-      <div className="flex-1 flex flex-col min-w-0 h-full overflow-hidden relative">
-        {/* Main Header */}
         <div
-          id="main-header-container"
-          dangerouslySetInnerHTML={{ __html: renderHeaderHtml() }}
+          id="main-sidebar-container"
+          dangerouslySetInnerHTML={{ __html: renderSidebarHtml() }}
         />
 
-        {/* Dynamic Views Viewport */}
-        <div className="flex-1 overflow-hidden relative w-full h-full">
-          {/* Library View */}
+        <div className="flex-1 flex flex-col min-w-0 h-full overflow-hidden relative">
           <div
-            id="view-library-container"
-            className="h-full w-full overflow-y-auto p-4 sm:p-6 pb-24"
-            dangerouslySetInnerHTML={{ __html: renderLibraryViewHtml() }}
+            id="main-header-container"
+            dangerouslySetInnerHTML={{ __html: renderHeaderHtml() }}
           />
 
-          {/* 3D Flipbook Reader View */}
+          <div className="flex-1 overflow-hidden relative w-full h-full">
+            <div
+              id="view-library-container"
+              className="h-full w-full overflow-y-auto p-4 sm:p-6 pb-24"
+              dangerouslySetInnerHTML={{ __html: renderLibraryViewHtml() }}
+            />
+
+            <div
+              id="view-reader-container"
+              className="hidden h-full w-full p-2 sm:p-3 pb-20 sm:pb-3 flex flex-col"
+              dangerouslySetInnerHTML={{ __html: renderFlipbookReaderHtml() }}
+            />
+          </div>
+
           <div
-            id="view-reader-container"
-            className="hidden h-full w-full p-2 sm:p-3 pb-20 sm:pb-3 flex flex-col"
-            dangerouslySetInnerHTML={{ __html: renderFlipbookReaderHtml() }}
+            id="media-dock-container"
+            dangerouslySetInnerHTML={{ __html: renderMediaDockHtml() }}
+          />
+
+          <div
+            id="mobile-bottom-nav-container"
+            dangerouslySetInnerHTML={{ __html: renderMobileBottomNavHtml() }}
           />
         </div>
 
-        {/* Bottom Floating Media Dock */}
         <div
-          id="media-dock-container"
-          dangerouslySetInnerHTML={{ __html: renderMediaDockHtml() }}
+          id="modals-root"
+          dangerouslySetInnerHTML={{ __html: renderAppModalsAndOverlaysHtml() }}
         />
-
-        {/* Mobile Bottom Navigation */}
-        <div
-          id="mobile-bottom-nav-container"
-          dangerouslySetInnerHTML={{ __html: renderMobileBottomNavHtml() }}
-        />
-
-        {/* Persistent Bottom-Right Version Indicator */}
-        <div
-          id="app-version-badge"
-          className="fixed bottom-2 right-3 z-30 pointer-events-none hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-white/90 backdrop-blur-md border border-slate-200/90 text-[11px] font-bold text-slate-500 shadow-xs"
-        >
-          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
-          <span>v{APP_VERSION}</span>
-        </div>
       </div>
-
-      {/* Modals Container */}
-      <div
-        id="modals-root"
-        dangerouslySetInnerHTML={{
-          __html: `
-            ${renderUploadModalHtml()}
-            ${renderBatchMediaModalHtml()}
-            ${renderGoogleDriveModalHtml()}
-            ${renderThumbnailsModalHtml()}
-            ${renderShortcutsModalHtml()}
-            ${renderVideoModalHtml()}
-            ${renderDeleteConfirmModalHtml()}
-            ${renderPwaInstallModalHtml()}
-
-            <!-- Global Toast Notification -->
-            <div 
-              id="toast" 
-              class="fixed top-5 left-1/2 -translate-x-1/2 z-50 bg-slate-900/90 text-white font-extrabold px-5 py-3 rounded-2xl shadow-2xl transition-all duration-300 pointer-events-none flex items-center gap-2 border-2 border-slate-700 max-w-sm text-xs sm:text-sm text-center opacity-0 -translate-y-24 backdrop-blur-md"
-            >
-              <span id="toast-message">Thông báo</span>
-            </div>
-
-            <!-- Global Loading Progress Overlay with Cancel Button -->
-            <div 
-              id="flipbook-loader" 
-              class="hidden fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-md flex flex-col items-center justify-center p-6 text-white text-center space-y-4"
-            >
-              <div class="relative w-20 h-20">
-                <div class="absolute inset-0 rounded-full border-4 border-emerald-500/20"></div>
-                <div class="absolute inset-0 rounded-full border-4 border-emerald-500 border-t-transparent animate-spin"></div>
-                <div class="absolute inset-0 flex items-center justify-center font-black text-xs text-emerald-400" id="loader-percent">
-                  0%
-                </div>
-              </div>
-              <div class="space-y-1">
-                <p id="loader-status" class="font-black text-lg text-white">Đang nạp dữ liệu...</p>
-                <p id="loader-substatus" class="text-xs font-bold text-slate-400">Vui lòng chờ trong giây lát</p>
-              </div>
-              <div class="w-64 max-w-full bg-slate-800 rounded-full h-2.5 overflow-hidden border border-slate-700">
-                <div id="loader-progress-bar" class="bg-gradient-to-r from-emerald-500 to-emerald-400 h-full w-0 transition-all duration-200"></div>
-              </div>
-              <button 
-                type="button"
-                id="btn-cancel-loading-op"
-                onclick="window.cancelLoaderOp && window.cancelLoaderOp()"
-                class="btn-3d btn-white text-xs font-black px-4 py-1.5 rounded-xl text-slate-700 mt-2"
-              >
-                Hủy Thao Tác
-              </button>
-            </div>
-          `
-        }}
-      />
-    </div>
+    </ErrorBoundary>
   );
 }

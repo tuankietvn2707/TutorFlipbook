@@ -28,12 +28,12 @@ export function renderMobileBottomNavHtml(): string {
       <span class="leading-none">Audio</span>
     </button>
     
-    <button id="mob-nav-gdrive" class="flex-1 flex flex-col items-center justify-center py-1 rounded-xl text-slate-500 font-extrabold text-[10px] gap-1 active:scale-95 transition-all relative" title="Đồng bộ Google Drive">
+    <button id="mob-nav-gdrive" class="flex-1 flex flex-col items-center justify-center py-1 rounded-xl text-slate-500 font-extrabold text-[10px] gap-1 active:scale-95 transition-all relative" title="Đồng bộ Firebase Cloud">
       <div class="relative mob-icon-box w-7 h-7 rounded-lg bg-amber-50 text-amber-600 border border-amber-200 flex items-center justify-center">
         <i data-lucide="cloud" class="w-4 h-4"></i>
-        <span id="mob-gdrive-dot" class="w-2.5 h-2.5 rounded-full bg-emerald-500 absolute -top-1 -right-1 ring-2 ring-white"></span>
+        <span id="mob-cloud-dot" class="w-2.5 h-2.5 rounded-full bg-amber-400 absolute -top-1 -right-1 ring-2 ring-white"></span>
       </div>
-      <span class="leading-none" id="mob-nav-gdrive-text">Đồng Bộ</span>
+      <span class="leading-none" id="mob-nav-gdrive-text">Cloud</span>
     </button>
   </nav>
   `;

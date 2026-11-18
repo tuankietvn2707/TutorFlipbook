@@ -25,17 +25,7 @@ export interface Book {
 
 export type CategoryFilter = 'all' | 'textbook' | 'exercise' | 'reference';
 
-export type AnnotationDrawingTool = 'none' | 'pencil' | 'highlighter' | 'pen-red' | 'pen-blue' | 'eraser';
-
-export interface GoogleDriveManifestEntry {
-  id: string;
-  title: string;
-  category: string;
-  color: string;
-  totalPages: number;
-  audioCount: number;
-  lastSynced: string;
-}
+export type AnnotationDrawingTool = 'none' | 'pencil' | 'highlighter' | 'line' | 'rect' | 'pen-red' | 'pen-blue' | 'eraser';
 
 declare global {
   interface Window {
@@ -47,7 +37,5 @@ declare global {
     lucide?: {
       createIcons: () => void;
     };
-    google?: any;
-    initGoogleDriveAuthClient?: () => void;
   }
 }

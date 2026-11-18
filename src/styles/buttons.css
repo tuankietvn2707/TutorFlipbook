@@ -1,0 +1,97 @@
+/* Tactile Studio Button & Card Styles */
+.btn-3d {
+  transition: transform 0.14s cubic-bezier(0.16, 1, 0.3, 1), background-color 0.14s ease, border-color 0.14s ease, box-shadow 0.14s ease;
+  position: relative;
+  border-bottom-width: 2px;
+  cursor: pointer;
+}
+.btn-3d:active {
+  transform: translateY(1px);
+}
+
+.btn-green {
+  background-color: #059669;
+  border-color: #047857;
+  color: #FFFFFF;
+}
+.btn-green:hover {
+  background-color: #047857;
+}
+
+.btn-blue {
+  background-color: #0284C7;
+  border-color: #0369A1;
+  color: #FFFFFF;
+}
+.btn-amber {
+  background-color: #D97706;
+  border-color: #B45309;
+  color: #FFFFFF;
+}
+.btn-red {
+  background-color: #DC2626;
+  border-color: #B91C1C;
+  color: #FFFFFF;
+}
+.btn-purple {
+  background-color: #4F46E5;
+  border-color: #4338CA;
+  color: #FFFFFF;
+}
+.btn-purple:hover {
+  background-color: #4338CA;
+}
+
+.btn-white {
+  background-color: #FFFFFF;
+  border: 1px solid rgba(15, 23, 42, 0.12);
+  color: #334155;
+}
+.btn-white:hover {
+  background-color: #F8FAFC;
+  border-color: rgba(15, 23, 42, 0.22);
+}
+
+.btn-nav-inactive {
+  background-color: transparent;
+  border: 1px solid transparent;
+  color: #475569;
+}
+.btn-nav-inactive:hover {
+  background-color: #F1F5F9;
+  color: #0F172A;
+}
+
+.btn-nav-library-active {
+  background-color: #EFF6FF;
+  border: 1px solid rgba(2, 132, 199, 0.22);
+  color: #0369A1;
+}
+
+.btn-nav-reader-active {
+  background-color: #ECFDF5;
+  border: 1px solid rgba(5, 150, 105, 0.22);
+  color: #047857;
+}
+
+.btn-nav-active {
+  background-color: #EFF6FF;
+  border: 1px solid rgba(2, 132, 199, 0.25);
+  color: #0369A1;
+}
+
+/* Clean Book Shelf Card */
+.card-3d {
+  background: #FFFFFF;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  border-radius: 1rem;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04);
+  transition: transform 0.16s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.16s ease, box-shadow 0.16s ease;
+  content-visibility: auto;
+  contain-intrinsic-size: 280px 420px;
+}
+.card-3d:hover {
+  transform: translateY(-2px);
+  border-color: rgba(2, 132, 199, 0.3);
+  box-shadow: 0 12px 24px -8px rgba(15, 23, 42, 0.1);
+}
