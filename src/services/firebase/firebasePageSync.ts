@@ -7,30 +7,35 @@ import {
   where,
   writeBatch
 } from 'firebase/firestore';
-import { db } from './firebaseClient';
+import { db, withTimeout } from './firebaseClient';
 import { OperationType, handleFirestoreError } from './firebaseErrors';
-import { splitStringIntoChunks } from './firebaseMediaHelpers';
+import { compressPageImageForCloud, splitStringIntoChunks } from './firebaseMediaHelpers';
 
-const BATCH_DOC_LIMIT = 8;
+const BATCH_DOC_LIMIT = 4;
 
 export async function uploadBookPagesToCloud(
   libraryId: string,
   uid: string,
   bookId: string,
   pages: string[],
-  onProgress?: (done: number, total: number) => void
+  onProgress?: (done: number, total: number) => void,
+  isNewBook: boolean = false
 ): Promise<void> {
   const pagesPath = `libraries/${libraryId}/books/${bookId}/pages`;
   const colRef = collection(db, 'libraries', libraryId, 'books', bookId, 'pages');
 
   let existingIds = new Set<string>();
-  try {
-    const snap = await getDocs(
-      query(colRef, where('ownerEmail', '==', libraryId), where('bookId', '==', bookId))
-    );
-    existingIds = new Set(snap.docs.map((d) => d.id));
-  } catch (err) {
-    handleFirestoreError(err, OperationType.LIST, pagesPath);
+  if (!isNewBook) {
+    try {
+      const snap = await withTimeout(
+        getDocs(query(colRef, where('ownerEmail', '==', libraryId), where('bookId', '==', bookId))),
+        25000,
+        'Kiểm tra danh sách trang sách quá thời gian chờ.'
+      );
+      existingIds = new Set(snap.docs.map((d) => d.id));
+    } catch (err) {
+      handleFirestoreError(err, OperationType.LIST, pagesPath);
+    }
   }
 
   const desiredDocs: Array<{
@@ -41,8 +46,9 @@ export async function uploadBookPagesToCloud(
     chunk: string;
   }> = [];
 
-  pages.forEach((pageDataUrl, pageIndex) => {
-    const parts = splitStringIntoChunks(pageDataUrl);
+  for (let pageIndex = 0; pageIndex < pages.length; pageIndex++) {
+    const preparedPage = await compressPageImageForCloud(pages[pageIndex]);
+    const parts = splitStringIntoChunks(preparedPage);
     parts.forEach((chunk, partIndex) => {
       desiredDocs.push({
         id: `page_${pageIndex}_p${partIndex}`,
@@ -52,7 +58,7 @@ export async function uploadBookPagesToCloud(
         chunk
       });
     });
-  });
+  }
 
   const desiredIdSet = new Set(desiredDocs.map((d) => d.id));
   const staleIds = Array.from(existingIds).filter((id) => !desiredIdSet.has(id));
@@ -61,11 +67,13 @@ export async function uploadBookPagesToCloud(
     const batch = writeBatch(db);
     staleIds.slice(i, i + 50).forEach((id) => batch.delete(doc(colRef, id)));
     try {
-      await batch.commit();
+      await withTimeout(batch.commit(), 25000);
     } catch (err) {
       handleFirestoreError(err, OperationType.DELETE, pagesPath);
     }
   }
+
+  onProgress?.(0, desiredDocs.length);
 
   for (let i = 0; i < desiredDocs.length; i += BATCH_DOC_LIMIT) {
     const slice = desiredDocs.slice(i, i + BATCH_DOC_LIMIT);
@@ -96,7 +104,7 @@ export async function uploadBookPagesToCloud(
       }
     });
     try {
-      await batch.commit();
+      await withTimeout(batch.commit(), 30000, 'Tải dữ liệu trang sách lên Cloud quá thời gian chờ.');
     } catch (err) {
       handleFirestoreError(err, OperationType.WRITE, pagesPath);
     }
@@ -114,8 +122,9 @@ export async function downloadBookPagesFromCloud(
   const ownerField = collectionRoot === 'libraries' ? 'ownerEmail' : 'ownerId';
 
   try {
-    const snap = await getDocs(
-      query(colRef, where(ownerField, '==', libraryId), where('bookId', '==', bookId))
+    const snap = await withTimeout(
+      getDocs(query(colRef, where(ownerField, '==', libraryId), where('bookId', '==', bookId))),
+      30000
     );
     const byPage = new Map<number, Array<{ partIndex: number; chunk: string }>>();
 
@@ -150,14 +159,15 @@ export async function deleteAllBookPagesFromCloud(
   const colRef = collection(db, 'libraries', libraryId, 'books', bookId, 'pages');
 
   try {
-    const snap = await getDocs(
-      query(colRef, where('ownerEmail', '==', libraryId), where('bookId', '==', bookId))
+    const snap = await withTimeout(
+      getDocs(query(colRef, where('ownerEmail', '==', libraryId), where('bookId', '==', bookId))),
+      25000
     );
     const docs = snap.docs;
     for (let i = 0; i < docs.length; i += 100) {
       const batch = writeBatch(db);
       docs.slice(i, i + 100).forEach((d) => batch.delete(d.ref));
-      await batch.commit();
+      await withTimeout(batch.commit(), 25000);
     }
   } catch (err) {
     handleFirestoreError(err, OperationType.DELETE, pagesPath);

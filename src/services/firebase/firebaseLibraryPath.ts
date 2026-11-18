@@ -9,7 +9,7 @@ import {
   updateDoc,
   where
 } from 'firebase/firestore';
-import { auth, db } from './firebaseClient';
+import { auth, db, withTimeout } from './firebaseClient';
 import { OperationType, handleFirestoreError } from './firebaseErrors';
 
 export function getVerifiedEmailLibraryId(): string | null {
@@ -29,20 +29,26 @@ export async function ensureEmailLibraryDoc(
   const libPath = `libraries/${libraryId}`;
   const libRef = doc(db, 'libraries', libraryId);
   try {
-    const snap = await getDoc(libRef);
+    const snap = await withTimeout(getDoc(libRef), 20000);
     if (snap.exists()) {
-      await updateDoc(libRef, {
-        lastUpdatedByUid: uid,
-        updatedAt: serverTimestamp()
-      });
+      await withTimeout(
+        updateDoc(libRef, {
+          lastUpdatedByUid: uid,
+          updatedAt: serverTimestamp()
+        }),
+        20000
+      );
     } else {
-      await setDoc(libRef, {
-        libraryId,
-        ownerEmail: libraryId,
-        lastUpdatedByUid: uid,
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp()
-      });
+      await withTimeout(
+        setDoc(libRef, {
+          libraryId,
+          ownerEmail: libraryId,
+          lastUpdatedByUid: uid,
+          createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp()
+        }),
+        20000
+      );
     }
   } catch (err) {
     handleFirestoreError(err, OperationType.WRITE, libPath);

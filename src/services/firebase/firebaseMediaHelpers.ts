@@ -1,8 +1,9 @@
 import { AudioTrack } from '../../types';
 import { createWavBlob, isWavFormat } from '../audioService';
 
-export const MAX_CHUNK_CHARS = 600000;
-export const MAX_COVER_CHARS = 580000;
+export const MAX_CHUNK_CHARS = 400000;
+export const MAX_COVER_CHARS = 420000;
+export const MAX_PAGE_DIRECT_CHARS = 380000;
 
 export function sanitizeFirestoreId(rawId: string): string {
   const cleaned = (rawId || '').replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 120);
@@ -18,33 +19,54 @@ export function splitStringIntoChunks(text: string, maxLen: number = MAX_CHUNK_C
   return chunks;
 }
 
-export async function compressCoverImageForCloud(coverUrl: string): Promise<string> {
-  if (!coverUrl) return '';
-  if (coverUrl.length <= MAX_COVER_CHARS) return coverUrl;
+function resizeDataUrlImage(
+  imageUrl: string,
+  maxWidth: number,
+  quality: number,
+  fallbackValue: string
+): Promise<string> {
   return new Promise((resolve) => {
+    let settled = false;
+    const finish = (val: string) => {
+      if (settled) return;
+      settled = true;
+      window.clearTimeout(timer);
+      resolve(val);
+    };
+    const timer = window.setTimeout(() => finish(fallbackValue), 3000);
+
     const img = new Image();
     img.onload = () => {
       try {
-        const maxW = 480;
-        const scale = img.width > maxW ? maxW / img.width : 1;
+        const scale = img.width > maxWidth ? maxWidth / img.width : 1;
         const canvas = document.createElement('canvas');
         canvas.width = Math.max(1, Math.round(img.width * scale));
         canvas.height = Math.max(1, Math.round(img.height * scale));
         const ctx = canvas.getContext('2d');
-        if (!ctx) {
-          resolve('');
-          return;
-        }
+        if (!ctx) return finish(fallbackValue);
         ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-        const compressed = canvas.toDataURL('image/jpeg', 0.72);
-        resolve(compressed.length <= MAX_COVER_CHARS ? compressed : '');
+        finish(canvas.toDataURL('image/jpeg', quality));
       } catch {
-        resolve('');
+        finish(fallbackValue);
       }
     };
-    img.onerror = () => resolve('');
-    img.src = coverUrl;
+    img.onerror = () => finish(fallbackValue);
+    img.src = imageUrl;
   });
+}
+
+export async function compressCoverImageForCloud(coverUrl: string): Promise<string> {
+  if (!coverUrl) return '';
+  if (coverUrl.length <= MAX_COVER_CHARS) return coverUrl;
+  const compressed = await resizeDataUrlImage(coverUrl, 480, 0.72, '');
+  return compressed.length <= MAX_COVER_CHARS ? compressed : '';
+}
+
+export async function compressPageImageForCloud(pageUrl: string): Promise<string> {
+  if (!pageUrl || pageUrl.length <= MAX_PAGE_DIRECT_CHARS) return pageUrl;
+  if (!pageUrl.startsWith('data:image/')) return pageUrl;
+  const compressed = await resizeDataUrlImage(pageUrl, 1360, 0.78, pageUrl);
+  return compressed.length < pageUrl.length ? compressed : pageUrl;
 }
 
 function blobToDataUrl(blob: Blob): Promise<string> {
@@ -71,7 +93,6 @@ export async function serializeAudioTrackPayload(track: AudioTrack): Promise<{
       size: track.size || track.blob.size
     };
   }
-
   if (track.url && track.url.startsWith('data:')) {
     const mimeMatch = track.url.match(/^data:([^;]+);/i);
     return {
@@ -81,7 +102,6 @@ export async function serializeAudioTrackPayload(track: AudioTrack): Promise<{
       size: track.size || Math.round(track.url.length * 0.75)
     };
   }
-
   if (track.url && track.url.startsWith('blob:')) {
     try {
       const resp = await fetch(track.url);
@@ -97,7 +117,6 @@ export async function serializeAudioTrackPayload(track: AudioTrack): Promise<{
       return { dataString: '', externalUrl: '', mimeType: 'audio/mpeg', size: track.size || 0 };
     }
   }
-
   if (track.url && /^https?:\/\//i.test(track.url)) {
     return {
       dataString: '',
@@ -106,7 +125,6 @@ export async function serializeAudioTrackPayload(track: AudioTrack): Promise<{
       size: track.size || 0
     };
   }
-
   return { dataString: '', externalUrl: '', mimeType: 'audio/mpeg', size: track.size || 0 };
 }
 
@@ -132,7 +150,6 @@ export function reconstructAudioTrack(
       blob = undefined;
     }
   }
-
   return {
     id: meta.id,
     name: meta.name,

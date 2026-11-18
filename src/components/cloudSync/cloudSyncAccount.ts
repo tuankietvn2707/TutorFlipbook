@@ -59,7 +59,17 @@ export function refreshCloudSyncUI(
       verifyBanner?.classList.add('hidden');
       syncDetailsCard?.classList.remove('hidden');
       linkPasswordCard?.classList.toggle('hidden', hasPasswordProviderLinked(user));
-      if (pushAllBtn) pushAllBtn.disabled = syncStatus.isSyncing;
+      if (pushAllBtn) {
+        pushAllBtn.disabled = syncStatus.isSyncing;
+        pushAllBtn.classList.toggle('opacity-60', syncStatus.isSyncing);
+        pushAllBtn.classList.toggle('cursor-not-allowed', syncStatus.isSyncing);
+        const spanEl = pushAllBtn.querySelector('span');
+        if (spanEl) {
+          spanEl.innerText = syncStatus.isSyncing
+            ? 'Đang đồng bộ dữ liệu lên Cloud...'
+            : 'Đồng bộ toàn bộ sách hiện có lên Firebase Cloud';
+        }
+      }
       if (headerBtnLabel) {
         headerBtnLabel.innerText = (user.displayName || user.email?.split('@')[0] || 'Cloud').split(' ')[0];
       }

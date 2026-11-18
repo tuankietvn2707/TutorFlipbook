@@ -21,9 +21,9 @@ export {
 export {
   deleteBookFromCloud,
   hydrateBookFromCloud,
-  syncAllLocalBooksToCloud,
   syncBookToCloud
 } from './firebase/firebaseSyncService';
+export { syncAllLocalBooksToCloud } from './firebase/firebaseBatchSync';
 export {
   getCloudSyncStatus,
   subscribeCloudSyncStatus,

@@ -5,11 +5,12 @@ import {
   signOut
 } from 'firebase/auth';
 import { doc, getDoc, serverTimestamp, setDoc, updateDoc } from 'firebase/firestore';
-import { auth, db, googleProvider } from './firebaseClient';
+import { auth, db, googleProvider, withTimeout } from './firebaseClient';
 import { OperationType, handleFirestoreError } from './firebaseErrors';
 import { ensureEmailLibraryDoc, getVerifiedEmailLibraryId } from './firebaseLibraryPath';
+import { showToast } from '../../utils/toast';
+import { migrateLegacyBooksAndSyncLocal } from './firebaseBatchSync';
 import {
-  migrateLegacyBooksAndSyncLocal,
   stopCloudBooksSubscription,
   subscribeToCloudBooks
 } from './firebaseSyncService';
@@ -38,7 +39,7 @@ async function upsertUserProfile(user: User): Promise<void> {
   const userPath = `users/${user.uid}`;
   const ref = doc(db, 'users', user.uid);
   try {
-    const snap = await getDoc(ref);
+    const snap = await withTimeout(getDoc(ref), 20000);
     const fields = {
       email: (user.email || '').slice(0, 320),
       displayName: (user.displayName || '').slice(0, 160),
@@ -46,13 +47,16 @@ async function upsertUserProfile(user: User): Promise<void> {
       updatedAt: serverTimestamp()
     };
     if (snap.exists()) {
-      await updateDoc(ref, fields);
+      await withTimeout(updateDoc(ref, fields), 20000);
     } else {
-      await setDoc(ref, {
-        uid: user.uid,
-        ...fields,
-        createdAt: serverTimestamp()
-      });
+      await withTimeout(
+        setDoc(ref, {
+          uid: user.uid,
+          ...fields,
+          createdAt: serverTimestamp()
+        }),
+        20000
+      );
     }
   } catch (err) {
     handleFirestoreError(err, OperationType.WRITE, userPath);
@@ -97,7 +101,11 @@ export function initFirebaseAuthListener(): () => void {
     authHooks.forEach((fn) => fn(user));
 
     if (user && user.emailVerified && user.email) {
-      await activateVerifiedUserSync();
+      try {
+        await activateVerifiedUserSync();
+      } catch (err: any) {
+        showToast(`⚠️ Không thể khởi tạo đồng bộ Cloud: ${err?.message || 'Lỗi kết nối'}`);
+      }
     } else {
       activeLibraryId = null;
       stopCloudBooksSubscription();
